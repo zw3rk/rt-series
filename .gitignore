@@ -1,0 +1,12 @@
+_build/
+_sysroot/
+result
+result-*
+/result
+.direnv/
+.muse/
+.stagea/
+__pycache__/
+*.py[cod]
+*.tmp
+.DS_Store
