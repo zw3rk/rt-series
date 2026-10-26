@@ -1,0 +1,11 @@
+**RC-U3-r3 verdict — mips32rt `b806a06`: ACTION_REQUIRED.**
+
+1. **#1 — RESOLVED.** LH/LHU/LW/SH/SW now gate alignment rejection on `fixade_enabled == 0`, allowing FIXADE-aware helpers to emulate unaligned accesses. See [interp.c:465](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/interp/interp.c:465), [interp.c:491](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/interp/interp.c:491), and [interp.c:507](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/interp/interp.c:507).
+
+2. **#2 — RESOLVED.** All four merge-memory instructions propagate `ind_slot` into `emit_sync_pc`, restoring dynamic `next_pc` before access. See [emit_int.c:661](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/dbt/emit_int.c:661) and [emit_mem.c:290](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/dbt/emit_mem.c:290).
+
+3. **#3 — STILL OPEN, P1.** DBT epoch increments use non-atomic load/add/store ([emit_mem.c:84](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/dbt/emit_mem.c:84)). Reservations retain only eight generation bits, permitting stale success after wraparound ([mem.c:285](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/os/mem.c:285)). Both engines can report SC failure **after committing the write**, without undoing it, when the subsequent epoch check fails ([mem.c:579](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/os/mem.c:579), [emit_mem.c:443](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/dbt/emit_mem.c:443)).
+
+4. **#4 — STILL OPEN, P2.** Canonical backing is repaired, but `mips32_file_sc_truncate()` has no callers; syscall dispatch remains explicitly unwired ([vm_file.c:258](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/vm/vm_file.c:258)). The TLB miss helper also remains uncalled ([vm32.c:143](/Users/angerman/Projects/zw3rk/mips32rt-rcu3r2-mips32/src/vm/vm32.c:143)).
+
+Verified using `git show b806a06`, commit-scoped `git grep`, and numbered source inspection. No tests or Docker commands ran; no files changed.
