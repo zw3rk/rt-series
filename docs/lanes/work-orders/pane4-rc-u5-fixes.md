@@ -1,0 +1,22 @@
+# Work Order — Pane 4 (`0:9.4`): `rvrt` Pre-Merge Stage-Gate (`RC-U5-lanes`) Remediation & Wave `U5-D` Integration
+
+Read `/Users/angerman/Projects/zw3rk/rt-series/lode/reviews/2026-10-26-rc-rvrt-lanes-fable-high.md` in full before merging `lane/u5-rvrt-vm-os` (`ef9a02e`), `lane/u5-rvrt-dbt-aot` (`24fc2d1`), and `lane/u5-rvrt-rv32gc` (`99a3262`) into `/Users/angerman/Projects/zw3rk/rvrt` (`master`).
+
+Resolve every P1, P2, and P3 finding in `lode/reviews/2026-10-26-rc-rvrt-lanes-fable-high.md`:
+
+1. **`U5-B` (`../rvrt-u5b-dbt` / `src/dbt/`)**:
+   - **P1 — Base register `x1` in `src/dbt/emit_mem.h:137-145,148` & `test/u5b_dbt_mem.c:176`**: Fix the 8 load/store instruction encodings that accidentally encoded base register `Rn = x0` (`bits[9:5] = 0`) instead of `Rn = x1` (`bits[9:5] = 1`, i.e., `| (1U << 5)` -> `0x38636820` for `ldrb w0,[x1,x3]`, and likewise for `LDRH`, `LDRW`, `LDRSB`, `LDRSH`, `LDRSW`, `STRB`, `STRH`).
+   - **P1 — Bounds check in `src/dbt/aot_v4.c:427-437`**: Validate `at <= encoded_size` (and `modules <= 64`) before computing `encoded_size - at` so truncated/malformed caches return `FAULT` instead of underflowing.
+   - **P2 — `src/dbt/cache.c:212-234` & `src/dbt/aot_v4.c:535-552` & `src/dbt/difftest.c:47-83`**: Fix `rv_dbt_invalidate(start, end)` to check `[block_start, block_end)` overlap with `[start, end)` and reclaim slots on full clear; check runtime/emitter/profile digests and generation in `warm_check`; compare FP registers (`f[0..31]`, `fcsr`) in `src/dbt/difftest.c`.
+2. **`U5-C` (`../rvrt-u5c-rv32` / RV32GC)**:
+   - **P1 — RV32 `struct sigaction` layout (`src/linux/signal.c:432-440,462-472` & `test/fixtures/u5c-sig.S:24-31`)**: Linux `riscv32` kernel `sigaction` has NO `sa_restorer` (`sa_handler` `u32` at `+0`, `sa_flags` `u32` at `+4`, `sa_mask` `u64` at `+8`, total size `16` bytes — see `/Users/angerman/Projects/zw3rk/rt-series/tests/check_abi_invariants.c:74-80`). Update `signal.c` and `test/fixtures/u5c-sig.S` to the 16-byte layout with a non-zero `sa_mask` test!
+   - **P2 — RV32 `rt_sigframe` offsets (`src/linux/rv32_frame.h:21-22`)**: Match the Linux `riscv32` UAPI `ucontext` offsets (`uc_flags` at 128, `uc_link` at 132, `uc_stack` at 136, `uc_sigmask` at 148, `uc_mcontext` at 288, total frame 944 bytes — see `rt-series/tests/check_abi_invariants.c:118-135`).
+   - **P2 — RV32 `FLW`/`FLD`/`FSW`/`FSD` effective address wrapping (`src/core/interp.c:167,195`)**: Wrap effective addresses through `rv_ea()` just like integer loads/stores at lines 157 and 186.
+   - **P2 — RV32 `mmap2` page-unit offset (`src/runtime/mm_runtime_binding.c:15-21`) & RV32 `_llseek` / `pread64` / `pwrite64` / `ftruncate64` / `time64` (`futex_time64` 422, `clock_nanosleep_time64` 407, `ppoll_time64` 414, `pselect6_time64` 413, `utimensat_time64` 412, `statx` 291)**: Scale `mmap2` offset by 4096 in RV32 mode and wire the RV32 64-bit register-pair (`a4:a5`) and `time64` syscalls.
+3. **`U5-A` (`../rvrt-u5a-vm` / `src/vm/` & `src/os/`)**:
+   - **P1 — File shrink / mapping association (`src/vm/vm_file.c:154-169`, `src/vm/vm64.c:184-203`)**: Track `(inode_slot, file_offset, length)` per mapped VMA in `vm64` so `record_shrink(inode, new_size)` zeroes the partial EOF tail `[new_size, page_end)` and marks pages beyond `round_up(new_size, 4096)` as beyond-EOF `SIGBUS` ONLY for VMAs mapping that inode at offsets `>= new_size` (never treating `new_size` as a guest VA!).
+   - **P2 — Revert `select` `nfds > 1024 -> EINVAL` (`src/linux/poll.c:446-449`)**: Restore clamping `nfds` to `max_fds` so guests passing `sysconf(_SC_OPEN_MAX)` succeed as on native Linux, and record `D1` and `D8` in `DEFECTS.md` as verified non-defects against native Linux 7.0.14.
+   - **P2 — `src/vm/vm_file.c:179-190`**: Bump `code_generation` on any in-place write (`pwrite`/`write`) overlapping a mapped executable file range, not only on file size growth.
+4. **Integration & Wave `U5-D` (`Makefile` & `src/runtime_main.c`)**:
+   - Place `RUNTIME_SOURCES +=` for `src/vm/*`, `src/os/*`, `src/dbt/*`, and `src/loader/elf32.c` / `src/core/rv32*.c` / `src/linux/rv32_frame.c` BEFORE the immediate `:=` expansions of `$(RUNTIME_SOURCES)` in `Makefile` (around line 550), and preserve the existing `test-aot-cache-rebase`, `test-aot-multiblock`, and `test-aot-dynamic` targets alongside `test-u5b-*`.
+   - Wire `src/vm/vm64.c`, `src/vm/vm_file.c`, and `src/dbt/` into `src/runtime_main.c` (`--difftest` and DBT execution path).
