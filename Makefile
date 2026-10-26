@@ -17,6 +17,7 @@ REQUIRED_DOCS := \
 	SPEC.md \
 	PLAN.md \
 	GOAL.md \
+	docs/FEATURE-MATRIX.md \
 	docs/HOST-CONTRACT.md \
 	docs/lanes/wave-1-closeout.md \
 	docs/lanes/wave-2-rv32gc.md \
@@ -35,6 +36,13 @@ SIBLING_REPOS := \
 	../a32rt \
 	../i686rt \
 	../rvrt \
+	../mips32rt \
+	../ppc32rt \
+	../sparc32rt \
+	../loongarch64rt \
+	../ppc64rt \
+	../mips64rt \
+	../sparc64rt \
 	../hyper-linux
 
 .PHONY: help all build test check check-headers check-abi-invariants check-docs check-siblings status clean
