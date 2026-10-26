@@ -19,6 +19,7 @@ REQUIRED_DOCS := \
 	GOAL.md \
 	docs/FEATURE-MATRIX.md \
 	docs/HOST-CONTRACT.md \
+	docs/UNIFICATION-PLAN.md \
 	docs/lanes/wave-1-closeout.md \
 	docs/lanes/wave-2-rv32gc.md \
 	docs/lanes/wave-3-rt32-family.md \
@@ -30,6 +31,8 @@ REQUIRED_DOCS := \
 	lode/reviews/2026-10-23-astra-review-1-dispositions.md \
 	lode/reviews/2026-10-23-astra-review-2.md \
 	lode/reviews/2026-10-23-astra-review-2-dispositions.md \
+	lode/reviews/2026-10-26-astra-unification-review.md \
+	lode/reviews/2026-10-26-astra-unification-review-dispositions.md \
 	tests/check_abi_invariants.c
 
 SIBLING_REPOS := \

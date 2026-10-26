@@ -28,6 +28,7 @@ Older Loongson chips speak MIPS64. Current Loongson chips speak LoongArch. Power
 
 ## Specifications, Feature Matrix, Muse Spark Plan, and Engineering Lode
 
+- [`docs/UNIFICATION-PLAN.md`](docs/UNIFICATION-PLAN.md) — Series-wide 5-module unification, 7-instruction Soft-TLB, `hyper-linux` inode/truncation VFS consolidation, and dual-backend (`backend_linux.c` vs standalone macOS `backend_darwin.c`) architecture and execution plan (Waves `U0`–`U6`), reviewed by `astra` ([`lode/reviews/2026-10-26-astra-unification-review.md`](lode/reviews/2026-10-26-astra-unification-review.md)).
 - [`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md) — Cross-runtime feature, execution-engine (`--interp` / `--dbt` / `--difftest` / AOT), SIMD/FP, syscall/signal/thread/process, and Phase 7 (`RC-H`) qualification matrix across all 10 translators.
 - [`lode/ISA-TRAP-AND-ABI-MATRIX.md`](lode/ISA-TRAP-AND-ABI-MATRIX.md) — 11-architecture ISA, register, condition-flag, delay-slot, TLS, atomic, Linux syscall, and `rt_sigframe` ABI reference matrix.
 - [`SPEC.md`](SPEC.md) — Master technical specification across all guest runtimes (`a32rt`, `i686rt`, `rvrt`, `mips32rt`, `ppc32rt`, `sparc32rt`, `loongarch64rt`, `ppc64rt`, `mips64rt`, `sparc64rt`) and `hyper-linux` integration.
