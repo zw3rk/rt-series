@@ -1,0 +1,13 @@
+**ppc32rt `c334499`: ACTION_REQUIRED**
+
+- **#1 — RESOLVED.** Spanning stores bump both reservation-line generations; SC checks the shared generation and context reservation validity/address. See [interp.h:175](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:175) and [interp.c:43](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.c:43).
+- **#2 — RESOLVED.** X-form loads and stores perform memory access before `ra` writeback. See [emit_int.h:630](/Users/angerman/Projects/zw3rk/ppc32rt/src/dbt/emit_int.h:630) and [interp.h:525](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:525).
+- **#4 — STILL OPEN.** Startup/population/truncate calls were added, but COW promotion remains uncalled and never changes page state to `PAGE_COW_DIRTY`. Truncation invalidates TLB entries without establishing `PAGE_EOF_TRAP`. See [vm_file.c:198](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm_file.c:198), [vm_file.c:290](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm_file.c:290), and [vm32_tlb.c:175](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm32_tlb.c:175).
+
+**sparc32rt `69a4ecd`: ACTION_REQUIRED**
+
+- **#2 — STILL OPEN, partially repaired.** Classification now selects SIGBUS for eight-byte-misaligned LDD/STD. However, delivery assigns `si_code = 2` for mapped addresses, producing `BUS_ADRERR` instead of the work order’s required `BUS_ADRALN`. See [main.c:262](/Users/angerman/Projects/zw3rk/sparc32rt-rcu3r2-sparc32/src/main.c:262) and [interp_signal.c:50](/Users/angerman/Projects/zw3rk/sparc32rt-rcu3r2-sparc32/src/interp/interp_signal.c:50).
+- **#3 — RESOLVED.** JMPL records its target in `ctx->jmpl_target`; fault recovery reads that field independently of table eviction. See [dbt.c:545](/Users/angerman/Projects/zw3rk/sparc32rt-rcu3r2-sparc32/src/dbt/dbt.c:545) and [dbt.c:573](/Users/angerman/Projects/zw3rk/sparc32rt-rcu3r2-sparc32/src/dbt/dbt.c:573).
+- **#4 — STILL OPEN.** Darwin symbol names and VM attachment are repaired, but Provider-A wiring remains registration-only: mmap passes `UINT64_MAX` to the mutation hook; COW promotion and shrink helpers remain uncalled. See [vm_mmap.c:62](/Users/angerman/Projects/zw3rk/sparc32rt-rcu3r2-sparc32/src/rt32/vm_mmap.c:62) and [vm_file.c:102](/Users/angerman/Projects/zw3rk/sparc32rt-rcu3r2-sparc32/src/vm/vm_file.c:102).
+
+Reviewed using `git show c334499`, `git show 69a4ecd`, commit-scoped `git grep`, and numbered source inspection. Citations refer to those commits; current checkout lines may differ. No builds, tests, Docker, or file modifications.
