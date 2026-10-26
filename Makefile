@@ -33,6 +33,8 @@ REQUIRED_DOCS := \
 	lode/reviews/2026-10-23-astra-review-2-dispositions.md \
 	lode/reviews/2026-10-26-astra-unification-review.md \
 	lode/reviews/2026-10-26-astra-unification-review-dispositions.md \
+	lode/reviews/2026-10-26-astra-unification-review-2.md \
+	lode/reviews/2026-10-26-astra-unification-review-2-dispositions.md \
 	tests/check_abi_invariants.c
 
 SIBLING_REPOS := \
