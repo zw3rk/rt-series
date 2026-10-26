@@ -1,0 +1,19 @@
+**RC-U5-AB-r2: both lanes ACTION_REQUIRED.**
+
+Reviewed `git show 0870c8d`, `git show 59adbfa`, and affected sources in the matching worktrees `rvrt-u5a-vm` and `rvrt-u5b-dbt`. No files modified; no Docker, builds, or tests run. The work order’s relevant sections are **3 (U5-A)** and **1 (U5-B)**.
+
+**U5-A (`0870c8d`): ACTION_REQUIRED**
+
+- **P1 — File shrink/mapping association: STILL OPEN.** Inode-scoped VMA tracking exists, but the callback directly zeroes file-backed memory. After actual truncation, its beyond-EOF `memset` can raise host SIGBUS before setting `BEYOND_EOF`; zeroing a read-only mapping’s partial tail can also fault. See [vm64.c:441](/Users/angerman/Projects/zw3rk/rvrt-u5a-vm/src/vm/vm64.c:441) and [vm64.c:455](/Users/angerman/Projects/zw3rk/rvrt-u5a-vm/src/vm/vm64.c:455). The regression invokes the notification without actually truncating the file: [u5a_vm_provider.c:194](/Users/angerman/Projects/zw3rk/rvrt-u5a-vm/test/u5a_vm_provider.c:194).
+- **P2 — `select` clamp and D1/D8 dispositions: RESOLVED.** Oversize `nfds` clamps to the table limit; both non-defect dispositions are recorded. See [poll.c:451](/Users/angerman/Projects/zw3rk/rvrt-u5a-vm/src/linux/poll.c:451), [DEFECTS.md:24](/Users/angerman/Projects/zw3rk/rvrt-u5a-vm/DEFECTS.md:24), and [DEFECTS.md:133](/Users/angerman/Projects/zw3rk/rvrt-u5a-vm/DEFECTS.md:133). Native Linux verification was not rerun.
+- **P2 — In-place write invalidation: STILL OPEN.** Executable-range merging can lose existing coverage: registering `[4096,8192)` then `[0,4096)` changes the start to zero but leaves length 4096, dropping the original range. Subsequent writes there miss the generation bump. See [vm_file.c:255](/Users/angerman/Projects/zw3rk/rvrt-u5a-vm/src/vm/vm_file.c:255).
+
+**U5-B (`59adbfa`): ACTION_REQUIRED**
+
+- **P1 — Eight `Rn=x1` encodings: RESOLVED.** Constants are corrected, and tests independently inspect register fields. See [emit_mem.h:31](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/emit_mem.h:31) and [u5b_dbt_mem.c:182](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/test/u5b_dbt_mem.c:182).
+- **P1 — Module/cursor bounds: RESOLVED.** Module count is capped and the cursor is checked before subtraction. See [aot_v4.c:263](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/aot_v4.c:263) and [aot_v4.c:297](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/aot_v4.c:297).
+- **P2 — Invalidation overlap/full clear: STILL OPEN.** Full-clear reclamation exists, but source extent is incorrectly inferred from the branch destination or `base+4`. A multi-instruction block ending in a backward branch can survive invalidation of its later instructions. Store the actual guest source extent. See [cache.c:249](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/cache.c:249); reclamation is at [cache.c:300](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/cache.c:300).
+- **P2 — Warm-cache identity: RESOLVED.** All four digests and generation are compared: [aot_v4.c:434](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/aot_v4.c:434).
+- **P2 — FP differential comparison: RESOLVED.** Checks cover `fcsr` and all 32 FP registers: [difftest.c:37](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/difftest.c:37).
+
+An additional pre-existing AOT bounds defect remains: block-size addition can wrap in 32-bit arithmetic before conversion to `size_t`, accepting missing payloads. See [aot_v4.c:323](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/aot_v4.c:323) and [aot_v4.c:370](/Users/angerman/Projects/zw3rk/rvrt-u5b-dbt/src/dbt/aot_v4.c:370). U5-D runtime integration is outside these remediation verdicts.
