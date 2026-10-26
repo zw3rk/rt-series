@@ -24,6 +24,7 @@ REQUIRED_DOCS := \
 	docs/lanes/wave-2-rv32gc.md \
 	docs/lanes/wave-3-rt32-family.md \
 	docs/lanes/wave-4-rt64-family.md \
+	docs/lanes/wave-u-unification.md \
 	lode/README.md \
 	lode/STATE-OF-PLAY-2026-10-23.md \
 	lode/ISA-TRAP-AND-ABI-MATRIX.md \

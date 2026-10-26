@@ -13,9 +13,10 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
 | [`README.md`](README.md) | Series overview: existing vs. missing guest runtimes, width/address-space classes, example CPUs, and business objectives. |
 | [`SPEC.md`](SPEC.md) | Master technical specification covering all existing runtimes (`a32rt`, `i686rt`, `rvrt`, `hyper-linux` integration) and all missing/unqualified runtimes (`rv32gc`, `mips32rt`, `ppc32rt`, `sparc32rt`, `loongarch64rt`, `ppc64rt`, `mips64rt`, `sparc64rt`). |
 | [`PLAN.md`](PLAN.md) | Master implementation plan tailored to **Muse Spark** (`Coordinator + Parallel Worker-Lane Worktree DAG`, phase gates, frozen headers, exclusive file ownership, single-command acceptance checks, and Wave 1–5 execution schedule). |
-| [`GOAL.md`](GOAL.md) | Executable `/goal` prompt for Muse Spark coordinator sessions (`muse` + `muse-spark-1.3-contributor` outside reviewer gates). |
+| [`GOAL.md`](GOAL.md) | Executable `/goal` prompt for coordinator sessions executing the Unification & Dual-Backend Architecture Program (`docs/UNIFICATION-PLAN.md` Rev 4 + `docs/lanes/wave-u-unification.md`). |
+| [`docs/UNIFICATION-PLAN.md`](docs/UNIFICATION-PLAN.md) | Master 10-translator Unification & Dual-Backend Architecture Plan (Rev 4): uniform 5-module layout, 7-instruction Soft-TLB, in-place non-relocating COW, 6-step `tgkill` quiescence, `Provider A` & `Provider B` (`hyper-linux`), and dual `backend_linux.c` / `backend_darwin.c` targets. |
 | [`docs/HOST-CONTRACT.md`](docs/HOST-CONTRACT.md) | Unified host contract for Class-A 32-bit 4 GiB-window runtimes (`A32H_ABI 1.0/1.1`, `/dev/a32host`, `include/a32host.h`) and Class-B 64-bit full-address-space runtimes (`HL_MEMORY_POLICY_RVRT`, `hyper-linux-apfs-acl-v1`, `hl_translators[]` auto-dispatch). |
-| [`docs/lanes/`](docs/lanes/) | Per-wave Muse Spark task cards (`wave-1-closeout.md`, `wave-2-rv32gc.md`, `wave-3-rt32-family.md`, `wave-4-rt64-family.md`). |
+| [`docs/lanes/`](docs/lanes/) | Per-wave task cards (`wave-u-unification.md`, `wave-1-closeout.md`, `wave-2-rv32gc.md`, `wave-3-rt32-family.md`, `wave-4-rt64-family.md`). |
 | [`lode/`](lode/) | Engineering lode: cross-repo state-of-play audit (`lode/STATE-OF-PLAY-2026-10-23.md`), 11-architecture ISA/syscall/signal matrix (`lode/ISA-TRAP-AND-ABI-MATRIX.md`), and `astra` (`gpt-6-astra`) review transcripts (`lode/reviews/`). |
 
 ---
