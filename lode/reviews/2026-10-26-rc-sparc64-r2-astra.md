@@ -1,0 +1,22 @@
+**Overall verdict: ACTION_REQUIRED**, even after combining A1+A2+A3.
+
+Numbering below follows the seven P1/P2 findings in the original review. Citations identify the inspected worktree.
+
+| # | Status | Finding |
+|---|---|---|
+| **1 — Live Soft-TLB** | **RESOLVED** for original wiring defect | A1 now calls the emitter from [emit_int.c:722](/Users/angerman/Projects/zw3rk/sparc64rt-a1/src/dbt/emit_int.c:722), fills entries after misses at [mem_sites.c:243](/Users/angerman/Projects/zw3rk/sparc64rt-a1/src/dbt/mem_sites.c:243), and initializes the table at [dbt.c:643](/Users/angerman/Projects/zw3rk/sparc64rt-a1/src/dbt/dbt.c:643). A separate replay defect remains below. |
+| **2 — Load-miss continuation** | **RESOLVED** | The contract now says the interpreter updates guest registers; miss continuation skips the hit-path writeback. See [emit_mem.h:21](/Users/angerman/Projects/zw3rk/sparc64rt-a1/src/dbt/emit_mem.h:21) and [emit_mem.c:609](/Users/angerman/Projects/zw3rk/sparc64rt-a1/src/dbt/emit_mem.c:609). |
+| **3 — Six-step quiescence** | **STILL OPEN** | A2 installs handlers, but its sequence bounds remain unassigned, so real sequences cannot rewind: [main.c:42](/Users/angerman/Projects/zw3rk/sparc64rt-a2/src/main.c:42), [main.c:78](/Users/angerman/Projects/zw3rk/sparc64rt-a2/src/main.c:78). Transactions register only one synthetic worker; peer quiescence never operates: [vm64.c:551](/Users/angerman/Projects/zw3rk/sparc64rt-a2/src/vm/vm64.c:551). |
+| **4 — truncate/ftruncate/mremap** | **STILL OPEN** | Dispatch and 8 KiB mremap handling exist. However, truncate/ftruncate return directly after host success without the required mapped-file resize/invalidation hook: [syscalls_min.c:269](/Users/angerman/Projects/zw3rk/sparc64rt-a2/src/os/syscalls_min.c:269), [syscalls_min.c:290](/Users/angerman/Projects/zw3rk/sparc64rt-a2/src/os/syscalls_min.c:290). |
+| **5 — Provider A / 8 KiB COW/EOF** | **STILL OPEN** | The new Provider-A helper has only test callers; runtime mmap still uses heap-page copying at [guest_run_sysmem.c:306](/Users/angerman/Projects/zw3rk/sparc64rt-a2/src/os/guest_run_sysmem.c:306). Furthermore, the helper incorrectly starts beyond-EOF BUS coverage at a **4 KiB** boundary: [vm_file.c:454](/Users/angerman/Projects/zw3rk/sparc64rt-a3/src/vm/vm_file.c:454). |
+| **6 — AOT site serialization** | **STILL OPEN** | A standalone codec exists at [sites.c:72](/Users/angerman/Projects/zw3rk/sparc64rt-a3/src/dbt/aot/sites.c:72), but the actual AOT encoder still serializes only source, text, and relocations: [format.c:285](/Users/angerman/Projects/zw3rk/sparc64rt-a3/src/dbt/aot/format.c:285). |
+| **7 — RC-U2 gates** | **STILL OPEN** | Added tests exercise helpers directly, without cross-fork truncate or CLONE_VM COW/futex coverage: [test_rc_u2_8k_cow_eof.c:15](/Users/angerman/Projects/zw3rk/sparc64rt-a3/tests/test_rc_u2_8k_cow_eof.c:15). The EOF assertion actually requires the incorrect 4 KiB BUS boundary: [same file:294](/Users/angerman/Projects/zw3rk/sparc64rt-a3/tests/test_rc_u2_8k_cow_eof.c:294). |
+
+Merge and integration findings:
+
+- **A1 replay blocker:** delay-slot sites retain the control-transfer PC, and the miss helper replays that entire instruction. For `RETURN`, generated code has already restored the register window, so replay restores it again. See [emit_int.c:645](/Users/angerman/Projects/zw3rk/sparc64rt-a1/src/dbt/emit_int.c:645), [emit_mem.c:595](/Users/angerman/Projects/zw3rk/sparc64rt-a1/src/dbt/emit_mem.c:595), and [mem_sites.c:233](/Users/angerman/Projects/zw3rk/sparc64rt-a1/src/dbt/mem_sites.c:233).
+- **No direct textual conflicts apparent:** A1/A3’s `emit_mem.h` changes are disjoint, with duplicate x5 documentation. A2/A3’s `guest_run.c` changes also affect different lines. No merge was performed.
+- **Semantic mismatch:** A3 changes the retained loader’s [copy_from_fd:129](/Users/angerman/Projects/zw3rk/sparc64rt-a3/src/os/guest_run.c:129); A2’s extracted mmap path uses a separate [sysmem_fill:199](/Users/angerman/Projects/zw3rk/sparc64rt-a2/src/os/guest_run_sysmem.c:199).
+- **Uncommitted delivery:** all three remain at `c3732c8`, with unstaged changes. Include A2’s untracked `guest_run_sysmem.c` and A3’s untracked `sites.c`, `sites.h`, and gate test.
+
+Verified using `git status --short`, `git diff`, `git diff --cached --stat`, untracked-file enumeration, and source inspection. No files modified; no builds, tests, or Docker executed.
