@@ -65,7 +65,8 @@ Measured with [`tests/bench_suite.c`](../tests/bench_suite.c) (`--full`, 1 warmu
 
 | Translator | Guest Arch | `darwin` DBT (`us`) | `hl` DBT (`us`) | `linux` DBT (`us`) | `darwin` Interp (`us`) | `linux` Interp (`us`) | `qemu` TCG (`us`) | Status |
 |---|---|---:|---:|---:|---:|---:|---:|---|
-| *(Baseline)* | `arm64` / `aarch64` | 3,264 (`native-darwin`) | — | 3,719 (`native-linux`) | — | — | — | `ALL_PASS` |
+| *(Native Baseline)* | `arm64` / `aarch64` | 3,264 (`native-darwin`) | — | 3,719 (`native-linux`) | — | — | — | `ALL_PASS` |
+| *(Rosetta 2 Baseline)* | `x86_64-apple-darwin` | 4,406 (`rosetta2`) | — | — | — | — | — | `ALL_PASS` |
 | **[`a32rt`](../../a32rt)** | `armhf` | **10,789** | **15,262** | **8,048** | 588,487 | 571,365 | 22,088 | `ALL_PASS` |
 | **[`i686rt`](../../i686rt)** | `i686` | 244,528 | 304,789 | 297,764 | 1,175,085 | 1,356,876 | 32,097 | `ALL_PASS` |
 | **[`mips32rt`](../../mips32rt)** | `mipsel` | 2,229,002 | 2,981,074 | 2,572,973 | 718,887 | 875,644 | 39,170 | `ALL_PASS` |

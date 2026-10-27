@@ -134,12 +134,13 @@ tools/bench_harness.sh run --target all      # Run full 4-target matrix on calm 
 
 All 68 cells across all 4 targets (`darwin`, `hl`, `linux`, `qemu`), both engines (`dbt`, `interp`), and all 11 guest architectures (plus `native-darwin` and `native-linux` baselines) passed with `ALL_PASS` (`100%` CRC match across all 5 workloads) in both `--smoke` ([`_build/bench/results-darwin5-smoke.tsv`](../_build/bench/results-darwin5-smoke.tsv)) and `--full` ([`_build/bench/results-darwin5-full.tsv`](../_build/bench/results-darwin5-full.tsv)) modes on `aarch64-darwin-5.lan` (Apple M1, macOS `26.6.2` `25G83` + Lima `--vm-type=vz` `aarch64-linux` 6.8.0-106).
 
-#### A. Native Host Baselines (`--full`, microseconds `us`, 1 warmup + 4 timed trials)
+#### A. Native & Rosetta 2 Host Baselines (`--full`, microseconds `us`, 1 warmup + 4 timed trials)
 
-| Target | Host Arch | Engine | `coremark` (`us`) | `chacha20` (`us`) | `vfp_simd` (`us`) | `calls_ibtc` (`us`) | `syscalls` (`us`) | `total_us` (`us`) | Status |
+| Target | Host / Guest Arch | Engine | `coremark` (`us`) | `chacha20` (`us`) | `vfp_simd` (`us`) | `calls_ibtc` (`us`) | `syscalls` (`us`) | `total_us` (`us`) | Status |
 |---|---|---|---:|---:|---:|---:|---:|---:|---|
 | `native-darwin` | `arm64-apple-darwin` | `native` (`clang -O2`) | 471 | 799 | 304 | 1,685 | 5 | 3,264 | `ALL_PASS` |
 | `native-linux` | `aarch64-linux-musl` | `native` (`gcc -O2`) | 452 | 749 | 320 | 1,686 | 512 | 3,719 | `ALL_PASS` |
+| `rosetta2-darwin` | `x86_64-apple-darwin` | `rosetta2` (Apple Silicon AOT+JIT) | 563 | 1,156 | 498 | 2,180 | 9 | 4,406 | `ALL_PASS` |
 
 *(Note: on Darwin `arm64`, `getpid()` is cached in userspace `libSystem` TLS so `4,000` calls take `5 us`, whereas `musl` on Linux issues `4,000` real `svc #0` syscalls in `512 us` = `128 ns/syscall`.)*
 
@@ -165,6 +166,7 @@ All 68 cells across all 4 targets (`darwin`, `hl`, `linux`, `qemu`), both engine
 |---|---|---|---:|---:|---:|---:|---:|---:|---|
 | `native-darwin` | `arm64` | `native` | 471 | 799 | 304 | 1,685 | 5 | 3,264 | `ALL_PASS` |
 | `native-linux` | `aarch64` | `native` | 452 | 749 | 320 | 1,686 | 512 | 3,719 | `ALL_PASS` |
+| `rosetta2-darwin` | `x86_64` | `rosetta2` | 563 | 1,156 | 498 | 2,180 | 9 | 4,406 | `ALL_PASS` |
 | `darwin` | `armhf` | `dbt` | 3,292 | 2,526 | 953 | 3,855 | 163 | 10,789 | `ALL_PASS` |
 | `darwin` | `i686` | `dbt` | 31,031 | 164,165 | 18,457 | 30,632 | 243 | 244,528 | `ALL_PASS` |
 | `darwin` | `mipsel` | `dbt` | 1,195,961 | 4,077 | 473,289 | 554,710 | 965 | 2,229,002 | `ALL_PASS` |
