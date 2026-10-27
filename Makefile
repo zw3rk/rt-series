@@ -19,6 +19,7 @@ REQUIRED_DOCS := \
 	GOAL.md \
 	docs/FEATURE-MATRIX.md \
 	docs/HOST-CONTRACT.md \
+	docs/SOFTWARE-CATALOGUE.md \
 	docs/UNIFICATION-PLAN.md \
 	docs/lanes/wave-1-closeout.md \
 	docs/lanes/wave-2-rv32gc.md \
@@ -39,7 +40,10 @@ REQUIRED_DOCS := \
 	lode/reviews/2026-10-26-astra-xhigh-unification-review-3.md \
 	lode/reviews/2026-10-26-fable-unification-review.md \
 	lode/reviews/2026-10-26-astra-xhigh-and-fable-dispositions.md \
-	tests/check_abi_invariants.c
+	tests/check_abi_invariants.c \
+	tests/bench_suite.c \
+	tools/bench_harness.sh \
+	tools/run_catalogue.sh
 
 SIBLING_REPOS := \
 	../a32rt \
@@ -54,7 +58,7 @@ SIBLING_REPOS := \
 	../sparc64rt \
 	../hyper-linux
 
-.PHONY: help all build test check check-headers check-abi-invariants check-docs check-siblings status clean
+.PHONY: help all build test check check-headers check-abi-invariants check-bench-host check-docs check-siblings status bench-build bench-smoke bench-run catalogue-smoke clean
 
 ##@ General
 
@@ -71,8 +75,8 @@ build: check-headers check-abi-invariants ## Validate shared C11 headers and fro
 
 test: check ## Alias for check
 
-check: check-headers check-abi-invariants check-docs ## Validate umbrella headers, frozen ABI struct layouts, and documentation presence
-	@echo "rt-series: umbrella header, ABI-layout, and document presence checks passed."
+check: check-headers check-abi-invariants check-bench-host check-docs ## Validate umbrella headers, frozen ABI struct layouts, host benchmark smoke, and documentation presence
+	@echo "rt-series: umbrella header, ABI-layout, bench-smoke, and document presence checks passed."
 
 check-headers: ## Compile-check shared C11 headers under strict Curated C11 flags
 	@mkdir -p $(BUILD)
@@ -84,6 +88,12 @@ check-abi-invariants: ## Build and run compile-time/runtime frozen ABI layout & 
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -Iinclude -o $(BUILD)/check_abi_invariants tests/check_abi_invariants.c
 	$(BUILD)/check_abi_invariants
+
+check-bench-host: ## Build and smoke-test unified 5-workload benchmark suite on host CC
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -O2 -o $(BUILD)/bench_host tests/bench_suite.c
+	$(BUILD)/bench_host --smoke
+	@echo "CHECK-BENCH-HOST OK"
 
 check-docs: ## Verify all required specifications, lane cards, and lode records exist and are non-empty
 	@for f in $(REQUIRED_DOCS); do \
@@ -105,6 +115,20 @@ check-siblings: ## Inspect git status and HEAD across existing sibling repositor
 	done
 
 status: check-siblings ## Alias for check-siblings
+
+##@ Benchmarks & Software Catalogue
+
+bench-build: ## Cross-compile unified guest benchmark ELFs into _build/bench/ (any host load)
+	./tools/bench_harness.sh build
+
+bench-smoke: ## Fast deterministic --smoke verification across available targets (<1s/run)
+	./tools/bench_harness.sh smoke
+
+bench-run: ## Full 5-trial timed benchmark campaign (requires calm host, BENCH_MAX_LOAD<=2.5)
+	./tools/bench_harness.sh run
+
+catalogue-smoke: ## Run host-side qualification & parity smoke across <arch>rt repositories
+	./tools/run_catalogue.sh smoke
 
 ##@ Cleanup
 
