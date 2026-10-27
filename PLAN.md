@@ -191,3 +191,16 @@ Each Class-B repository copies the Wave-1/2-cleaned `rvrt` runtime substrate int
    - **Modularity Gate (`check-line-limits`)**: Added in Phase 0 `Makefile` for every new Waves 3–5 translator (`src/*.c <= 1000` lines, `src/*.h <= 500` lines) and enforced on all newly created files in existing translators (`src/linux/rv32_*.c`, `src/rt64/*.c`) without requiring an unassigned whole-tree split of legacy `a32rt/src/syscalls.c` or `rvrt/src/runtime_main.c`.
    - **Header Sync Gate (`check-headers`)**: Enforce byte-for-byte equality of `include/a32host.h` across `rt-series/include/a32host.h`, `a32rt/include/a32host.h`, `i686rt/include/a32host.h`, Class-A Wave 3 translators, and `hyper-linux/src/a32host.h`.
    - **Independent Oracle & Both-Host Gate**: Every phase `RC` check executes the built artifact on both Linux (`limactl`) and `hyper-linux` (`hl`) and compares output against the `qemu-<arch>` ground-truth oracle.
+
+---
+
+## 5. Waves `U0`–`U6` Unification & Dual-Backend Completion Record (2026-10-27)
+
+Following completion of Waves 1–5 across all 10 `<arch>rt` repositories, the series-wide Unification & Dual-Backend Architecture Program ([`docs/UNIFICATION-PLAN.md`](docs/UNIFICATION-PLAN.md) Rev 4, [`docs/lanes/wave-u-unification.md`](docs/lanes/wave-u-unification.md)) was executed and verified by independent `astra` (`gpt-6-astra`) stage-gate reviews (`RC-U0..RC-U6`):
+
+- **Wave U0 (`RC-U0 PASS`)**: Real `ppc64rt` ELF64/interp/DBT/`--difftest` main wiring, `loongarch64rt` reference `backend_{linux,darwin}.c` + `vm64` + `Provider A` + 7-insn Soft-TLB, `mips64rt` delay-slot `RT_NPC_DYNAMIC_CTX` + `TIF_FIXADE`, and Zero-GAP `tests/parity_suite.sh` rollout.
+- **Waves U1 & U2 (`RC-U12 PASS`)**: Complete removal of `src/rt64/` (656 files / 168,783 donor LOC) across `loongarch64rt` (`893637b`), `ppc64rt` (`fe79c9a`), `mips64rt` (`91fc2d4`), and `sparc64rt` (`2f2ce13`), unified `vm64` + `Provider A` + 6-step `tgkill` quiescence + 24B relative `dbt_mem_site_t[]` AOT serialization, and dual `-linux-aarch64` / `-darwin-arm64` artifacts.
+- **Wave U3 (`RC-U3 PASS`)**: Two-Regime `vm32` (Regime A1 `[x20, wAddr, uxtw]` on `H == 4096`; Regime A2 7-insn Soft-TLB on `H > 4096`), C11 `__atomic_*` RMWs, `sp_rollback_delta` fault recovery, `a32rt` 5-module `<= 900`-line split + A32/Thumb-2/VFP/NEON interpreter + `--difftest`, and dual binaries across `a32rt` (`47f105e`), `i686rt` (`db832b7`), `mips32rt` (`5f7f285`), `ppc32rt` (`3296803`), and `sparc32rt` (`26f4923`).
+- **Wave U4 (`RC-U4 PASS`)**: `hyper-linux` `Provider B` (`src/inode_backing.c` on `lane/u4-integration` @ `cd86f55`), Stage-1 L3 PTE COW repointing, `hv_vcpus_exit` preemption + shared DBT invalidation ring, pre-bucket-lock futex pinning, and 11-architecture `hl_translators[]` auto-dispatch.
+- **Wave U5 (`RC-U5 PASS`)**: `rvrt` (`b5c25c5`) migration to `vm64` + `Provider A`, full series DBT + v4 AOT, Milestone R8 `RV32GC` (`ILP32D`) qualification, BusyBox 1.37.0 builtins, retirement of the ~30k-LOC legacy SCM socket broker, and `<= 900` lines/file split.
+- **Wave U6 (`RC-U6 PASS`)**: 10-repository × 3-host (`-linux-aarch64`, `hl`, `-darwin-arm64`) matrix qualification (`0` files `> 900` lines, `0 FAIL, 0 GAP` across all `parity_suite.sh` gates).

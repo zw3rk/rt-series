@@ -1,8 +1,8 @@
 # Dispositions for Astra Review #2 (`2026-10-23-astra-review-2.md`)
 
-Reviewer: `astra` (`gpt-6-astra` via `codex exec -m gpt-6-astra -s read-only`)  
-Transcript: [`2026-10-23-astra-review-2.md`](2026-10-23-astra-review-2.md)  
-Date: 2026-10-23  
+Reviewer: `astra` (`gpt-6-astra` via `codex exec -m gpt-6-astra -s read-only`)
+Transcript: [`2026-10-23-astra-review-2.md`](2026-10-23-astra-review-2.md)
+Date: 2026-10-23
 Status: **All 26 Review #2 Findings (`R2-01`..`R2-26`) Addressed at Specification & Plan Level** (downstream sibling repository implementation work remains scheduled for Muse Spark execution waves).
 
 | ID | Severity | Review #2 Finding | Resolution & Files Updated in `rt-series` |

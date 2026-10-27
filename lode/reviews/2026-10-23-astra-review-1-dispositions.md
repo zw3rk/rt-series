@@ -1,7 +1,7 @@
 # Dispositions for Astra Review #1 (`2026-10-23-astra-review-1.md`)
 
-Reviewer: `astra` (`gpt-6-astra` via `codex exec -m gpt-6-astra -s read-only`)  
-Transcript: [`2026-10-23-astra-review-1.md`](2026-10-23-astra-review-1.md)  
+Reviewer: `astra` (`gpt-6-astra` via `codex exec -m gpt-6-astra -s read-only`)
+Transcript: [`2026-10-23-astra-review-1.md`](2026-10-23-astra-review-1.md)
 Follow-up Review #2: [`2026-10-23-astra-review-2.md`](2026-10-23-astra-review-2.md) and [`2026-10-23-astra-review-2-dispositions.md`](2026-10-23-astra-review-2-dispositions.md)
 
 Note on scope: **"Spec/Plan Closed"** means the specification or planning defect in `rt-series` has been corrected and verified by `make check` (`tests/check_abi_invariants.c`). Downstream sibling repository code changes (`../a32rt`, `../i686rt`, `../rvrt`, `../hyper-linux`, and Waves 3–5) remain planned execution tasks for Muse Spark waves.

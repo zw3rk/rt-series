@@ -1,0 +1,13 @@
+Reviewed `master` at `0a6279c` against Rev 4 and the Wave U task card. Three correctness issues remain:
+
+1. **P1 — Child mapping registration still races across processes.** The inode table is shared, but `vm_inode_mu` is process-private and reinitialized in the child. Child registration appends to `maps` while parent unmapping can compact the same array and decrement `nmaps`, losing the child’s record. The private snapshot fixes the original snapshot-loss problem, but not this registration race. See [vm_file.c:138](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm_file.c:138), [registration:183](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm_file.c:183), and [compaction:386](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm_file.c:386).
+
+2. **P1 — Watermark slots can overwrite a pending child’s shrink history.** Allocation uses `fork_seq++ % 64` without ownership or acknowledgment. Fork A → shrink → regrow → 64 further fork attempts → A registers resets A’s watermark to the regrown size. Even failed forks consume slots, so this does not require exceeding the mapping-table capacity. A then retains dirty pages that the shrink should have discarded, violating §5.1. See [allocation:112](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm_file.c:112) and [consumption:177](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm_file.c:177).
+
+3. **P1 — Delay-slot recovery can overwrite a delivered signal’s handler PC.** A misaligned `LL`/`LLD` on mapped memory reaches `interp_step()`, which converts a successfully handled fault to return value zero. Recovery consequently calls `mips_npc_resume_step()` and replaces the handler PC with the branch target, leaving the signal frame installed. Clearing the target only on nonzero return misses this case. See [mem_recover.c:503](/Users/angerman/Projects/zw3rk/mips64rt/src/dbt/mem_recover.c:503) and [interp.c:874](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/interp.c:874).
+
+The requested changes are present: private mapping snapshots reuse inherited descriptors; separate watermark slots handle the stated two-fork sequence; early delay-slot faults now save the branch PC; and region merging/growth preserves tags. The issues above prevent full closure.
+
+`git diff --check ad705b2..0a6279c`: **PASS**, exit 0, no diagnostics. No files modified or tests/Docker containers rerun; runtime results are the supplied evidence.
+
+Verdict: FAIL.

@@ -1,0 +1,12 @@
+**Both findings remain unresolved in `6543f44`.** `master` currently points to `e5285e5`; inspection used `git show 6543f44` and that commit’s source blobs.
+
+1. **#3 — STILL OPEN, P1.** Interpreter and DBT now address the same window-relative lock, hostfault recovery reaches its owner-checked release, and lock acquisition spills/restores `x21`. [mem.c:67](/Users/angerman/Projects/zw3rk/mips32rt/src/os/mem.c:67), [hostfault.c:178](/Users/angerman/Projects/zw3rk/mips32rt/src/os/hostfault.c:178), [emit_mem.c:134](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_mem.c:134). However:
+   - SWL/SWR offsets 0–2 still branch past acquisition and reach the common unlock, breaking exclusion. [emit_mem.c:345](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_mem.c:345), [emit_mem.c:416](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_mem.c:416).
+   - SC’s epoch comparison still overwrites `x30`, which emitted `RET` uses. [emit_mem.c:490](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_mem.c:490), [a64_emit.c:744](/Users/angerman/Projects/zw3rk/mips32rt/src/rt32/a64_emit.c:744).
+   - SH/SW acquire before the alignment guard; its fault/single-step returns omit unlock, leaving the lock held. [emit_mem.c:281](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_mem.c:281), [emit_mem.c:195](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_mem.c:195).
+
+2. **#4 — PARTIALLY RESOLVED.** All four truncate variants reach `mips32_file_sc_truncate`. [syscall_min.c:479](/Users/angerman/Projects/zw3rk/mips32rt/src/os/syscall_min.c:479), [syscalls.c:803](/Users/angerman/Projects/zw3rk/mips32rt/src/os/syscalls.c:803). Guest helpers call `mips32_vm_tlb_miss`, whose implementation validates regions and fills TLB entries; `git grep` finds no `mips32_vm32_handle_miss` symbol. DBT still emits direct memory accesses without this miss path. [mem.c:258](/Users/angerman/Projects/zw3rk/mips32rt/src/os/mem.c:258), [vm32.c:143](/Users/angerman/Projects/zw3rk/mips32rt/src/vm/vm32.c:143), [emit_mem.c:267](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_mem.c:267).
+
+Static inspection only; no files modified, builds, tests, or Docker run. Citations use line numbers from `6543f44`.
+
+Verdict: ACTION_REQUIRED
