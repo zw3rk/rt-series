@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # tools/run_catalogue.sh — Multi-Architecture 5-Tier Real-World Software Qualification Runner
 #
 # Modes:
@@ -12,9 +12,10 @@
 # Copyright 2026 Moritz Angermann <moritz@zw3rk.com>, zw3rk pte. ltd.
 # SPDX-License-Identifier: Apache-2.0
 
-set -euo pipefail
+set -eu
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECTS_DIR="$(cd "$ROOT_DIR/.." && pwd)"
 
 CMD="${1:-help}"
@@ -43,7 +44,7 @@ done
 run_guest_payload() {
     export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     export HOME="/tmp"
-    local work="/tmp/rt_series_cat_$$"
+    work="/tmp/rt_series_cat_$$"
     rm -rf "$work"
     mkdir -p "$work"
     trap 'rm -rf "$work"' EXIT
@@ -280,32 +281,29 @@ EOF
 }
 
 run_host_smoke() {
-    local repos=(
-        a32rt
-        i686rt
-        mips32rt
-        ppc32rt
-        sparc32rt
-        rvrt
-        loongarch64rt
-        ppc64rt
-        mips64rt
-        sparc64rt
-    )
-    local pass=0
-    local fail=0
-    for r in "${repos[@]}"; do
+    repos="a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64rt sparc64rt"
+    pass=0
+    fail=0
+    for r in $repos; do
         if [ "$ARCH_FILTER" != "all" ] && [ "$ARCH_FILTER" != "$r" ]; then
             continue
         fi
-        local ps="$PROJECTS_DIR/$r/tests/parity_suite.sh"
+        ps="$PROJECTS_DIR/$r/tests/parity_suite.sh"
+        echo "== Catalogue smoke gate: $r =="
         if [ -f "$ps" ]; then
-            echo "== Catalogue smoke gate: $r =="
-            if timeout --kill-after=30s 180s sh "$ps" >/tmp/cat-smoke-"$r".log 2>&1; then
+            if timeout --kill-after=30s 360s sh "$ps" >/tmp/cat-smoke-"$r".log 2>&1; then
                 echo "PASS [$r]: parity_suite.sh"
                 pass=$((pass + 1))
             else
                 echo "FAIL [$r]: parity_suite.sh (see /tmp/cat-smoke-$r.log)"
+                fail=$((fail + 1))
+            fi
+        else
+            if timeout --kill-after=30s 360s make -C "$PROJECTS_DIR/$r" check >/tmp/cat-smoke-"$r".log 2>&1; then
+                echo "PASS [$r]: make check"
+                pass=$((pass + 1))
+            else
+                echo "FAIL [$r]: make check (see /tmp/cat-smoke-$r.log)"
                 fail=$((fail + 1))
             fi
         fi

@@ -139,9 +139,48 @@ build_guest_bins() {
     mkdir -p "$BENCH_DIR"
     echo "== Building unified guest benchmark binaries into $BENCH_DIR =="
 
-    # 1. Reuse a32rt's freestanding armhf & i386 benchmark binaries if present
-    if [ ! -x "$BENCH_DIR/bench-armhf" ] && [ -x "$PROJECTS_DIR/a32rt/_build/bench-suite-armhf" ]; then
-        cp "$PROJECTS_DIR/a32rt/_build/bench-suite-armhf" "$BENCH_DIR/bench-armhf"
+    # 1. Fast-path: use local clang + ld.lld for freestanding ELF targets (zero container)
+    local clang_raw="/nix/store/15n3slfdsd5zhyxrvaa7vm36f1jydwqp-clang-21.1.8/bin/clang"
+    local lld_raw="/nix/store/smnrx7kvgcxbl6s2scgwk6zp0np6yw7q-lld-21.1.8/bin/ld.lld"
+    local fs_flags="-std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -fno-builtin -nostdlib -DBENCH_FREESTANDING=1"
+    if [ -x "$clang_raw" ] && [ -x "$lld_raw" ]; then
+        if [ ! -x "$BENCH_DIR/bench-armhf" ]; then
+            "$clang_raw" --target=armv7a-unknown-linux-eabihf -march=armv7ve -mfpu=neon-vfpv4 -mfloat-abi=hard $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-armhf.o" && \
+            "$lld_raw" -m armelf_linux_eabi -Bstatic --no-dynamic-linker --image-base=0x00010000 -e _start "$BENCH_DIR/bench-armhf.o" -o "$BENCH_DIR/bench-armhf" && rm -f "$BENCH_DIR/bench-armhf.o" || true
+        fi
+        if [ ! -x "$BENCH_DIR/bench-i686" ]; then
+            "$clang_raw" --target=i686-unknown-linux-gnu -march=i686 -msse2 -mfpmath=sse $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-i686.o" && \
+            "$lld_raw" -m elf_i386 -Bstatic --no-dynamic-linker --image-base=0x08048000 -e _start "$BENCH_DIR/bench-i686.o" -o "$BENCH_DIR/bench-i686" && rm -f "$BENCH_DIR/bench-i686.o" || true
+        fi
+        if [ ! -x "$BENCH_DIR/bench-mipsel" ]; then
+            "$clang_raw" --target=mipsel-unknown-linux-gnu -march=mips32r2 -mabi=32 -mhard-float $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-mipsel.o" && \
+            "$lld_raw" -m elf32ltsmip -Bstatic --no-dynamic-linker --image-base=0x00400000 -e _start "$BENCH_DIR/bench-mipsel.o" -o "$BENCH_DIR/bench-mipsel" && rm -f "$BENCH_DIR/bench-mipsel.o" || true
+        fi
+        if [ ! -x "$BENCH_DIR/bench-ppc32" ]; then
+            "$clang_raw" --target=powerpc-unknown-linux-gnu -mcpu=7400 -mhard-float $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-ppc32.o" && \
+            "$lld_raw" -m elf32ppclinux -Bstatic --no-dynamic-linker --image-base=0x10000000 -e _start "$BENCH_DIR/bench-ppc32.o" -o "$BENCH_DIR/bench-ppc32" && rm -f "$BENCH_DIR/bench-ppc32.o" || true
+        fi
+        if [ ! -x "$BENCH_DIR/bench-riscv64" ]; then
+            "$clang_raw" --target=riscv64-unknown-linux-gnu -march=rv64gc -mabi=lp64d $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-riscv64.o" && \
+            "$lld_raw" -m elf64lriscv -Bstatic --no-dynamic-linker --image-base=0x00010000 -e _start "$BENCH_DIR/bench-riscv64.o" -o "$BENCH_DIR/bench-riscv64" && rm -f "$BENCH_DIR/bench-riscv64.o" || true
+        fi
+        if [ ! -x "$BENCH_DIR/bench-riscv32" ]; then
+            "$clang_raw" --target=riscv32-unknown-linux-gnu -march=rv32gc -mabi=ilp32d $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-riscv32.o" && \
+            "$lld_raw" -m elf32lriscv -Bstatic --no-dynamic-linker --image-base=0x00010000 -e _start "$BENCH_DIR/bench-riscv32.o" -o "$BENCH_DIR/bench-riscv32" && rm -f "$BENCH_DIR/bench-riscv32.o" || true
+        fi
+        if [ ! -x "$BENCH_DIR/bench-aarch64" ]; then
+            "$clang_raw" --target=aarch64-unknown-linux-gnu $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-aarch64.o" && \
+            "$lld_raw" -m aarch64linux -Bstatic --no-dynamic-linker --image-base=0x00400000 -e _start "$BENCH_DIR/bench-aarch64.o" -o "$BENCH_DIR/bench-aarch64" && rm -f "$BENCH_DIR/bench-aarch64.o" || true
+        fi
+    fi
+    if [ ! -x "$BENCH_DIR/bench-darwin-arm64" ] && command -v cc >/dev/null 2>&1; then
+        cc -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-darwin-arm64" || true
+    fi
+    if [ ! -x "$BENCH_DIR/bench-sparc32" ] && docker image inspect sparc32rt-oracle:latest >/dev/null 2>&1; then
+        timeout --kill-after=10s 45s docker run --rm --name "rt-bench-sparc32-$$" --platform linux/arm64 \
+            -v "$ROOT_DIR:/w" -w /w sparc32rt-oracle:latest \
+            sparc64-linux-gnu-gcc -m32 -mcpu=v8 -std=c11 -O2 -ffreestanding -fno-stack-protector -nostdlib -static \
+            -DBENCH_FREESTANDING=1 /w/tests/bench_suite.c -lgcc -o /w/_build/bench/bench-sparc32 || true
     fi
 
     # 2. Fast-path: use locally cached per-arch toolchain images if present (zero network)

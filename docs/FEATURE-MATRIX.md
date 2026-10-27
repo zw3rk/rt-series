@@ -56,3 +56,24 @@ Every translator in `rt-series` supports **two host OS backends** (`src/os/backe
 | [`ppc64rt`](../../ppc64rt) (`fe79c9a`) | `EM_PPC64` (`ppc64le` ELFv2 + VSX) | `make build` -> `_build/ppc64rt` (`vm64` + `Provider A`, 7-insn Soft-TLB, real `src/main.c`) | `hl` auto-dispatch via `hl_translators[]` (`EM_PPC64`, `HL_MEMORY_POLICY_RVRT`, `Provider B`) | `make build-darwin` -> `_build/ppc64rt-darwin` (native Mach-O, `vm64` + `Provider A` + `MAP_JIT`) | `parity_suite.sh` `PASS` (`0 fail, 0 gap`), [`RC-U12 PASS`](../lode/reviews/2026-10-26-rc-ppc64-r13-astra.md) |
 | [`mips64rt`](../../mips64rt) (`8b3321b`) | `EM_MIPS` (`N64` & `N32`, `LE` & `BE`) | `make build` -> `_build/mips64rt` (`vm64` + `Provider A`, 7-insn Soft-TLB, `RT_NPC_DYNAMIC_CTX`) | `hl` auto-dispatch via `hl_translators[]` (`EM_MIPS` N64/N32 `e_flags`, `HL_MEMORY_POLICY_RVRT`, `Provider B`) | `make build-darwin` -> `_build/mips64rt-darwin` (native Mach-O, `vm64` + `Provider A` + `MAP_JIT`) | `parity_suite.sh` `PASS` (`8/8`, 4-ABI + BusyBox, `0 fail, 0 gap`), [`RC-U12 PASS`](../lode/reviews/2026-10-26-rc-mips64-r13-astra.md) |
 | [`sparc64rt`](../../sparc64rt) (`2f2ce13`) | `EM_SPARCV9` (SPARC V9, bias `2047`) | `make build` -> `_build/sparc64rt` (`vm64` + `Provider A`, 8 KiB guest ABI page `(vpn, vpn^1)` Soft-TLB) | `hl` auto-dispatch via `hl_translators[]` (`EM_SPARCV9`, `HL_MEMORY_POLICY_RVRT`, `Provider B`) | `make build-darwin` -> `_build/sparc64rt-darwin-arm64` (native Mach-O, `vm64` + `Provider A` + `MAP_JIT`) | `parity_suite.sh` `PASS` (`7/7`, `0 fail, 0 gap`), [`RC-U12 PASS`](../lode/reviews/2026-10-26-rc-sparc64-r5-astra.md) |
+
+---
+
+## 4. Four-Target Performance Matrix (`darwin` × `hl` × `linux` × `qemu` on `aarch64-darwin-5.lan`)
+
+Measured with [`tests/bench_suite.c`](../tests/bench_suite.c) (`--full`, 1 warmup + 4 timed trials across `coremark`, `chacha20`, `vfp_simd`, `calls_ibtc`, `syscalls`) on calm bare-metal Apple M1 host `aarch64-darwin-5.lan` (`darwin` and `hl` directly on macOS `26.6.2`; `linux` and `qemu` inside a Lima `--vm-type=vz` `aarch64-linux` VM on the same M1 silicon). All **68/68 cells** pass with `ALL_PASS` (`100%` CRC match); full per-workload breakdowns are in [`SOFTWARE-CATALOGUE.md`](SOFTWARE-CATALOGUE.md#35-measured-68-cell-full-benchmark-results-on-aarch64-darwin-5lan---full), [`_build/bench/results-darwin5-full.tsv`](../_build/bench/results-darwin5-full.tsv), and [`_build/bench/results-darwin5-smoke.tsv`](../_build/bench/results-darwin5-smoke.tsv).
+
+| Translator | Guest Arch | `darwin` DBT (`us`) | `hl` DBT (`us`) | `linux` DBT (`us`) | `darwin` Interp (`us`) | `linux` Interp (`us`) | `qemu` TCG (`us`) | Status |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| *(Baseline)* | `arm64` / `aarch64` | 3,264 (`native-darwin`) | — | 3,719 (`native-linux`) | — | — | — | `ALL_PASS` |
+| **[`a32rt`](../../a32rt)** | `armhf` | **10,789** | **15,262** | **8,048** | 588,487 | 571,365 | 22,088 | `ALL_PASS` |
+| **[`i686rt`](../../i686rt)** | `i686` | 244,528 | 304,789 | 297,764 | 1,175,085 | 1,356,876 | 32,097 | `ALL_PASS` |
+| **[`mips32rt`](../../mips32rt)** | `mipsel` | 2,229,002 | 2,981,074 | 2,572,973 | 718,887 | 875,644 | 39,170 | `ALL_PASS` |
+| **[`ppc32rt`](../../ppc32rt)** | `ppc32` | 234,618 | 341,202 | 265,042 | 917,501 | 882,762 | 58,141 | `ALL_PASS` |
+| **[`sparc32rt`](../../sparc32rt)** | `sparc32` | 213,414 | 272,782 | 229,206 | 1,485,998 | 1,736,457 | 68,227 | `ALL_PASS` |
+| **[`rvrt`](../../rvrt)** | `riscv64` | 429,657 | 334,953 | 293,948 | 5,232,573 | 3,411,619 | 30,695 | `ALL_PASS` |
+| **[`rvrt`](../../rvrt)** | `riscv32` | 443,176 | 336,183 | 294,170 | 5,074,102 | 3,262,063 | 24,365 | `ALL_PASS` |
+| **[`loongarch64rt`](../../loongarch64rt)** | `loongarch64` | 4,449,659 | 3,664,783 | 3,934,807 | 3,381,983 | 3,184,206 | 47,945 | `ALL_PASS` |
+| **[`ppc64rt`](../../ppc64rt)** | `ppc64le` | 5,918,512 | 6,028,788 | 5,995,024 | 4,409,892 | 7,678,629 | 80,309 | `ALL_PASS` |
+| **[`mips64rt`](../../mips64rt)** | `mips64el` | 1,397,821 | 3,051,903 | 1,292,464 | 2,317,979 | 2,876,927 | 53,085 | `ALL_PASS` |
+| **[`sparc64rt`](../../sparc64rt)** | `sparc64` | 14,163,234 | 7,161,717 | 6,452,166 | 11,877,305 | 6,293,332 | 69,907 | `ALL_PASS` |
