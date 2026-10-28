@@ -1,0 +1,17 @@
+The strongest candidates are **FP register caching/FPCR hoisting and native block chaining**, followed by GPR caching. The existing seven-instruction Soft-TLB is a lower priority. These are investigation priorities; the TSV provides workload timings, not evidence of a particular internal bottleneck.
+
+Full audit with file:line recommendations: [2026-10-28-perf-audit-rv-la64.md](/Users/angerman/Projects/zw3rk/rt-series/lode/reviews/2026-10-28-perf-audit-rv-la64.md). Committed locally as `0d80622`.
+
+1. **Keep FP operands resident; hoist FPCR handling.** FP consumes 50–52% of runtime. Both emitters repeatedly transfer operands through CPU memory and integer registers: [RV FP emitter](/Users/angerman/Projects/zw3rk/rvrt/src/dbt_emit_fp.c:288), [LA64 FP emitter](/Users/angerman/Projects/zw3rk/loongarch64rt/src/dbt/emit_fp.c:162). Start with block-local FPR caching. LA64 still emits per-operation FPCR save/restore at [line 98](/Users/angerman/Projects/zw3rk/loongarch64rt/src/dbt/emit_fp.c:98) and line 158—separate from the completed FPSR batching.
+
+2. **Remove C from warm block transitions.** [RV trampoline:55](/Users/angerman/Projects/zw3rk/rvrt/src/dbt/trampoline_a64.S:55) and [LA64 trampoline:70](/Users/angerman/Projects/zw3rk/loongarch64rt/src/dbt/trampoline_a64.S:70) call C between eligible blocks. Use an inline validated IBTC hit path, then static-edge RW link slots. LA64’s existing IBTC lookup has no production callers. Preserve invalidation, signal polling, budgets, and balanced block frames. RV already directly chains self-loops, so this will not remove their body costs.
+
+3. **Cache GPRs and track FP boxing facts.** Every ordinary GPR access currently loads/stores CPU state through [RV helpers](/Users/angerman/Projects/zw3rk/rvrt/src/dbt_emit_fp.h:261) and [LA64 helpers](/Users/angerman/Projects/zw3rk/loongarch64rt/src/dbt/emit_int.c:44). Begin within blocks; extend across compatible native links later. For RV, eliminate repeated [unboxing checks](/Users/angerman/Projects/zw3rk/rvrt/src/dbt_emit_fp.c:113) only for proven boxed values, preserving raw bits and NaN semantics.
+
+4. **Implement an actual return predictor.** RV’s RAS helpers are unused. LA64 [pushes dispatcher resume PCs](/Users/angerman/Projects/zw3rk/loongarch64rt/src/dbt/dbt.c:724), with no production pop. Push architectural return addresses at calls and validate computed targets at returns. Measure Fibonacci separately from the four-target vtable loop.
+
+5. **Optimize around the TLB.** Both hit paths already have seven core instructions. Investigate surrounding register traffic and outlining inline miss stubs before changing the lookup sequence.
+
+The performance target needs one correction: a **4× reduction in coremark, FP, and calls alone** gives totals of **27,525 µs RV64, 26,950 µs RV32, and 28,423 µs LA64**. RV32 would still lose to QEMU’s 24,471 µs; it needs additional improvement, including ChaCha20. Beating QEMU individually on coremark requires roughly **7.7–8.8×**.
+
+The report also records untested RV FMA scratch-register and LA64 repeated-SMC concerns relevant to these changes. Translator edits were preserved. `git diff --cached --check` passed; no builds or benchmarks were run. Phase instrumentation and comparable warmed measurements remain necessary before claiming speedups.
