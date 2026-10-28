@@ -86,22 +86,22 @@ Every worker lane MUST enforce the following 7 architectural invariants when imp
 
 ---
 
-## 7. Verified Post-Optimization Results on `aarch64-darwin-5.lan` (`docs/bench/results-darwin5-full.tsv`, Waves P1–P6 Complete)
+## 7. Verified Post-Optimization Results on `aarch64-darwin-5.lan` (`docs/bench/results-darwin5-full.tsv`, Waves P1–P11 Complete)
 
 All 68 benchmark rows across 6 execution targets (`native`, `darwin` DBT, `darwin-interp`, `hl` DBT, `linux` DBT, `qemu-<arch>` TCG, and `linux-interp`) pass 100% (`ALL_PASS`, identical CRCs across all 5 workloads). Raw TSV data is recorded in [`docs/bench/results-darwin5-full.tsv`](bench/results-darwin5-full.tsv).
 
-Across all 11 guest architectures (`10` translators), **`darwin` DBT beats macOS `qemu-<arch>` on 11 out of 11 architectures (`11/11`)**, and **`linux`/`darwin` DBT beats Linux VM `qemu-<arch>` on 9 out of 11 architectures (`9/11`)**:
+Across all 11 guest architectures (`10` translators), **`darwin` DBT beats macOS `qemu-<arch>` on 11 out of 11 architectures (`11/11`)**, and **`linux`/`darwin` DBT beats Linux VM `qemu-<arch>` on 11 out of 11 architectures (`11/11`)**:
 
-| Guest Arch | Runtime | Pre-Wave-P `linux` DBT (`us`) | Post-Wave-P6 `linux` DBT (`us`) | Post-Wave-P6 `darwin` DBT (`us`) | Post-Wave-P6 `hl` DBT (`us`) | macOS `qemu-<arch>` (`us`) | Linux VM `qemu-<arch>` (`us`) | DBT Speedup (Pre $\to$ Post `linux`) | Speedup vs. `qemu-<arch>` |
+| Guest Arch | Runtime | Pre-Wave-P `linux` DBT (`us`) | Post-Wave-P11 `linux` DBT (`us`) | Post-Wave-P11 `darwin` DBT (`us`) | Post-Wave-P11 `hl` DBT (`us`) | macOS `qemu-<arch>` (`us`) | Linux VM `qemu-<arch>` (`us`) | DBT Speedup (Pre $\to$ Post `linux`) | Speedup vs. `qemu-<arch>` (`macOS` / `Linux`) |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | `armhf` | `a32rt` | `8,092` | **`8,076`** | **`10,773`** | `15,365` | `44,581` | `22,066` | `1.00x` | **4.14x vs macOS QEMU / 2.73x vs Linux QEMU** |
 | `mips64el` | `mips64rt` | `6,294,494` | **`25,658`** | **`24,295`** | `64,264` | `45,672` | `42,720` | **245.3x** | **1.88x vs macOS QEMU / 1.76x vs Linux QEMU** |
+| `riscv64` | `rvrt` | `1,259,301` | **`25,113`** | **`24,717`** | `37,483` | `67,225` | `30,816` | **50.15x** | **2.72x vs macOS QEMU / 1.25x vs Linux QEMU** |
+| `riscv32` | `rvrt` | `1,353,795` | **`25,695`** | **`25,220`** | `39,217` | `67,677` | `26,932` | **52.69x** | **2.68x vs macOS QEMU / 1.07x vs Linux QEMU** |
 | `i686` | `i686rt` | `481,004` | **`32,802`** | **`32,193`** | `34,496` | `52,554` | `32,623` | **14.66x** | **1.63x vs macOS QEMU / 1.01x vs Linux QEMU** |
 | `loongarch64` | `loongarch64rt` | `2,447,302` | **`34,298`** | **`33,711`** | `53,113` | `47,646` | `42,824` | **71.35x** | **1.41x vs macOS QEMU / 1.27x vs Linux QEMU** |
 | `mipsel` | `mips32rt` | `4,987,521` | **`36,404`** | **`36,666`** | `46,822` | `39,717` | `39,328` | **137.0x** | **1.09x vs macOS QEMU / 1.08x vs Linux QEMU** |
 | `ppc32` | `ppc32rt` | `181,648,370` | **`38,042`** | **`37,545`** | `50,217` | `73,371` | `67,692` | **4,775x** | **1.95x vs macOS QEMU / 1.80x vs Linux QEMU** |
-| `riscv32` | `rvrt` | `1,353,795` | **`47,508`** | **`47,230`** | `64,989` | `67,677` | `26,932` | **28.50x** | **1.43x vs macOS QEMU** (`74.1x` vs `linux-interp`) |
-| `riscv64` | `rvrt` | `1,259,301` | **`47,958`** | **`47,685`** | `64,694` | `67,225` | `30,816` | **26.26x** | **1.41x vs macOS QEMU** (`76.8x` vs `linux-interp`) |
 | `ppc64le` | `ppc64rt` | `3,108,820` | **`56,447`** | **`54,800`** | `83,942` | `83,619` | `67,990` | **55.08x** | **1.53x vs macOS QEMU / 1.24x vs Linux QEMU** |
 | `sparc32` | `sparc32rt` | `2,243,355` | **`68,667`** | **`58,188`** | `90,581` | `84,562` | `68,286` | **32.67x** | **1.45x vs macOS QEMU / 1.17x vs Linux QEMU** |
 | `sparc64` | `sparc64rt` | `989,809,977` | **`58,820`** | **`59,272`** | `72,625` | `96,659` | `68,951` | **16,828x** | **1.63x vs macOS QEMU / 1.17x vs Linux QEMU** |
