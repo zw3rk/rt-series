@@ -21,11 +21,15 @@ REQUIRED_DOCS := \
 	docs/HOST-CONTRACT.md \
 	docs/SOFTWARE-CATALOGUE.md \
 	docs/UNIFICATION-PLAN.md \
+	docs/PERF-PLAN.md \
+	docs/CLEAN-DRY-YAGNI-PLAN.md \
+	docs/bench/results-darwin5-full.tsv \
 	docs/lanes/wave-1-closeout.md \
 	docs/lanes/wave-2-rv32gc.md \
 	docs/lanes/wave-3-rt32-family.md \
 	docs/lanes/wave-4-rt64-family.md \
 	docs/lanes/wave-u-unification.md \
+	docs/lanes/wave-p-perf.md \
 	lode/README.md \
 	lode/STATE-OF-PLAY-2026-10-23.md \
 	lode/ISA-TRAP-AND-ABI-MATRIX.md \
@@ -40,6 +44,16 @@ REQUIRED_DOCS := \
 	lode/reviews/2026-10-26-astra-xhigh-unification-review-3.md \
 	lode/reviews/2026-10-26-fable-unification-review.md \
 	lode/reviews/2026-10-26-astra-xhigh-and-fable-dispositions.md \
+	lode/reviews/2026-10-28-perf-plan-astra.md \
+	lode/reviews/2026-10-28-perf-plan-fable.md \
+	lode/reviews/2026-10-28-clean-dry-yagni-a32-i686-ppc32-astra.md \
+	lode/reviews/2026-10-28-clean-dry-yagni-mips32-sparc32-rvrt-astra.md \
+	lode/reviews/2026-10-28-clean-dry-yagni-la64-ppc64-astra.md \
+	lode/reviews/2026-10-28-clean-dry-yagni-mips64-sparc64-series-astra.md \
+	lode/reviews/2026-10-28-clean-dry-yagni-dbt-subsystem-astra.md \
+	lode/reviews/2026-10-28-clean-dry-yagni-os-backends-astra.md \
+	lode/reviews/2026-10-28-clean-dry-yagni-vm-softtlb-astra.md \
+	lode/reviews/2026-10-28-clean-dry-yagni-interp-build-astra.md \
 	tests/check_abi_invariants.c \
 	tests/bench_suite.c \
 	tools/bench_harness.sh \

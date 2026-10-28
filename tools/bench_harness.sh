@@ -187,7 +187,7 @@ build_guest_bins() {
     if [ ! -x "$BENCH_DIR/bench-loongarch64" ] && docker image inspect loongarch64rt-l3a-tool:latest >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-la64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w loongarch64rt-l3a-tool:latest \
-            loongarch64-linux-gnu-gcc -std=c11 -O1 -static -Wall -Wextra -Werror=vla \
+            loongarch64-linux-gnu-gcc -std=c11 -O2 -fno-tree-vectorize -static -Wall -Wextra -Werror=vla \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-loongarch64 || true
     fi
     if [ ! -x "$BENCH_DIR/bench-ppc64le" ] && docker image inspect ppc64rt-l3a-tool:latest >/dev/null 2>&1; then
@@ -199,7 +199,7 @@ build_guest_bins() {
     if [ ! -x "$BENCH_DIR/bench-mips64el" ] && docker image inspect mips64rt-parity-env:trixie >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-mips64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w mips64rt-parity-env:trixie \
-            mips64el-linux-gnuabi64-gcc -std=c11 -O1 -mabi=64 -static -Wl,-z,common-page-size=65536 -Wall -Wextra -Werror=vla \
+            mips64el-linux-gnuabi64-gcc -std=c11 -O2 -mabi=64 -static -Wl,-z,common-page-size=65536 -Wall -Wextra -Werror=vla \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-mips64el || true
     fi
     if [ ! -x "$BENCH_DIR/bench-sparc64" ] && docker image inspect sparc64rt-l6a-tool:latest >/dev/null 2>&1; then
