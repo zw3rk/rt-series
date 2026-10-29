@@ -22,6 +22,7 @@ REQUIRED_DOCS := \
 	docs/SOFTWARE-CATALOGUE.md \
 	docs/UNIFICATION-PLAN.md \
 	docs/PERF-PLAN.md \
+	docs/PERF-PLAN-P13.md \
 	docs/CLEAN-DRY-YAGNI-PLAN.md \
 	docs/bench/results-darwin5-full.tsv \
 	docs/lanes/wave-1-closeout.md \
@@ -46,6 +47,8 @@ REQUIRED_DOCS := \
 	lode/reviews/2026-10-26-astra-xhigh-and-fable-dispositions.md \
 	lode/reviews/2026-10-28-perf-plan-astra.md \
 	lode/reviews/2026-10-28-perf-plan-fable.md \
+	lode/reviews/2026-10-29-perf-plan-p13-astra.md \
+	lode/reviews/2026-10-29-perf-plan-p13-fable.md \
 	lode/reviews/2026-10-28-clean-dry-yagni-a32-i686-ppc32-astra.md \
 	lode/reviews/2026-10-28-clean-dry-yagni-mips32-sparc32-rvrt-astra.md \
 	lode/reviews/2026-10-28-clean-dry-yagni-la64-ppc64-astra.md \

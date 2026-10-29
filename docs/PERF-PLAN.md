@@ -86,37 +86,37 @@ Every worker lane MUST enforce the following 7 architectural invariants when imp
 
 ---
 
-## 7. Verified Post-Optimization Results on `aarch64-darwin-5.lan` (`docs/bench/results-darwin5-full.tsv`, Waves P1–P12 Complete)
+## 7. Verified Post-Optimization Results on `aarch64-darwin-5.lan` (`docs/bench/results-darwin5-full.tsv`, Waves P1–P13 Complete)
 
 All 68 benchmark rows across 6 execution targets (`native`, `darwin` DBT, `darwin-interp`, `hl` DBT, `linux` DBT, `qemu-<arch>` TCG, and `linux-interp`) pass 100% (`ALL_PASS`, identical CRCs across all 5 workloads). Raw TSV data is recorded in [`docs/bench/results-darwin5-full.tsv`](bench/results-darwin5-full.tsv).
 
 Across all 11 guest architectures (`10` translators), **`darwin` DBT beats macOS `qemu-<arch>` on 11 out of 11 architectures (`11/11`)**, and **`linux`/`darwin` DBT beats Linux VM `qemu-<arch>` on 11 out of 11 architectures (`11/11`)**:
 
-| Guest Arch | Runtime | Pre-Wave-P `linux` DBT (`us`) | Post-Wave-P12 `linux` DBT (`us`) | Post-Wave-P12 `darwin` DBT (`us`) | Post-Wave-P12 `hl` DBT (`us`) | macOS `qemu-<arch>` (`us`) | Linux VM `qemu-<arch>` (`us`) | DBT Speedup (Pre $\to$ Post `linux`) | Speedup vs. `qemu-<arch>` (`macOS` / `Linux`) |
+| Guest Arch | Runtime | Pre-Wave-P `linux` DBT (`us`) | Post-Wave-P13 `linux` DBT (`us`) | Post-Wave-P13 `darwin` DBT (`us`) | Post-Wave-P13 `hl` DBT (`us`) | macOS `qemu-<arch>` (`us`) | Linux VM `qemu-<arch>` (`us`) | DBT Speedup (Pre $\to$ Post `linux`) | Speedup vs. `qemu-<arch>` (`macOS` / `Linux`) |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| `armhf` | `a32rt` | `8,092` | **`8,030`** | **`10,773`** | `15,348` | `44,581` | `22,066` | `1.01x` | **4.14x vs macOS QEMU / 2.75x vs Linux QEMU** |
-| `mips64el` | `mips64rt` | `6,294,494` | **`25,425`** | **`23,908`** | `55,385` | `45,672` | `42,720` | **247.6x** | **1.91x vs macOS QEMU / 1.79x vs Linux QEMU** |
-| `riscv64` | `rvrt` | `1,259,301` | **`24,548`** | **`24,090`** | `37,031` | `67,225` | `30,816` | **51.30x** | **2.79x vs macOS QEMU / 1.28x vs Linux QEMU** |
-| `riscv32` | `rvrt` | `1,353,795` | **`25,087`** | **`24,642`** | `38,891` | `67,677` | `26,932` | **53.96x** | **2.75x vs macOS QEMU / 1.09x vs Linux QEMU** |
-| `i686` | `i686rt` | `481,004` | **`32,739`** | **`32,193`** | `34,485` | `52,554` | `32,623` | **14.69x** | **1.63x vs macOS QEMU / 1.01x vs Linux QEMU** |
-| `loongarch64` | `loongarch64rt` | `2,447,302` | **`33,028`** | **`32,558`** | `46,346` | `47,646` | `42,824` | **74.10x** | **1.46x vs macOS QEMU / 1.32x vs Linux QEMU** |
-| `ppc64le` | `ppc64rt` | `3,108,820` | **`33,258`** | **`32,958`** | `47,823` | `83,619` | `67,990` | **93.48x** | **2.54x vs macOS QEMU / 2.06x vs Linux QEMU** |
-| `mipsel` | `mips32rt` | `4,987,521` | **`37,228`** | **`36,218`** | `46,772` | `39,717` | `39,328` | **134.0x** | **1.10x vs macOS QEMU / 1.09x vs Linux QEMU** |
-| `ppc32` | `ppc32rt` | `181,648,370` | **`38,626`** | **`37,903`** | `47,177` | `73,371` | `67,692` | **4,703x** | **1.94x vs macOS QEMU / 1.79x vs Linux QEMU** |
-| `sparc32` | `sparc32rt` | `2,243,355` | **`67,258`** | **`55,881`** | `81,746` | `84,562` | `68,286` | **33.35x** | **1.51x vs macOS QEMU / 1.22x vs Linux QEMU** |
-| `sparc64` | `sparc64rt` | `989,809,977` | **`56,353`** | **`56,715`** | `67,622` | `96,659` | `68,951` | **17,564x** | **1.70x vs macOS QEMU / 1.22x vs Linux QEMU** |
+| `armhf` | `a32rt` | `8,092` | **`8,024`** | **`10,770`** | `15,216` | `44,581` | `22,066` | `1.01x` | **4.14x vs macOS QEMU / 2.75x vs Linux QEMU** |
+| `mips64el` | `mips64rt` | `6,294,494` | **`25,224`** | **`23,767`** | `55,504` | `45,672` | `42,720` | **249.5x** | **1.92x vs macOS QEMU / 1.80x vs Linux QEMU** |
+| `riscv64` | `rvrt` | `1,259,301` | **`24,456`** | **`24,019`** | `37,159` | `67,225` | `30,816` | **51.49x** | **2.80x vs macOS QEMU / 1.28x vs Linux QEMU** |
+| `riscv32` | `rvrt` | `1,353,795` | **`25,050`** | **`24,601`** | `38,458` | `67,677` | `26,932` | **54.04x** | **2.75x vs macOS QEMU / 1.09x vs Linux QEMU** |
+| `i686` | `i686rt` | `481,004` | **`28,947`** | **`28,631`** | `30,555` | `52,554` | `32,623` | **16.62x** | **1.84x vs macOS QEMU / 1.13x vs Linux QEMU** |
+| `loongarch64` | `loongarch64rt` | `2,447,302` | **`29,926`** | **`29,627`** | `43,097` | `47,646` | `42,824` | **81.78x** | **1.61x vs macOS QEMU / 1.43x vs Linux QEMU** |
+| `ppc64le` | `ppc64rt` | `3,108,820` | **`30,463`** | **`30,332`** | `44,841` | `83,619` | `67,990` | **102.1x** | **2.76x vs macOS QEMU / 2.23x vs Linux QEMU** |
+| `mipsel` | `mips32rt` | `4,987,521` | **`33,430`** | **`33,810`** | `43,739` | `39,717` | `39,328` | **149.2x** | **1.19x vs macOS QEMU / 1.18x vs Linux QEMU** |
+| `ppc32` | `ppc32rt` | `181,648,370` | **`34,713`** | **`34,026`** | `43,224` | `73,371` | `67,692` | **5,233x** | **2.16x vs macOS QEMU / 1.95x vs Linux QEMU** |
+| `sparc32` | `sparc32rt` | `2,243,355` | **`44,489`** | **`43,282`** | `55,747` | `84,562` | `68,286` | **50.42x** | **1.95x vs macOS QEMU / 1.53x vs Linux QEMU** |
+| `sparc64` | `sparc64rt` | `989,809,977` | **`50,317`** | **`48,933`** | `60,409` | `96,659` | `68,951` | **19,671x** | **1.98x vs macOS QEMU / 1.37x vs Linux QEMU** |
 
 ---
 
-## 8. Wave P13 — Series-Wide DBT Emission, FPR/XMM Caching & Microarchitectural Optimization Plan
+## 8. Wave P13 — Series-Wide DBT Emission, FPR/XMM Caching & Microarchitectural Optimization Plan (Completed)
 
-See [`docs/PERF-PLAN-P13.md`](PERF-PLAN-P13.md) for the detailed Wave P13 design covering:
-- **Lane P13-1 (`ppc64rt` + `ppc32rt`)**: Eliminating fast-path `e_set_nip` on `ppc64rt` loads/stores (using `ppc64_mem_site_t::guest_pc_delta`), 2-instruction `RLWINM`/`RLDICL`/`RLDICR` lowering, frame-less hot blocks & zero-spill trampoline IBTC loop, 8-slot `ppc64rt` FPR cache (`d24..d31`), multi-instruction `fp_next_is_arith` lookahead in `ppc32rt`, and lazy FPR cache integration for `lfd`/`stfd`.
-- **Lane P13-2 (`loongarch64rt`)**: Fixing `fpcr_enter_dyn_hoisted` / `fpcr_restore` scope across blocks and adding an 8-slot scalar FPR cache (`d24..d31`) with lazy writeback.
-- **Lane P13-3 (`mips32rt` + `mips64rt`)**: Fixing `fp_batch_is_any` lookahead across `LWC1`/`LDC1`/`SWC1`/`SDC1` and `MOV`/`ABS`/`NEG` in `mips32rt`, lazy dirty writeback in `mips32rt`'s FPR cache, and an 8-slot scalar FPR cache (`d16..d23`) in `mips64rt`.
-- **Lane P13-4 (`sparc32rt`)**: Inline `SAVE`/`RESTORE` fast path (`sparc32_emit_win_fast`), single-lookup `g_vm32_prot` cached in `x25` with `VM32_PROT_FAST_WRITE` bit 3, live host `NZCV` across `SUBcc`/`ADDcc` $\to$ `Bicc`, and an 8-slot double FPR cache (`d16..d23`) + 2-insn `fp_canon`.
-- **Lane P13-5 (`sparc64rt`)**: Preserving the GPR cache across all loads/stores and unconditional delay slots, live host `NZCV` across `SUBcc`/`ADDcc`/logic `cc` $\to$ `Bicc`/`BPcc`, `x19`-relative `sparc64_fast_win` + Soft-TLB-accelerated `win_spill_to`/`win_fill_from`, and an 8-slot FPR cache (`d16..d23`).
-- **Lane P13-6 (`rvrt` + `i686rt`)**: Lazy dirty writeback on `FLW`/`FLD` + direct `FMOV` reads on `FSW`/`FSD` in `rvrt`, and a 1-to-1 128-bit XMM register cache (`xmm0..xmm7` in `v16..v23`) in `i686rt`.
+See [`docs/PERF-PLAN-P13.md`](PERF-PLAN-P13.md) for the completed Wave P13 design, dual `astra` + `fable` review reconciliations, commit ledger, and before/after benchmark matrix covering:
+- **Lane P13-1 (`ppc64rt` + `ppc32rt`)**: Eliminating fast-path `e_set_nip` on `ppc64rt` loads/stores (using `ppc64_mem_site_t::guest_pc_delta`), 2-instruction `RLWINM`/`RLDICL`/`RLDICR` lowering, zero-spill trampoline IBTC loop, 8-slot `ppc64rt` write-through FPR cache (`d8..d15`), multi-instruction `fp_next_is_arith` lookahead in `ppc32rt`, and write-through FPR cache integration for `lfd`/`stfd` + 1-byte SMC hook.
+- **Lane P13-2 (`loongarch64rt`)**: Two-bit `fpcr_state` machine hoisted across blocks and an 8-slot write-through scalar FPR cache (`d8..d15`).
+- **Lane P13-3 (`mips32rt` + `mips64rt`)**: Multi-instruction `fp_batch_is_any` lookahead across `LWC1`/`LDC1`/`SWC1`/`SDC1`, `MOV`/`ABS`/`NEG`, and non-trapping integer ALU in `mips32rt` + pair-aware FPR cache, and an 8-slot write-through scalar FPR cache (`d8..d15`) in `mips64rt`.
+- **Lane P13-4 (`sparc32rt`)**: Inline `SAVE`/`RESTORE` fast path (`sparc32_emit_win_fast`), single-lookup `g_vm32_prot` cached in `x25` with `VM32_PROT_FAST_WRITE` bit 3, live host `NZCV` across `SUBcc`/`ADDcc`/logical `cc` $\to$ `Bicc`, and an 8-slot write-through double FPR cache (`d8..d15`) + 2-insn `fp_canon`.
+- **Lane P13-5 (`sparc64rt`)**: Preserving the GPR cache across all loads/stores via cold miss-stub reload, live host `NZCV` across `SUBcc`/`ADDcc`/logic `cc` $\to$ `Bicc`/`BPcc`, `x19`-relative `sparc64_fast_win` + Soft-TLB-accelerated `win_spill_to`/`win_fill_from`, and an 8-slot write-through FPR cache (`d8..d15`).
+- **Lane P13-6 (`rvrt` + `i686rt`)**: Single-insn `ORR` NaN-boxing on `FLW` + direct `FMOV` reads on `FSW`/`FSD` in `rvrt`, and a 1-to-1 write-through 128-bit XMM register cache (`xmm0..xmm7` in `v16..v23`) in `i686rt`.
 
 
 

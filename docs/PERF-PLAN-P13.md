@@ -1,8 +1,8 @@
-# Wave P13 — Series-Wide DBT Emission, FPR/XMM Caching & Microarchitectural Optimization Plan (Rev 2 — Post `astra` & `fable` Review)
+# Wave P13 — Series-Wide DBT Emission, FPR/XMM Caching & Microarchitectural Optimization Plan (Rev 3 — Completed & Verified)
 
-> **Status**: Approved after Dual Independent Architectural Review ([`lode/reviews/2026-10-29-perf-plan-p13-astra.md`](../lode/reviews/2026-10-29-perf-plan-p13-astra.md) + [`lode/reviews/2026-10-29-perf-plan-p13-fable.md`](../lode/reviews/2026-10-29-perf-plan-p13-fable.md)).
+> **Status**: Completed & Verified across all 6 Worker Lanes (`100% ALL_PASS` on `aarch64-darwin-5.lan`; Dual Independent Architectural Review in [`lode/reviews/2026-10-29-perf-plan-p13-astra.md`](../lode/reviews/2026-10-29-perf-plan-p13-astra.md) + [`lode/reviews/2026-10-29-perf-plan-p13-fable.md`](../lode/reviews/2026-10-29-perf-plan-p13-fable.md)).
 > **Parent Plan**: [`docs/PERF-PLAN.md`](PERF-PLAN.md)
-> **Baseline**: Post-Wave P12 full benchmark matrix ([`docs/bench/results-darwin5-full.tsv`](bench/results-darwin5-full.tsv) at `046f3e4`).
+> **Dataset**: [`docs/bench/results-darwin5-full.tsv`](bench/results-darwin5-full.tsv) (`aarch64-darwin-5.lan`).
 
 ---
 
@@ -111,3 +111,38 @@ All 6 worker lanes run in parallel across the 6 equal-width lower panes (`%9`, `
 | **Lane P13-4** | `%12` | `sparc32rt` | `sparc32rt/src/dbt/{dbt.h,dbt.c,emit_cc.c,emit_fast.c,emit_fp.c,emit_fpmem.c,emit_int.c,trampoline_a64.S}`, `sparc32rt/src/vm/vm32.c` | `make check-line-limits && make build && make build-darwin && ./tests/catalogue/run_catalogue.sh smoke` + `--difftest` |
 | **Lane P13-5** | `%22` | `sparc64rt` | `sparc64rt/src/dbt/{emit_priv.h,dbt.c,emit_int.c,emit_fast.c,emit_fp.c,emit_fpcmp.c,emit_mem.c,trampoline_a64.S}`, `sparc64rt/src/interp/interp_win.c` | `make check-line-limits && make build && make build-darwin && ./tests/catalogue/run_catalogue.sh smoke` + `--difftest` |
 | **Lane P13-6** | `%14` | `rvrt`, `i686rt` | `rvrt/src/darwin_dbt.c`<br>`i686rt/src/dbt/{dbt.h,dbt.c,emit_sse.c,emit_sse2.c}`, `i686rt/Makefile` | `make check-line-limits && make build && make build-darwin && ./tests/catalogue/run_catalogue.sh smoke` + `--difftest` in both `rvrt` and `i686rt` |
+
+---
+
+## 4. Completed Wave P13 Deliverables & Verified Benchmark Results on `aarch64-darwin-5.lan`
+
+### 4.1 Worker-Lane Commit Ledger
+
+| Lane | Repository | Commit SHA(s) | Summary of Landed Optimizations |
+|---|---|---|---|
+| **Lane P13-1** | `ppc64rt` | `cab2949` | Retired fast-path `e_set_nip` on `ppc64_mem_emit_site` via `ppc64_mem_site_t::guest_pc_delta`, 2-instruction `RLWINM`/`RLDICL`/`RLDICR` (`EXTR` + `AND`), write-through `d8..d15` FPR cache across `emit_fp.c` + `emit_fp_vs.c`, and zero-spill trampoline IBTC loop. |
+| **Lane P13-1** | `ppc32rt` | `5d46891` | Multi-instruction `fp_next_is_arith` lookahead across interleaved `lfd`/`stfd`/`lfs`/`stfs`/`fmr`/`fabs`/`fneg`/non-trapping int ALU, write-through `lfd`/`stfd` FPR cache integration, and 1-byte `stb` single-page SMC fast path. |
+| **Lane P13-2** | `loongarch64rt` | `7a11458`, `2ffcd08` | Two-bit `fpcr_state` (`FPCR_HOST_RN`, `FPCR_GUEST_DYN`, `FPCR_FIXED_RM`) hoisted across blocks, write-through `d8..d15` scalar FPR cache in `emit_fp.c` + `emit_fp_mem.c`, and P3 difftest parity fixes (`a64e_falu`/`a64e_fmaxnm`, `fp_s_fcmp`, `v_step`, `fp_cfmove`). |
+| **Lane P13-3** | `mips32rt` | `4d1e9af` | Preserved `fp_batch_open` across `MOV`/`ABS`/`NEG` + multi-instruction `fp_batch_is_any` lookahead across `LWC1`/`LDC1`/`SWC1`/`SDC1` and non-trapping integer ALU (`ADDIU`/`ADDU`/`SUBU`/`SLT*`/`AND*`/`OR*`/`XOR*`/shifts), plus pair-aware `LWC1`/`LDC1`/`SWC1`/`SDC1` FPR cache integration. |
+| **Lane P13-3** | `mips64rt` | `13dc346` | 8-slot write-through scalar FPR cache in `d8..d15` across `emit_fp.c` (`LWC1`/`LDC1`/`SWC1`/`SDC1`, `COP1X` `LWXC1`/`LDXC1`/`SWXC1`/`SDXC1`/`MADD`/`MSUB`, `DMTC1`/`MTC1`). |
+| **Lane P13-4** | `sparc32rt` | `bc06314`, `df56a10` | Inline `SAVE`/`RESTORE` window fast path (`sparc32_emit_win_fast`), `g_vm32_prot` cached in `x25` with `VM32_PROT_FAST_WRITE` bit 3, live host `NZCV` across `SUBcc`/`ADDcc`/logical `cc` $\to$ `Bicc`, write-through `d8..d15` double FPR cache (`fp_ld_d`/`fp_st_d`/`LDDF`/`STDF`, resetting `fpr_valid` across split branch delay slots), and 2-insn `fp_canon`. |
+| **Lane P13-5** | `sparc64rt` | `13715cf`, `ab20d3b` | Preserved `x7, x8` in `mem_emit_common` + per-site miss-stub cache reload so `b->gpr_cache_valid` stays live across all loads/stores, live host `NZCV` (`SPARC64_NZCV_SUBCC`/`ADDCC`/`LOGIC`) into `Bicc`/`BPcc`, `x19`-relative `sparc64_fast_win` + Soft-TLB `win_spill_to`/`win_fill_from`, write-through `d8..d15` FPR cache (`LDDF`/`STDF`), and kept FP batch open across inline Soft-TLB loads/stores. |
+| **Lane P13-6** | `rvrt` | `20ca2fa` | Single-instruction `ORR x3, x3, #0xFFFFFFFF00000000` NaN-boxing on `FLW` and direct `FMOV w2, s(16+fslot)` / `FMOV x2, d(16+fslot)` reads from the FPR cache on `FSW`/`FSD` without flushing/reloading via memory. |
+| **Lane P13-6** | `i686rt` | `d885169` | Split `emit_sse.c` into `emit_sse.c` + `emit_sse2.c` (`<= 900` lines) and added a 1-to-1 write-through 128-bit XMM register cache (`xmm0..xmm7` in `v16..v23` using `ORR.16B`, `FMOV`, and lane-preserving `INS Vd.D[0]` / `INS Vd.S[0]`). |
+
+### 4.2 Pre-P13 vs. Post-P13 Full Benchmark Comparison on `aarch64-darwin-5.lan` (`--full`, `us`)
+
+| Translator | Guest Arch | Pre-P13 `darwin` (`us`) | Post-P13 `darwin` (`us`) | Pre-P13 `linux` (`us`) | Post-P13 `linux` (`us`) | Key Workload Speedups (`Pre-P13` $\to$ `Post-P13`) | Post-P13 vs `qemu-<arch>` (`macOS` / `Linux`) |
+|---|---|---:|---:|---:|---:|---|---|
+| **`sparc32rt`** | `sparc32` | `55,881` | **`43,282`** | `67,258` | **`44,489`** | `calls_ibtc`: `29,084` $\to$ **`11,096 us` (2.62x)**, `coremark`: `13,179` $\to$ **`9,495 us` (1.39x)** | **1.95x vs macOS QEMU / 1.53x vs Linux QEMU** |
+| **`sparc64rt`** | `sparc64` | `56,715` | **`48,933`** | `56,353` | **`50,317`** | `calls_ibtc`: `23,977` $\to$ **`18,365 us` (1.31x)**, `coremark`: `12,642` $\to$ **`10,631 us` (1.19x)** | **1.98x vs macOS QEMU / 1.37x vs Linux QEMU** |
+| **`i686rt`** | `i686` | `32,193` | **`28,631`** | `32,739` | **`28,947`** | `vfp_simd`: `8,267` $\to$ **`4,519 us` (1.83x)** | **1.84x vs macOS QEMU / 1.13x vs Linux QEMU** |
+| **`ppc32rt`** | `ppc32` | `37,903` | **`34,026`** | `38,626` | **`34,713`** | `vfp_simd`: `16,966` $\to$ **`13,077 us` (1.30x)** | **2.16x vs macOS QEMU / 1.95x vs Linux QEMU** |
+| **`loongarch64rt`** | `loongarch64` | `32,558` | **`29,627`** | `33,028` | **`29,926`** | `vfp_simd`: `16,103` $\to$ **`12,999 us` (1.24x)** | **1.61x vs macOS QEMU / 1.43x vs Linux QEMU** |
+| **`ppc64rt`** | `ppc64le` | `32,958` | **`30,332`** | `33,258` | **`30,463`** | `vfp_simd`: `4,678` $\to$ **`3,210 us` (1.46x)**, `coremark`: `10,498` $\to$ **`9,987 us`**, `calls_ibtc`: `15,193` $\to$ **`14,410 us`** | **2.76x vs macOS QEMU / 2.23x vs Linux QEMU** |
+| **`mips32rt`** | `mipsel` | `36,218` | **`33,810`** | `37,228` | **`33,430`** | `vfp_simd`: `14,309` $\to$ **`11,768 us` (1.22x)**, `coremark`: `6,934` $\to$ **`6,335 us`**, `calls_ibtc`: `11,698` $\to$ **`10,975 us`** | **1.19x vs macOS QEMU / 1.18x vs Linux QEMU** |
+| **`mips64rt`** | `mips64el` | `23,908` | **`23,767`** | `25,425` | **`25,224`** | `vfp_simd`: `3,599` $\to$ **`3,395 us` (1.06x)** | **1.92x vs macOS QEMU / 1.80x vs Linux QEMU** |
+| **`rvrt`** | `riscv64` | `24,090` | **`24,019`** | `24,548` | **`24,456`** | `vfp_simd`: `8,732` $\to$ **`8,644 us`** | **2.80x vs macOS QEMU / 1.28x vs Linux QEMU** |
+| **`rvrt`** | `riscv32` | `24,642` | **`24,601`** | `25,087` | **`25,050`** | `calls_ibtc`: `7,597` $\to$ **`7,533 us`** | **2.75x vs macOS QEMU / 1.09x vs Linux QEMU** |
+| **`a32rt`** | `armhf` | `10,773` | **`10,770`** | `8,030` | **`8,024`** | Reference champion (`coremark=1,553`, `chacha20=1,066`, `vfp_simd=951`, `calls_ibtc=3,796`) | **4.14x vs macOS QEMU / 2.75x vs Linux QEMU** |
+
