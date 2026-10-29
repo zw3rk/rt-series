@@ -20,10 +20,12 @@ REQUIRED_DOCS := \
 	docs/FEATURE-MATRIX.md \
 	docs/HOST-CONTRACT.md \
 	docs/SOFTWARE-CATALOGUE.md \
+	docs/CATALOGUE-TODO.md \
 	docs/UNIFICATION-PLAN.md \
 	docs/PERF-PLAN.md \
 	docs/PERF-PLAN-P13.md \
 	docs/CLEAN-DRY-YAGNI-PLAN.md \
+	docs/lanes/wave-c1-catalogue.md \
 	docs/bench/results-darwin5-full.tsv \
 	docs/lanes/wave-1-closeout.md \
 	docs/lanes/wave-2-rv32gc.md \
@@ -75,7 +77,7 @@ SIBLING_REPOS := \
 	../sparc64rt \
 	../hyper-linux
 
-.PHONY: help all build test check check-headers check-abi-invariants check-bench-host check-docs check-siblings status bench-build bench-smoke bench-run catalogue-smoke clean
+.PHONY: help all build test check check-headers check-abi-invariants check-bench-host check-docs check-siblings status bench-build bench-smoke bench-run catalogue-smoke catalogue-qualify catalogue-grind-nightly catalogue-grind-weekly check-catalogue check-p3-torture check-tcg-smoke clean
 
 ##@ General
 
@@ -144,8 +146,33 @@ bench-smoke: ## Fast deterministic --smoke verification across available targets
 bench-run: ## Full 5-trial timed benchmark campaign (requires calm host, BENCH_MAX_LOAD<=2.5)
 	./tools/bench_harness.sh run
 
-catalogue-smoke: ## Run host-side qualification & parity smoke across <arch>rt repositories
+catalogue-smoke: ## Run Tier S host-side parity smoke across <arch>rt repos (per-repo 240s)
 	./tools/run_catalogue.sh smoke
+
+catalogue-qualify: ## Run Tier M merge/phase-gate qualification (per-repo 600s + P3/tcg fixtures)
+	./tools/run_catalogue.sh qualify
+
+catalogue-grind-nightly: ## Run Tier N nightly grind (stress-ng, torture, testfloat, builtins, libc/LTP, lmbench)
+	./tools/run_catalogue.sh grind-nightly
+
+catalogue-grind-weekly: ## Run Tier W weekly soak (Tier N + Csmith/Yarpgen + upstream make check)
+	./tools/run_catalogue.sh grind-weekly
+
+check-catalogue: ## Syntax-check catalogue runners and verify the wrapper is executable
+	sh -n tools/run_catalogue.sh
+	sh -n tools/run_grind.sh
+	test -x tests/catalogue/run_catalogue.sh
+
+check-p3-torture: ## Build and run the P3 signal/VM/atomic torture suite on the host
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -O1 -pthread -o $(BUILD)/p3_torture tests/p3_torture.c -lm
+	$(BUILD)/p3_torture
+
+check-tcg-smoke: ## Build and run the curated tests/tcg multiarch smoke on the host
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -O1 -pthread -o $(BUILD)/smoke_tcg tests/tcg/smoke_tcg.c -lm
+	$(BUILD)/smoke_tcg 4096
+	$(BUILD)/smoke_tcg 8192
 
 ##@ Cleanup
 

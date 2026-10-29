@@ -78,6 +78,24 @@ All 10 `<arch>rt` repositories pass their `tools/run_catalogue.sh smoke` gate (`
 | **[`mips64rt`](../../mips64rt)** | **`PASS`** (`parity_suite.sh`, `8/8` suites, `0 FAIL`, `0 GAP`) | 4-ABI matrix (`N64` `5000+n` & `N32` `6000+n`, `LE` & `BE`): `P1`–`P4` + `P5` dynamic `/lib64/ld.so.1` & `/lib32/ld.so.1` + `BusyBox` (`1.37.0`) oracle parity + `P6` `tgkill`/COW + `H1` `synci` SMC + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 unwind (`--interp`, `--dbt`, `--difftest 0 divergences`). |
 | **[`sparc64rt`](../../sparc64rt)** | **`PASS`** (`parity_suite.sh`, `9/9` suites, `0 FAIL`) | SPARC V9 64-bit BE (stack bias `2047`, `save`/`restore`/`flushw`, `ta 0x6d`, V9 `%ccr`/`%asi`, `VIS`): `p1_isa`, `p2_hello`, `p3_fpu`, `p4_threads`, `p5_dyn` (dynamic `/lib64/ld-linux.so.2` in `sparc64-sysroot` + `BusyBox`), `h1_smc` (`flush`), `h2_libc`, `h3_coremark`, `h4_cxx` (`--interp`, `--dbt`, `--difftest 0 divergences`). |
 
+### 2.7 Unified runner commands, budgets & fail-closed contract
+
+The gates above are driven by [`tools/run_catalogue.sh`](../tools/run_catalogue.sh) (host orchestration + `guest-payload`), [`tools/run_grind.sh`](../tools/run_grind.sh) (Tier N/W suites), and the acceptance wrapper [`tests/catalogue/run_catalogue.sh`](../tests/catalogue/run_catalogue.sh) (`exec`s the unified runner; see [`docs/lanes/wave-c1-catalogue.md`](lanes/wave-c1-catalogue.md) and [`docs/CATALOGUE-TODO.md`](CATALOGUE-TODO.md) for the tier budgets):
+
+| Command | Tier | Budget | What it runs |
+|---|---|---|---|
+| `run_catalogue.sh smoke` (`make catalogue-smoke`) | `S` | `< 2 min` total | Per-repo `tests/parity_suite.sh` (or `make check` fallback) with per-repo timeout `240s` (`CATALOGUE_SMOKE_TIMEOUT`). |
+| `run_catalogue.sh qualify` (`make catalogue-qualify`) | `M` | `< 10 min` | Per-repo parity at `PARITY_TIER=qualify` with per-repo timeout `600s` (`CATALOGUE_QUALIFY_TIMEOUT`), plus `tests/p3_torture.c` and `tests/tcg/smoke_tcg.c` presence checks. |
+| `run_catalogue.sh grind-nightly` (`make catalogue-grind-nightly`) | `N` | Nightly | `run_grind.sh nightly`: `stress-ng --verify --metrics-brief --yaml` (core + linux-fd allowlists, `bogo_ops > 0`), `gcc.c-torture` same-binary differential (`-ffp-contract=off`, `-O0`/`-O2` never cross-compared), `testfloat_gen \| guest testfloat_ver`, compiler-rt builtin probes, `libc-test`/LTP manifest, `lmbench` completion. |
+| `run_catalogue.sh grind-weekly` (`make catalogue-grind-weekly`) | `W` | Weekly | Tier N plus fixed-seed Csmith/Yarpgen soak and upstream Git/coreutils/gawk/BusyBox `make check`. |
+| `run_catalogue.sh guest-payload` | `T1`–`T4` | Per sysroot | Full `T1`–`T4` suite inside the guest (see below). |
+
+Fail-closed rules: host gates exit non-zero when `--arch` matches nothing (`matched=0`), when `pass=0`, or when `fail>0`; per-repo timeouts replace the old single `360s` wrapper and leftover `docker ps` containers fail the gate. `guest-payload` exits non-zero when `skip>0` unless `CATALOGUE_ALLOW_SKIP=1`; LuaJIT absence on `sparc32`/`sparc64`/`loongarch64`/`riscv32` is expected (`EXPECTED-SKIP`, detected via `CATALOGUE_ARCH`/`uname -m`) and never counts as skip.
+
+`guest-payload` `T1`–`T4` coverage (all `P2` checks from `CATALOGUE-TODO.md`): `T1` shell arithmetic, `sort | uniq -c | sed | grep`, `gawk`/`awk` aggregation, `find`, `dash` + `bash` subshell/trap, `tar`+`gzip` round-trip, `sha256sum -c`, `diff -u` exit `0` vs `1`, `#!` shebang exec, `/proc/self` inspection; `T2` `openssl enc` round-trip, `openssl dgst -sha256`, `zstd`, `xz`, `gzip`+`bzip2` `>256 KiB` odd-offset round-trips, `jq`, `sqlite3` window + `ROLLBACK`/join; `T3` Lua 5.4 coroutines, LuaJIT `jit.status()==true` with `jit.attach` trace counter and golden `675631440`, Python 3 `hashlib`/`zlib` golden plus `threading`; `T4` `git init -q -b master`, `gcc -O2` `selfhost.elf` run (`6765:1.414`), `g++ -std=c++17 -pthread` `std::thread` `selfhost_cxx.elf` run, `as`+`ld` `.s` link with exit `42`, `objdump -d`, `make -j2` jobserver build.
+
+Portable Curated C11 fixtures (build and run on host and in guests): [`tests/p3_torture.c`](../tests/p3_torture.c) (`make check-p3-torture`: signal-frame GPR `si_signo`/`si_code`/stolen-reservation CAS, FPR env preservation, `sigaltstack` `SS_ONSTACK`, unaligned cross-page straddling, `mprotect`/`munmap` immediacy with `si_addr` page check, 2-thread `fetch_add` race) and [`tests/tcg/smoke_tcg.c`](../tests/tcg/smoke_tcg.c) (`make check-tcg-smoke` at `4096` and `8192`: `signals`, `segfault`, `prot-none`, `test-mmap`, `testthread` + `munmap-pthread`, `float_convs`, `sha1` KAT).
+
 ---
 
 ## 3. Unified 4-Target Benchmark Harness (`bench_suite.c` + `tools/bench_harness.sh`)
