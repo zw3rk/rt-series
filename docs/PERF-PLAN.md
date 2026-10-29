@@ -106,4 +106,17 @@ Across all 11 guest architectures (`10` translators), **`darwin` DBT beats macOS
 | `sparc32` | `sparc32rt` | `2,243,355` | **`67,258`** | **`55,881`** | `81,746` | `84,562` | `68,286` | **33.35x** | **1.51x vs macOS QEMU / 1.22x vs Linux QEMU** |
 | `sparc64` | `sparc64rt` | `989,809,977` | **`56,353`** | **`56,715`** | `67,622` | `96,659` | `68,951` | **17,564x** | **1.70x vs macOS QEMU / 1.22x vs Linux QEMU** |
 
+---
+
+## 8. Wave P13 — Series-Wide DBT Emission, FPR/XMM Caching & Microarchitectural Optimization Plan
+
+See [`docs/PERF-PLAN-P13.md`](PERF-PLAN-P13.md) for the detailed Wave P13 design covering:
+- **Lane P13-1 (`ppc64rt` + `ppc32rt`)**: Eliminating fast-path `e_set_nip` on `ppc64rt` loads/stores (using `ppc64_mem_site_t::guest_pc_delta`), 2-instruction `RLWINM`/`RLDICL`/`RLDICR` lowering, frame-less hot blocks & zero-spill trampoline IBTC loop, 8-slot `ppc64rt` FPR cache (`d24..d31`), multi-instruction `fp_next_is_arith` lookahead in `ppc32rt`, and lazy FPR cache integration for `lfd`/`stfd`.
+- **Lane P13-2 (`loongarch64rt`)**: Fixing `fpcr_enter_dyn_hoisted` / `fpcr_restore` scope across blocks and adding an 8-slot scalar FPR cache (`d24..d31`) with lazy writeback.
+- **Lane P13-3 (`mips32rt` + `mips64rt`)**: Fixing `fp_batch_is_any` lookahead across `LWC1`/`LDC1`/`SWC1`/`SDC1` and `MOV`/`ABS`/`NEG` in `mips32rt`, lazy dirty writeback in `mips32rt`'s FPR cache, and an 8-slot scalar FPR cache (`d16..d23`) in `mips64rt`.
+- **Lane P13-4 (`sparc32rt`)**: Inline `SAVE`/`RESTORE` fast path (`sparc32_emit_win_fast`), single-lookup `g_vm32_prot` cached in `x25` with `VM32_PROT_FAST_WRITE` bit 3, live host `NZCV` across `SUBcc`/`ADDcc` $\to$ `Bicc`, and an 8-slot double FPR cache (`d16..d23`) + 2-insn `fp_canon`.
+- **Lane P13-5 (`sparc64rt`)**: Preserving the GPR cache across all loads/stores and unconditional delay slots, live host `NZCV` across `SUBcc`/`ADDcc`/logic `cc` $\to$ `Bicc`/`BPcc`, `x19`-relative `sparc64_fast_win` + Soft-TLB-accelerated `win_spill_to`/`win_fill_from`, and an 8-slot FPR cache (`d16..d23`).
+- **Lane P13-6 (`rvrt` + `i686rt`)**: Lazy dirty writeback on `FLW`/`FLD` + direct `FMOV` reads on `FSW`/`FSD` in `rvrt`, and a 1-to-1 128-bit XMM register cache (`xmm0..xmm7` in `v16..v23`) in `i686rt`.
+
+
 
