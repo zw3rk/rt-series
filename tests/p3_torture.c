@@ -43,6 +43,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "p3_llsc.h"
+
 /* MAP_ANONYMOUS is MAP_ANON on macOS/BSD when strict feature macros hide it. */
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
@@ -94,7 +96,6 @@ static volatile sig_atomic_t g_segv_addr_w1 = 0;
 static volatile sig_atomic_t g_segv_addr_w2 = 0;
 
 static _Atomic int g_cas_cell = 0;
-static volatile uint32_t g_llsc_cell = 0x13572468U;
 static _Atomic long g_race_sum = 0;
 
 static void store_segv_addr(uintptr_t addr)
@@ -210,156 +211,13 @@ static int install_handler(int signo, void (*fn)(int, siginfo_t *, void *), int 
     return sigaction(signo, &sa, NULL);
 }
 
-static volatile sig_atomic_t g_llsc_probe_seen = 0;
-
-/* Dedicated probe handler: counts its own signal only (no atomics, libc,
- * nesting, or clobbering), isolating the signal-return boundary. */
-static void llsc_probe_handler(int signo, siginfo_t *info, void *ctx)
-{
-    (void)info;
-    (void)ctx;
-    if (signo == SIGURG) {
-        g_llsc_probe_seen++;
-    }
-}
-
-/* LL/SC pair shared by the control (do_signal == 0) and the interrupted
- * probe. Caller owns the SIGURG disposition. stored: 1 = stored new_val,
- * 0 = reservation lost. Returns -1 when the raise failed. */
-static int llsc_pair(int do_signal, uint32_t new_val, uint32_t *loaded_out, int *stored_out)
-{
-    uint32_t loaded = 0;
-    int stored = 0;
-#if defined(__aarch64__)
-    uint32_t sc_status = 0;
-    __asm__ volatile("ldxr %w0, [%1]" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
-    if (do_signal && raise(SIGURG) != 0) {
-        return -1;
-    }
-    __asm__ volatile("stxr %w0, %w2, [%1]"
-                     : "=&r"(sc_status)
-                     : "r"(&g_llsc_cell), "r"(new_val)
-                     : "memory");
-    stored = (sc_status == 0);
-#elif defined(__arm__) && (__ARM_ARCH >= 6)
-    uint32_t sc_status = 0;
-    __asm__ volatile("ldrex %0, [%1]" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
-    if (do_signal && raise(SIGURG) != 0) {
-        return -1;
-    }
-    __asm__ volatile("strex %0, %2, [%1]"
-                     : "=&r"(sc_status)
-                     : "r"(&g_llsc_cell), "r"(new_val)
-                     : "memory");
-    stored = (sc_status == 0);
-#elif defined(__riscv) && defined(__riscv_atomic)
-    uint32_t sc_status = 0;
-    __asm__ volatile("lr.w %0, (%1)" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
-    if (do_signal && raise(SIGURG) != 0) {
-        return -1;
-    }
-    __asm__ volatile("sc.w %0, %2, (%1)"
-                     : "=&r"(sc_status)
-                     : "r"(&g_llsc_cell), "r"(new_val)
-                     : "memory");
-    stored = (sc_status == 0);
-#elif defined(__mips__)
-    uint32_t sc_word = new_val;
-    __asm__ volatile("ll %0, 0(%1)" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
-    if (do_signal && raise(SIGURG) != 0) {
-        return -1;
-    }
-    __asm__ volatile("sc %0, 0(%1)"
-                     : "+r"(sc_word)
-                     : "r"(&g_llsc_cell)
-                     : "memory");
-    stored = (sc_word == 1U);
-#elif defined(__powerpc__) || defined(__ppc__)
-    /* stwcx. reports via CR0[EQ] (0x20000000 after mfcr). */
-    uint32_t cr = 0;
-    __asm__ volatile("lwarx %0, 0, %1"
-                     : "=r"(loaded)
-                     : "r"(&g_llsc_cell)
-                     : "memory", "cc");
-    if (do_signal && raise(SIGURG) != 0) {
-        return -1;
-    }
-    __asm__ volatile("stwcx. %2, 0, %1\n\tmfcr %0"
-                     : "=r"(cr)
-                     : "r"(&g_llsc_cell), "r"(new_val)
-                     : "memory", "cc");
-    stored = ((cr & 0x20000000U) != 0U);
-#elif defined(__loongarch__)
-    uint32_t sc_word = new_val;
-    __asm__ volatile("ll.w %0, %1, 0"
-                     : "=r"(loaded)
-                     : "r"(&g_llsc_cell)
-                     : "memory");
-    if (do_signal && raise(SIGURG) != 0) {
-        return -1;
-    }
-    __asm__ volatile("sc.w %0, %1, 0"
-                     : "+r"(sc_word)
-                     : "r"(&g_llsc_cell)
-                     : "memory");
-    stored = (sc_word == 1U);
-#else
-    (void)new_val;
-    if (do_signal && raise(SIGURG) != 0) {
-        return -1;
-    }
-    loaded = g_llsc_cell;
-    stored = 0;
-#endif
-    *loaded_out = loaded;
-    *stored_out = stored;
-    return 0;
-}
-
-/* Bounded no-signal control: the same pair without delivery must store
- * (retries bound spurious losses; persistent failure = always-fail SC). */
-static int probe_llsc_no_signal(void)
-{
-    for (int i = 0; i < 32; i++) {
-        uint32_t loaded = 0;
-        int stored = 0;
-        g_llsc_cell = 0x13572468U;
-        if (llsc_pair(0, 0xdeadbeefU, &loaded, &stored) != 0) {
-            return -1;
-        }
-        if (loaded == 0x13572468U && stored != 0 && g_llsc_cell == 0xdeadbeefU) {
-            return 0;
-        }
-    }
-    return -1;
-}
-
-/* Interrupted probe: hold the reservation across one SIGURG delivery, then
- * SC. sigreturn must have cleared it, so the SC fails without storing. */
-static int probe_llsc_broken_by_signal(void)
-{
-    uint32_t loaded = 0;
-    int stored = 0;
-    g_llsc_cell = 0x13572468U;
-    g_llsc_probe_seen = 0;
-    if (llsc_pair(1, 0xdeadbeefU, &loaded, &stored) != 0) {
-        return -1;
-    }
-    if (g_llsc_probe_seen != 1) {
-        return -1;
-    }
-    return (loaded == 0x13572468U && stored == 0 && g_llsc_cell == 0x13572468U) ? 0 : -1;
-}
-
 /* Reservation invalidation, isolated from the GPR/CAS fixture via its own
- * signal (SIGURG) and counter-only handler. Control first (an always-fail
- * SC cannot pass); the interrupted case validates the signal-return
- * boundary. Arches without LL/SC take a vacuous pass. */
+ * signal (SIGURG) and counter-only handler (see tests/p3_llsc.h). Control
+ * first (an always-fail SC cannot pass); the interrupted case validates
+ * the signal-return boundary. Arches without LL/SC take a vacuous pass. */
 static void t_llsc_reservation(void)
 {
-#if defined(__aarch64__) || (defined(__arm__) && (__ARM_ARCH >= 6)) || \
-    (defined(__riscv) && defined(__riscv_atomic)) || defined(__mips__) || \
-    defined(__powerpc__) || defined(__ppc__) || defined(__loongarch__)
+#if P3_HAVE_LLSC
     struct sigaction sa;
     struct sigaction old_sa;
     memset(&sa, 0, sizeof(sa));
