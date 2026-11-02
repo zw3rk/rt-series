@@ -13,50 +13,50 @@
 
 ## 0. Executive Summary & Per-Repository Audit Matrix
 
-### 0.1 Round 3 Audit Matrix (Active Open Checklist — `0 / 85` Resolved)
+### 0.1 Round 3 Audit Matrix (`85 / 85` Resolved & Verified by `fable`)
 
-Following complete remediation, `fable` (`claude-fable-5-1`) verification review, and `muse` post-review follow-up across all 145 Round-2 findings (archived in **Part II** below) and all 187 Round-1 findings (archived in **Part III** below), Round 3 performed a fresh `gpt-6-astra` static audit of all 11 repositories at their post-Round-2 `HEAD` commits. Round 3 identified **85 open findings** (`0 Critical`, `44 High`, `31 Medium`, `10 Low`), showing steady convergence (`187` in R1 → `145` in R2 → `85` in R3).
+Following complete remediation, `fable` (`claude-fable-5-1`) verification review, and `muse` post-review follow-up across all 145 Round-2 findings (archived in **Part II** below) and all 187 Round-1 findings (archived in **Part III** below), Round 3 performed a fresh `gpt-6-astra` static audit of all 11 repositories at their post-Round-2 `HEAD` commits (`85` findings: `0 Critical`, `44 High`, `31 Medium`, `10 Low`; steady convergence `187` in R1 → `145` in R2 → `85` in R3). All 85 Round-3 items were remediated via `muse exec`, audited by `claude-fable-5-1` (`lode/reviews/2026-11-02-defects-r3-*-fable.md`), and closed out with post-`fable` `muse exec` follow-up commits across all repositories.
 
-| # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R3 Open** | Raw Round-3 `astra` Transcript |
-|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | `a32rt` | Class A | `a76285b` | 4 | 2 | 1 | 6 | 0 | 0 | 0 | 1 | **0 / 7** | [`2026-11-02-defects-r3-a32rt-astra.md`](lode/reviews/2026-11-02-defects-r3-a32rt-astra.md) |
-| 2 | `i686rt` | Class A | `4a759c6` | 9 | 0 | 2 | 8 | 1 | 1 | 1 | 0 | **0 / 11** | [`2026-11-02-defects-r3-i686rt-astra.md`](lode/reviews/2026-11-02-defects-r3-i686rt-astra.md) |
-| 3 | `mips32rt` | Class A | `a86a161` | 5 | 2 | 1 | 7 | 1 | 0 | 0 | 0 | **0 / 8** | [`2026-11-02-defects-r3-mips32rt-astra.md`](lode/reviews/2026-11-02-defects-r3-mips32rt-astra.md) |
-| 4 | `ppc32rt` | Class A | `2c2a62e` | 4 | 3 | 0 | 7 | 0 | 0 | 0 | 0 | **0 / 7** | [`2026-11-02-defects-r3-ppc32rt-astra.md`](lode/reviews/2026-11-02-defects-r3-ppc32rt-astra.md) |
-| 5 | `sparc32rt` | Class A | `b40924b` | 6 | 3 | 1 | 8 | 1 | 1 | 0 | 0 | **0 / 10** | [`2026-11-02-defects-r3-sparc32rt-astra.md`](lode/reviews/2026-11-02-defects-r3-sparc32rt-astra.md) |
-| 6 | `rvrt` | Class B | `dab0b91` | 3 | 3 | 1 | 6 | 0 | 0 | 0 | 1 | **0 / 7** | [`2026-11-02-defects-r3-rvrt-astra.md`](lode/reviews/2026-11-02-defects-r3-rvrt-astra.md) |
-| 7 | `loongarch64rt` | Class B | `00ea803` | 2 | 5 | 0 | 7 | 0 | 0 | 0 | 0 | **0 / 7** | [`2026-11-02-defects-r3-loongarch64rt-astra.md`](lode/reviews/2026-11-02-defects-r3-loongarch64rt-astra.md) |
-| 8 | `ppc64rt` | Class B | `205054f` | 5 | 3 | 1 | 8 | 0 | 0 | 1 | 0 | **0 / 9** | [`2026-11-02-defects-r3-ppc64rt-astra.md`](lode/reviews/2026-11-02-defects-r3-ppc64rt-astra.md) |
-| 9 | `mips64rt` | Class B | `45af6bf` | 1 | 3 | 2 | 4 | 0 | 0 | 1 | 1 | **0 / 6** | [`2026-11-02-defects-r3-mips64rt-astra.md`](lode/reviews/2026-11-02-defects-r3-mips64rt-astra.md) |
-| 10 | `sparc64rt` | Class B | `001f2b1` | 4 | 3 | 0 | 6 | 1 | 0 | 0 | 0 | **0 / 7** | [`2026-11-02-defects-r3-sparc64rt-astra.md`](lode/reviews/2026-11-02-defects-r3-sparc64rt-astra.md) |
-| 11 | `rt-series` | Harness | `37a9af0` | 1 | 4 | 1 | 2 | 3 | 0 | 0 | 1 | **0 / 6** | [`2026-11-02-defects-r3-rt-series-astra.md`](lode/reviews/2026-11-02-defects-r3-rt-series-astra.md) |
-| | **Total (Round 3)** | | | **44** | **31** | **10** | **69** | **7** | **2** | **3** | **4** | **0 / 85** | |
+| # | Repository | Class | Audited `master` | R3 `muse` Fix | Post-`fable` `HEAD` | High | Med | Low | **R3 Resolved** | R3 `astra` Audit | R3 `fable` Review |
+|---:|---|---|---|---|---|---:|---:|---:|---:|---|---|
+| 1 | `a32rt` | Class A | `a76285b` | `a8c5bfd` | `5561e7e` | 4 | 2 | 1 | **7 / 7** | [`r3-a32rt-astra.md`](lode/reviews/2026-11-02-defects-r3-a32rt-astra.md) | [`r3-a32rt-fable.md`](lode/reviews/2026-11-02-defects-r3-a32rt-fable.md) |
+| 2 | `i686rt` | Class A | `4a759c6` | `0c82128` | `ca4c9a2` | 9 | 0 | 2 | **11 / 11** | [`r3-i686rt-astra.md`](lode/reviews/2026-11-02-defects-r3-i686rt-astra.md) | [`r3-i686rt-fable.md`](lode/reviews/2026-11-02-defects-r3-i686rt-fable.md) |
+| 3 | `mips32rt` | Class A | `a86a161` | `0aa8075` | `4cead69` | 5 | 2 | 1 | **8 / 8** | [`r3-mips32rt-astra.md`](lode/reviews/2026-11-02-defects-r3-mips32rt-astra.md) | [`r3-mips32rt-fable.md`](lode/reviews/2026-11-02-defects-r3-mips32rt-fable.md) |
+| 4 | `ppc32rt` | Class A | `2c2a62e` | `d58f57e` | `f083489` | 4 | 3 | 0 | **7 / 7** | [`r3-ppc32rt-astra.md`](lode/reviews/2026-11-02-defects-r3-ppc32rt-astra.md) | [`r3-ppc32rt-fable.md`](lode/reviews/2026-11-02-defects-r3-ppc32rt-fable.md) |
+| 5 | `sparc32rt` | Class A | `b40924b` | `7396a37` | `f7d73db` | 6 | 3 | 1 | **10 / 10** | [`r3-sparc32rt-astra.md`](lode/reviews/2026-11-02-defects-r3-sparc32rt-astra.md) | [`r3-sparc32rt-fable.md`](lode/reviews/2026-11-02-defects-r3-sparc32rt-fable.md) |
+| 6 | `rvrt` | Class B | `dab0b91` | `b1b08af` | `b1b08af` | 3 | 3 | 1 | **7 / 7** | [`r3-rvrt-astra.md`](lode/reviews/2026-11-02-defects-r3-rvrt-astra.md) | [`r3-rvrt-fable.md`](lode/reviews/2026-11-02-defects-r3-rvrt-fable.md) |
+| 7 | `loongarch64rt` | Class B | `00ea803` | `0e3c4bd` | `1907d96` | 2 | 5 | 0 | **7 / 7** | [`r3-loongarch64rt-astra.md`](lode/reviews/2026-11-02-defects-r3-loongarch64rt-astra.md) | [`r3-loongarch64rt-fable.md`](lode/reviews/2026-11-02-defects-r3-loongarch64rt-fable.md) |
+| 8 | `ppc64rt` | Class B | `205054f` | `076461d` | `56bec31` | 5 | 3 | 1 | **9 / 9** | [`r3-ppc64rt-astra.md`](lode/reviews/2026-11-02-defects-r3-ppc64rt-astra.md) | [`r3-ppc64rt-fable.md`](lode/reviews/2026-11-02-defects-r3-ppc64rt-fable.md) |
+| 9 | `mips64rt` | Class B | `45af6bf` | `385b31a` | `f7c6924` | 1 | 3 | 2 | **6 / 6** | [`r3-mips64rt-astra.md`](lode/reviews/2026-11-02-defects-r3-mips64rt-astra.md) | [`r3-mips64rt-fable.md`](lode/reviews/2026-11-02-defects-r3-mips64rt-fable.md) |
+| 10 | `sparc64rt` | Class B | `001f2b1` | `b7c6514` | `5232650` | 4 | 3 | 0 | **7 / 7** | [`r3-sparc64rt-astra.md`](lode/reviews/2026-11-02-defects-r3-sparc64rt-astra.md) | [`r3-sparc64rt-fable.md`](lode/reviews/2026-11-02-defects-r3-sparc64rt-fable.md) |
+| 11 | `rt-series` | Harness | `37a9af0` | `4d36271` | `b4f5131` | 1 | 4 | 1 | **6 / 6** | [`r3-rt-series-astra.md`](lode/reviews/2026-11-02-defects-r3-rt-series-astra.md) | [`r3-rt-series-fable.md`](lode/reviews/2026-11-02-defects-r3-rt-series-fable.md) |
+| | **Total (Round 3)** | | | | | **44** | **31** | **10** | **85 / 85** | | |
 
 ### 0.2 Round 3 Cross-Cutting Defect Clusters (Wave Planning Index)
 
-- [ ] **X-R3-1 — High — Transactional VMA / File-Backing / Inode Table Capacity & Registration Ordering**
+- [x] **X-R3-1 — High — Transactional VMA / File-Backing / Inode Table Capacity & Registration Ordering**
   - **Linked Items**: `A32-R3-1`, `A32-R3-5`, `I686-R3-3`, `I686-R3-4`, `I686-R3-5`, `RV-R3-4`, `LA64-R3-3`, `LA64-R3-4`, `P64-R3-1`, `P64-R3-2`, `S64-R3-3`
   - **Summary**: `a32rt` `vm_record_region_locked` calling `vm_unmap_regions_locked` and deleting newly registered file backing (`A32-R3-1`), `i686rt` anonymous `MAP_FIXED` leaving stale file registrations (`I686-R3-3`) or VMA split exhaustion broadening `mprotect` to the whole region (`I686-R3-5`), `rvrt`/`a32rt`/`sparc64rt`/`loongarch64rt` dropping surviving VMA tails or evicting live file-backing records on table exhaustion (`A32-R3-5`, `RV-R3-4`, `LA64-R3-3`, `S64-R3-3`), and `ppc64rt` partial/interior `mremap` truncating or inverting file-backing intervals (`P64-R3-1`, `P64-R3-2`).
-- [ ] **X-R3-2 — High — File-Backed `mmap` Initial EOF Boundaries, `mremap` Growth/Move Backing & Darwin A2 Shared/Sub-Page Semantics**
+- [x] **X-R3-2 — High — File-Backed `mmap` Initial EOF Boundaries, `mremap` Growth/Move Backing & Darwin A2 Shared/Sub-Page Semantics**
   - **Linked Items**: `A32-R3-2`, `A32-R3-3`, `I686-R3-2`, `I686-R3-7`, `I686-R3-9`, `M32-R3-2`, `M32-R3-3`, `P32-R3-2`, `P32-R3-3`, `RV-R3-5`, `RV-R3-6`, `LA64-R3-2`, `S64-R3-2`
   - **Summary**: Private/staged file mappings permitting accesses wholly beyond initial EOF (`A32-R3-2`, `RV-R3-5`), `mremap` growth/relocation losing private/file backing and producing anonymous zeros (`A32-R3-3`, `S64-R3-2`), `i686rt` shared anonymous `mremap` falling back to `memcpy` (`I686-R3-9`), `ppc32rt` publishing 16 KiB host-rounded padding as guest-accessible memory (`P32-R3-2`), Darwin A2 unaligned shared mappings silently becoming private copies (`P32-R3-3`, `LA64-R3-2`) or overwriting newer alias data (`M32-R3-2`), and sub-page protection widening/restoration windows (`I686-R3-2`, `M32-R3-3`, `RV-R3-6`).
-- [ ] **X-R3-3 — High — Multi-Threaded `fork()`, `execve()`, `clone()` TID Coherence & Execution Quiescence**
+- [x] **X-R3-3 — High — Multi-Threaded `fork()`, `execve()`, `clone()` TID Coherence & Execution Quiescence**
   - **Linked Items**: `A32-R3-4`, `A32-R3-6`, `I686-R3-1`, `I686-R3-8`, `M32-R3-1`, `P32-R3-4`, `S32-R3-1`, `S32-R3-2`, `S32-R3-3`, `S32-R3-4`, `S32-R3-9`, `P64-R3-4`, `P64-R3-5`, `P64-R3-6`, `P64-R3-7`, `S64-R3-1`, `S64-R3-4`, `S64-R3-5`, `S64-R3-7`
   - **Summary**: `fork()` inheriting vanished-thread JIT execution leases, VM/DBT locks, or thread registries without coordinated preparation/reinitialization (`A32-R3-4`, `I686-R3-8`, `P32-R3-4`, `S32-R3-2`), `sparc32rt` `execve` replacing memory while sibling threads remain alive (`S32-R3-4`) or leaking `FD_CLOEXEC` descriptors (`S32-R3-9`), `i686rt` `clone` publishing synthetic vs host TIDs (`I686-R3-1`), `mips32rt` `brk` updating `vm_gen` without syncing VMA snapshots (`M32-R3-1`), `sparc64rt` peer VM mutations not invalidating sleeping threads' DBT caches (`S64-R3-1`), and `ppc64rt` cooperative futex deadline/signal/requeue handling (`P64-R3-4..7`).
-- [ ] **X-R3-4 — High — Per-Thread Signal State, `execve` Signal Inheritance, Aliased Input/Output & `sigaltstack`**
+- [x] **X-R3-4 — High — Per-Thread Signal State, `execve` Signal Inheritance, Aliased Input/Output & `sigaltstack`**
   - **Linked Items**: `M32-R3-5`, `M32-R3-6`, `M32-R3-7`, `P32-R3-5`, `P32-R3-6`, `P32-R3-7`, `S32-R3-5`, `S32-R3-6`, `S32-R3-7`, `S32-R3-8`, `LA64-R3-1`, `LA64-R3-6`, `LA64-R3-7`, `P64-R3-3`, `P64-R3-8`
   - **Summary**: Process-global signal masks / alternate stacks instead of per-thread state (`S32-R3-5`, `LA64-R3-1`), `execve` clearing the inherited blocked signal mask or ignored dispositions (`M32-R3-6`, `P32-R3-7`), `rt_sigaction`/`rt_sigprocmask`/`sigaltstack` overwriting aliased input pointers before reading them (`P32-R3-5`, `LA64-R3-6`), `SS_AUTODISARM` and `SS_DISABLE` / `uc_stack` restoration gaps (`LA64-R3-7`, `P64-R3-3`), and `SIG_IGN` handling (`S32-R3-6`, `P64-R3-8`).
-- [ ] **X-R3-5 — High — Syscall Copyout LL/SC Reservation Invalidation, Fault Containment & Vectored I/O**
+- [x] **X-R3-5 — High — Syscall Copyout LL/SC Reservation Invalidation, Fault Containment & Vectored I/O**
   - **Linked Items**: `I686-R3-6`, `M32-R3-4`, `LA64-R3-5`, `M64-R3-1`, `M64-R3-3`, `M64-R3-4`, `S64-R3-6`
   - **Summary**: Syscall copyouts (`rt32_vm_copy_to`, `guest_range` + `putn`) bypassing the LL/SC write lock (`M32-R3-4`, `M64-R3-1`), `i686rt` syscall copy faults `siglongjmp`ing past caller buffer cleanup (`I686-R3-6`), `mips64rt` splitting `readv`/`writev` into 64-iovec chunks (`M64-R3-3`) and omitting current-batch bytes on partial `readv` fault (`M64-R3-4`), and Darwin `getdents64` early-`dup` / eviction cursor loss (`LA64-R3-5`, `S64-R3-6`).
-- [ ] **X-R3-6 — High — ISA / FPU Rounding, Sticky Exception Flags & DBT Emitter State Rollback**
+- [x] **X-R3-6 — High — ISA / FPU Rounding, Sticky Exception Flags & DBT Emitter State Rollback**
   - **Linked Items**: `P32-R3-1`, `RV-R3-1`, `RV-R3-2`, `RV-R3-3`, `M64-R3-2`
   - **Summary**: `rvrt` dynamic-rounding slow path flushing uninitialized host FPSR (`RV-R3-1`), `emit_uf_fix` clearing earlier instructions' sticky UFC flags (`RV-R3-2`), and emitter overflow rollback retaining dirty FPR/tag mutations from discarded instructions (`RV-R3-3`), `ppc32rt` `divwo.`/`divwuo.` testing `gpr[rb]` after overwriting `gpr[rt]` when `RT == RB` (`P32-R3-1`), and `mips64rt` `ADD.S`/`SUB.S` directed rounding losing small residuals (`M64-R3-2`).
-- [ ] **X-R3-7 — Medium — Intra-Repo DRY, YAGNI, `-Werror` / `check-line-limits` Wiring & `rt-series` Harness**
+- [x] **X-R3-7 — Medium — Intra-Repo DRY, YAGNI, `-Werror` / `check-line-limits` Wiring & `rt-series` Harness**
   - **Linked Items**: `A32-R3-7`, `I686-R3-10`, `I686-R3-11`, `M32-R3-8`, `S32-R3-10`, `RV-R3-7`, `P64-R3-9`, `M64-R3-5`, `M64-R3-6`, `RTS-R3-1..RTS-R3-6`
 
 ---
-## 1. `a32rt` (`a76285b`) — 7 Round-3 Findings (`0 / 7` Resolved)
+## 1. `a32rt` (`a76285b` → `a8c5bfd` → `5561e7e`) — 7 Round-3 Findings (`7 / 7` Resolved)
 
 Found **7 issues** at `a76285b`, including a mapping-registration ordering defect that can discard newly installed file backing.
 
@@ -120,17 +120,17 @@ Reviewed `git log -n 5 --oneline`, both recent commits, and selected VM, JIT, in
 
 The inspected `.c`, `.h`, and `.S` files stayed below 900 lines; the largest was `src/vm.c` at 897. The source/header scan found no forbidden string calls, `.c` inclusions, or literal `x18`/`w18` register references. That scan does not establish reservation of register 18 in numeric instruction encoders. No additional DRY or YAGNI finding was sufficiently substantiated within this review budget.
 
-- [ ] **A32-R3-1:** Separate mapping teardown from registration.
-- [ ] **A32-R3-2:** Enforce initial EOF boundaries.
-- [ ] **A32-R3-3:** Preserve private-file backing across mremap.
-- [ ] **A32-R3-4:** Coordinate fork with JIT leases and locks.
-- [ ] **A32-R3-5:** Make backing-table allocation transactional and reclaim entries.
-- [ ] **A32-R3-6:** Acquire single-step leases before releasing compiled code.
-- [ ] **A32-R3-7:** Apply C warning flags consistently.
+- [x] **A32-R3-1:** Separate mapping teardown from registration.
+- [x] **A32-R3-2:** Enforce initial EOF boundaries.
+- [x] **A32-R3-3:** Preserve private-file backing across mremap.
+- [x] **A32-R3-4:** Coordinate fork with JIT leases and locks.
+- [x] **A32-R3-5:** Make backing-table allocation transactional and reclaim entries.
+- [x] **A32-R3-6:** Acquire single-step leases before releasing compiled code.
+- [x] **A32-R3-7:** Apply C warning flags consistently.
 
 ---
 
-## 2. `i686rt` (`4a759c6`) — 11 Round-3 Findings (`0 / 11` Resolved)
+## 2. `i686rt` (`4a759c6` → `0c82128` → `ca4c9a2`) — 11 Round-3 Findings (`11 / 11` Resolved)
 
 Round 3 found **11 actionable issues** at `4a759c6`, including remaining correctness defects in thread identity, sub-page isolation, mapping bookkeeping, and fork handling.
 
@@ -228,21 +228,21 @@ The inspected `.c`, `.h`, and `.S` files under `src`, `include`, and `tests` wer
 
 Checklist summary:
 
-- [ ] **I686-R3-1:** Unify clone, SETTID, registry, and gettid identities.
-- [ ] **I686-R3-2:** Quiesce staged A2 mmap protection windows.
-- [ ] **I686-R3-3:** Remove stale backing records on anonymous replacement.
-- [ ] **I686-R3-4:** Handle mapping metadata allocation failures transactionally.
-- [ ] **I686-R3-5:** Reject VMA split exhaustion without changing semantics.
-- [ ] **I686-R3-6:** Return syscall copy faults through caller cleanup.
-- [ ] **I686-R3-7:** Synchronize and safely apply file refreshes.
-- [ ] **I686-R3-8:** Reinitialize runtime ownership and registry state after fork.
-- [ ] **I686-R3-9:** Preserve shared backing or fail mremap.
-- [ ] **I686-R3-10:** Deduplicate reader registration.
-- [ ] **I686-R3-11:** Remove unused Makefile lane lists.
+- [x] **I686-R3-1:** Unify clone, SETTID, registry, and gettid identities.
+- [x] **I686-R3-2:** Quiesce staged A2 mmap protection windows.
+- [x] **I686-R3-3:** Remove stale backing records on anonymous replacement.
+- [x] **I686-R3-4:** Handle mapping metadata allocation failures transactionally.
+- [x] **I686-R3-5:** Reject VMA split exhaustion without changing semantics.
+- [x] **I686-R3-6:** Return syscall copy faults through caller cleanup.
+- [x] **I686-R3-7:** Synchronize and safely apply file refreshes.
+- [x] **I686-R3-8:** Reinitialize runtime ownership and registry state after fork.
+- [x] **I686-R3-9:** Preserve shared backing or fail mremap.
+- [x] **I686-R3-10:** Deduplicate reader registration.
+- [x] **I686-R3-11:** Remove unused Makefile lane lists.
 
 ---
 
-## 3. `mips32rt` (`a86a161`) — 8 Round-3 Findings (`0 / 8` Resolved)
+## 3. `mips32rt` (`a86a161` → `0aa8075` → `4cead69`) — 8 Round-3 Findings (`8 / 8` Resolved)
 
 Round 3 found **8 actionable issues** at `a86a161`, including a regression in the new VM generation fast path.
 
@@ -344,18 +344,18 @@ Aligning the newly allocated signal frame is appropriate; rounding the saved int
 
 The static hygiene scan found no `.c`, `.h`, or `.S` file exceeding 900 lines. The Makefile retains the required C11 warning flags, and `CLAUDE.md` remains symlinked to `AGENTS.md`. The targeted text scan found no prohibited string functions, `.c` includes, or explicit `x18` instruction operands; this does not validate encoded register operands.
 
-- [ ] **M32-R3-1:** Keep VMA snapshots consistent with their generation.
-- [ ] **M32-R3-2:** Prevent stale shared aliases from overwriting newer data.
-- [ ] **M32-R3-3:** Restore host-page protections using all overlapping mappings.
-- [ ] **M32-R3-4:** Include copyout writes in LL/SC reservation tracking.
-- [ ] **M32-R3-5:** Handle real-time queue overflow without silent loss.
-- [ ] **M32-R3-6:** Preserve required signal state across `execve`.
-- [ ] **M32-R3-7:** Preserve the exact interrupted stack pointer.
-- [ ] **M32-R3-8:** Wire the errno regression test into verification.
+- [x] **M32-R3-1:** Keep VMA snapshots consistent with their generation.
+- [x] **M32-R3-2:** Prevent stale shared aliases from overwriting newer data.
+- [x] **M32-R3-3:** Restore host-page protections using all overlapping mappings.
+- [x] **M32-R3-4:** Include copyout writes in LL/SC reservation tracking.
+- [x] **M32-R3-5:** Handle real-time queue overflow without silent loss.
+- [x] **M32-R3-6:** Preserve required signal state across `execve`.
+- [x] **M32-R3-7:** Preserve the exact interrupted stack pointer.
+- [x] **M32-R3-8:** Wire the errno regression test into verification.
 
 ---
 
-## 4. `ppc32rt` (`2c2a62e`) — 7 Round-3 Findings (`0 / 7` Resolved)
+## 4. `ppc32rt` (`2c2a62e` → `d58f57e` → `f083489`) — 7 Round-3 Findings (`7 / 7` Resolved)
 
 Found **7 actionable defects** at `2c2a62e`, including two in the recent fixes. Review used **5 shell inspection turns**. No builds, tests, Docker, or QEMU ran; findings below are based on static code paths.
 
@@ -419,17 +419,17 @@ The inspected line counts stayed within 900 lines. Text searches found no prohib
 
 Checklist:
 
-- [ ] **P32-R3-1:** Preserve the original divisor for overflow checks.
-- [ ] **P32-R3-2:** Separate host padding from guest mappings.
-- [ ] **P32-R3-3:** Preserve sharing for guest-aligned A2 mappings.
-- [ ] **P32-R3-4:** Coordinate fork with runtime locks and thread state.
-- [ ] **P32-R3-5:** Snapshot signal syscall inputs before output writes.
-- [ ] **P32-R3-6:** Synchronize shared signal dispositions.
-- [ ] **P32-R3-7:** Preserve the signal mask across exec.
+- [x] **P32-R3-1:** Preserve the original divisor for overflow checks.
+- [x] **P32-R3-2:** Separate host padding from guest mappings.
+- [x] **P32-R3-3:** Preserve sharing for guest-aligned A2 mappings.
+- [x] **P32-R3-4:** Coordinate fork with runtime locks and thread state.
+- [x] **P32-R3-5:** Snapshot signal syscall inputs before output writes.
+- [x] **P32-R3-6:** Synchronize shared signal dispositions.
+- [x] **P32-R3-7:** Preserve the signal mask across exec.
 
 ---
 
-## 5. `sparc32rt` (`b40924b`) — 10 Round-3 Findings (`0 / 10` Resolved)
+## 5. `sparc32rt` (`b40924b` → `7396a37` → `f7d73db`) — 10 Round-3 Findings (`10 / 10` Resolved)
 
 Round 3 found **10 remaining issues**, including incomplete concurrency fixes in the latest commits.
 
@@ -553,20 +553,20 @@ The inspected source counts were within 900 lines, and the Makefile’s default 
 
 ### Checklist
 
-- [ ] **S32-R3-1:** Make context reclamation safe against remote signal handlers.
-- [ ] **S32-R3-2:** Coordinate fork and rebuild child synchronization state.
-- [ ] **S32-R3-3:** Quiesce generated accesses before VM mutations.
-- [ ] **S32-R3-4:** Retire sibling threads before exec replaces memory.
-- [ ] **S32-R3-5:** Make signal masks and alternate stacks per-thread.
-- [ ] **S32-R3-6:** Preserve and honor ignored dispositions.
-- [ ] **S32-R3-7:** Route each signal to the appropriate recipient.
-- [ ] **S32-R3-8:** Publish coherent signal-action snapshots.
-- [ ] **S32-R3-9:** Implement guest close-on-exec handling.
-- [ ] **S32-R3-10:** Reuse validated ELF segment geometry.
+- [x] **S32-R3-1:** Make context reclamation safe against remote signal handlers.
+- [x] **S32-R3-2:** Coordinate fork and rebuild child synchronization state.
+- [x] **S32-R3-3:** Quiesce generated accesses before VM mutations.
+- [x] **S32-R3-4:** Retire sibling threads before exec replaces memory.
+- [x] **S32-R3-5:** Make signal masks and alternate stacks per-thread.
+- [x] **S32-R3-6:** Preserve and honor ignored dispositions.
+- [x] **S32-R3-7:** Route each signal to the appropriate recipient.
+- [x] **S32-R3-8:** Publish coherent signal-action snapshots.
+- [x] **S32-R3-9:** Implement guest close-on-exec handling.
+- [x] **S32-R3-10:** Reuse validated ELF segment geometry.
 
 ---
 
-## 6. `rvrt` (`dab0b91`) — 7 Round-3 Findings (`0 / 7` Resolved)
+## 6. `rvrt` (`dab0b91` → `b1b08af`) — 7 Round-3 Findings (`7 / 7` Resolved)
 
 Reviewed `dab0b91` with six shell inspection turns. No builds, tests, containers, or QEMU were run. Findings below are static conclusions; the bounded review does not establish correctness of unexamined paths.
 
@@ -628,17 +628,17 @@ Reviewed `dab0b91` with six shell inspection turns. No builds, tests, containers
 
 No additional DRY or YAGNI finding was established with sufficient evidence in this inspection budget.
 
-- [ ] **RV-R3-1:** Restore path-specific FPSR state for dynamic-rounding helpers.
-- [ ] **RV-R3-2:** Preserve prior sticky underflow flags.
-- [ ] **RV-R3-3:** Restore complete emitter state on rollback.
-- [ ] **RV-R3-4:** Make VMA capacity failures transactional.
-- [ ] **RV-R3-5:** Clear EOF tails and classify beyond-EOF pages.
-- [ ] **RV-R3-6:** Handle writable backing at host-page granularity.
-- [ ] **RV-R3-7:** Include source hygiene enforcement in `make check`.
+- [x] **RV-R3-1:** Restore path-specific FPSR state for dynamic-rounding helpers.
+- [x] **RV-R3-2:** Preserve prior sticky underflow flags.
+- [x] **RV-R3-3:** Restore complete emitter state on rollback.
+- [x] **RV-R3-4:** Make VMA capacity failures transactional.
+- [x] **RV-R3-5:** Clear EOF tails and classify beyond-EOF pages.
+- [x] **RV-R3-6:** Handle writable backing at host-page granularity.
+- [x] **RV-R3-7:** Include source hygiene enforcement in `make check`.
 
 ---
 
-## 7. `loongarch64rt` (`00ea803`) — 7 Round-3 Findings (`0 / 7` Resolved)
+## 7. `loongarch64rt` (`00ea803` → `0e3c4bd` → `1907d96`) — 7 Round-3 Findings (`7 / 7` Resolved)
 
 Round 3 found **7 actionable defects** at `00ea803`. Review used six shell inspection turns; no builds, tests, Docker, or QEMU ran. Findings are static, not runtime-verified.
 
@@ -704,17 +704,17 @@ The suspected SMC hash-collision issue did **not** survive tracing: unmap invali
 
 ### Checklist
 
-- [ ] **LA64-R3-1:** Separate per-thread signal state from shared dispositions.
-- [ ] **LA64-R3-2:** Preserve shared-file semantics in fallback mappings.
-- [ ] **LA64-R3-3:** Roll back failed file-map installation.
-- [ ] **LA64-R3-4:** Validate `mmap` descriptor, mapping type, and offset.
-- [ ] **LA64-R3-5:** Preserve directory cursor identity across early duplication.
-- [ ] **LA64-R3-6:** Snapshot signal syscall inputs before copyout.
-- [ ] **LA64-R3-7:** Correct alternate-stack disable and sigreturn behavior.
+- [x] **LA64-R3-1:** Separate per-thread signal state from shared dispositions.
+- [x] **LA64-R3-2:** Preserve shared-file semantics in fallback mappings.
+- [x] **LA64-R3-3:** Roll back failed file-map installation.
+- [x] **LA64-R3-4:** Validate `mmap` descriptor, mapping type, and offset.
+- [x] **LA64-R3-5:** Preserve directory cursor identity across early duplication.
+- [x] **LA64-R3-6:** Snapshot signal syscall inputs before copyout.
+- [x] **LA64-R3-7:** Correct alternate-stack disable and sigreturn behavior.
 
 ---
 
-## 8. `ppc64rt` (`205054f`) — 9 Round-3 Findings (`0 / 9` Resolved)
+## 8. `ppc64rt` (`205054f` → `076461d` → `56bec31`) — 9 Round-3 Findings (`9 / 9` Resolved)
 
 Found **8 correctness defects and 1 unused API** in the inspected code. Two defects are in the latest `mremap` changes.
 
@@ -796,19 +796,19 @@ The static line-count scan found no `.c`, `.h`, or `.S` files over 900 lines in 
 
 Checklist:
 
-- [ ] **P64-R3-1:** Preserve relocated partial file mappings.
-- [ ] **P64-R3-2:** Preserve the right fragment’s original end.
-- [ ] **P64-R3-3:** Implement alternate-stack save, autodisarm, and restore.
-- [ ] **P64-R3-4:** Wait for real deadlines and preserve blocked live tasks.
-- [ ] **P64-R3-5:** Interrupt main-task futex waits for deliverable signals.
-- [ ] **P64-R3-6:** Requeue the main waiter and correct return counts.
-- [ ] **P64-R3-7:** Check timeout arithmetic.
-- [ ] **P64-R3-8:** Discard ignored signals from every task.
-- [ ] **P64-R3-9:** Remove obsolete VMA rollback helpers.
+- [x] **P64-R3-1:** Preserve relocated partial file mappings.
+- [x] **P64-R3-2:** Preserve the right fragment’s original end.
+- [x] **P64-R3-3:** Implement alternate-stack save, autodisarm, and restore.
+- [x] **P64-R3-4:** Wait for real deadlines and preserve blocked live tasks.
+- [x] **P64-R3-5:** Interrupt main-task futex waits for deliverable signals.
+- [x] **P64-R3-6:** Requeue the main waiter and correct return counts.
+- [x] **P64-R3-7:** Check timeout arithmetic.
+- [x] **P64-R3-8:** Discard ignored signals from every task.
+- [x] **P64-R3-9:** Remove obsolete VMA rollback helpers.
 
 ---
 
-## 9. `mips64rt` (`45af6bf`) — 6 Round-3 Findings (`0 / 6` Resolved)
+## 9. `mips64rt` (`45af6bf` → `385b31a` → `f7c6924`) — 6 Round-3 Findings (`6 / 6` Resolved)
 
 Round 3 found **six actionable issues** at `45af6bf`, including an incomplete LL/SC fix and incorrect floating-point and vectored-I/O behavior.
 
@@ -864,16 +864,16 @@ This was a static review using five batched shell inspections, including `git lo
 
 Checklist:
 
-- [ ] **M64-R3-1:** Serialize syscall copyout and LL/SC invalidation.
-- [ ] **M64-R3-2:** Preserve exact residuals for single-precision rounding.
-- [ ] **M64-R3-3:** Preserve one-operation vectored-I/O semantics.
-- [ ] **M64-R3-4:** Return bytes already committed before a copyout fault.
-- [ ] **M64-R3-5:** Remove unused `fp_adj_d()`.
-- [ ] **M64-R3-6:** Correct contradictory unaligned-access comments.
+- [x] **M64-R3-1:** Serialize syscall copyout and LL/SC invalidation.
+- [x] **M64-R3-2:** Preserve exact residuals for single-precision rounding.
+- [x] **M64-R3-3:** Preserve one-operation vectored-I/O semantics.
+- [x] **M64-R3-4:** Return bytes already committed before a copyout fault.
+- [x] **M64-R3-5:** Remove unused `fp_adj_d()`.
+- [x] **M64-R3-6:** Correct contradictory unaligned-access comments.
 
 ---
 
-## 10. `sparc64rt` (`001f2b1`) — 7 Round-3 Findings (`0 / 7` Resolved)
+## 10. `sparc64rt` (`001f2b1` → `b7c6514` → `5232650`) — 7 Round-3 Findings (`7 / 7` Resolved)
 
 Found **7 actionable findings** at `001f2b1`. Inspection used **7 shell turns**, including `git log -n 5 --oneline`, `git show HEAD~1`, `git show HEAD`, targeted source reads, reference searches, and source line counts. No builds, tests, Docker, or QEMU ran; no files changed.
 
@@ -939,17 +939,17 @@ The findings below distinguish active guest-path defects from defects in current
 
 The source line-count inspection found no `.c`, `.h`, or `.S` file under `src/`, `include/`, or `tests/` exceeding 900 lines. The targeted forbidden-construct search found no prohibited string functions or `.c` includes; textual `x18` matches were comments. These checks do not constitute compiler or emitted-instruction validation.
 
-- [ ] **S64-R3-1:** Connect peer VM changes to every thread’s DBT invalidation.
-- [ ] **S64-R3-2:** Preserve file contents and EOF semantics during remap growth.
-- [ ] **S64-R3-3:** Stop evicting live file-mapping metadata.
-- [ ] **S64-R3-4:** Wire Darwin futex helpers into guest dispatch.
-- [ ] **S64-R3-5:** Unregister Darwin workers and handle table exhaustion.
-- [ ] **S64-R3-6:** Preserve unread directory entries across cache pressure.
-- [ ] **S64-R3-7:** Wait until the requested sleep deadline.
+- [x] **S64-R3-1:** Connect peer VM changes to every thread’s DBT invalidation.
+- [x] **S64-R3-2:** Preserve file contents and EOF semantics during remap growth.
+- [x] **S64-R3-3:** Stop evicting live file-mapping metadata.
+- [x] **S64-R3-4:** Wire Darwin futex helpers into guest dispatch.
+- [x] **S64-R3-5:** Unregister Darwin workers and handle table exhaustion.
+- [x] **S64-R3-6:** Preserve unread directory entries across cache pressure.
+- [x] **S64-R3-7:** Wait until the requested sleep deadline.
 
 ---
 
-## 11. `rt-series` (`37a9af0`) — 6 Round-3 Findings (`0 / 6` Resolved)
+## 11. `rt-series` (`37a9af0` → `4d36271` → `b4f5131`) — 6 Round-3 Findings (`6 / 6` Resolved)
 
 **Round 3 verdict: changes required.** Six findings remain at `37a9af0`, including a path that credits host tests to foreign translators.
 
@@ -1005,12 +1005,12 @@ Reviewed recent history, the Round-2 and follow-up changes, shared headers, fixt
 
 The inspected C/H files satisfy the 900-line limit; the largest is `tests/p3_torture.c` at 819 lines. The hygiene search found no banned string functions, unity `.c` includes, `_Generic`, `<threads.h>`, or explicit `x18`/`w18` references. These are static observations, not compilation evidence.
 
-- [ ] **RTS-R3-1:** Prevent host upstream checks from qualifying foreign translators.
-- [ ] **RTS-R3-2:** Preserve RVRT host policy in grind execution.
-- [ ] **RTS-R3-3:** Isolate reservation invalidation and add a successful control.
-- [ ] **RTS-R3-4:** Run TestFloat against both engines.
-- [ ] **RTS-R3-5:** Terminate builder signal traps and verify cleanup.
-- [ ] **RTS-R3-6:** Enforce general `-Werror` for first-party builds.
+- [x] **RTS-R3-1:** Prevent host upstream checks from qualifying foreign translators.
+- [x] **RTS-R3-2:** Preserve RVRT host policy in grind execution.
+- [x] **RTS-R3-3:** Isolate reservation invalidation and add a successful control.
+- [x] **RTS-R3-4:** Run TestFloat against both engines.
+- [x] **RTS-R3-5:** Terminate builder signal traps and verify cleanup.
+- [x] **RTS-R3-6:** Enforce general `-Werror` for first-party builds.
 
 ---
 
