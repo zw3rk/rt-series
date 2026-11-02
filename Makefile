@@ -158,10 +158,17 @@ catalogue-grind-nightly: ## Run Tier N nightly grind (stress-ng, torture, testfl
 catalogue-grind-weekly: ## Run Tier W weekly soak (Tier N + Csmith/Yarpgen + upstream make check)
 	./tools/run_catalogue.sh grind-weekly
 
-check-catalogue: ## Syntax-check catalogue runners and verify the wrapper is executable
+check-catalogue: ## Syntax-check catalogue runners, verify wrappers, and uniform guests
 	sh -n tools/run_catalogue.sh
 	sh -n tools/run_grind.sh
+	sh -n tools/build_uniform_guests.sh
 	test -x tests/catalogue/run_catalogue.sh
+	test -x tools/build_uniform_guests.sh
+	for abi in armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le mips64el mips64eb sparc64; do \
+		test -x _build/uniform/$$abi/p3_torture || { echo "MISSING _build/uniform/$$abi/p3_torture (run tools/build_uniform_guests.sh)" >&2; exit 1; }; \
+		test -x _build/uniform/$$abi/smoke_tcg || { echo "MISSING _build/uniform/$$abi/smoke_tcg (run tools/build_uniform_guests.sh)" >&2; exit 1; }; \
+	done
+	@echo "CHECK-CATALOGUE OK (28 uniform guests present)"
 
 check-p3-torture: ## Build and run the P3 signal/VM/atomic torture suite on the host
 	@mkdir -p $(BUILD)

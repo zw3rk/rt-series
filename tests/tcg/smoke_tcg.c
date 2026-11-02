@@ -18,6 +18,11 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+/* Strict -std=c11 hides the non-POSIX MAP_ANONYMOUS flag on glibc;
+ * _DEFAULT_SOURCE re-exposes it and is ignored on other libcs. */
+#if defined(__linux__) && !defined(_DEFAULT_SOURCE) && !defined(_GNU_SOURCE)
+#define _DEFAULT_SOURCE 1
+#endif
 #if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
 #define _DARWIN_C_SOURCE 1
 #endif

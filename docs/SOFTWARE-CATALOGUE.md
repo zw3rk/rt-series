@@ -85,16 +85,48 @@ The gates above are driven by [`tools/run_catalogue.sh`](../tools/run_catalogue.
 | Command | Tier | Budget | What it runs |
 |---|---|---|---|
 | `run_catalogue.sh smoke` (`make catalogue-smoke`) | `S` | `< 2 min` total | Per-repo `tests/parity_suite.sh` (or `make check` fallback) with per-repo timeout `240s` (`CATALOGUE_SMOKE_TIMEOUT`). |
-| `run_catalogue.sh qualify` (`make catalogue-qualify`) | `M` | `< 10 min` | Per-repo parity at `PARITY_TIER=qualify` with per-repo timeout `600s` (`CATALOGUE_QUALIFY_TIMEOUT`), plus `tests/p3_torture.c` and `tests/tcg/smoke_tcg.c` presence checks. |
+| `run_catalogue.sh qualify` (`make catalogue-qualify`) | `M` | `< 10 min` | Per-repo parity at `PARITY_TIER=qualify` with per-repo timeout `600s` (`CATALOGUE_QUALIFY_TIMEOUT`), plus `tests/p3_torture.c` and `tests/tcg/smoke_tcg.c` presence checks, `_build/uniform/<abi>` guest presence, and `PARITY_SUMMARY` `skip==0` enforcement. |
 | `run_catalogue.sh grind-nightly` (`make catalogue-grind-nightly`) | `N` | Nightly | `run_grind.sh nightly`: `stress-ng --verify --metrics-brief --yaml` (core + linux-fd allowlists, `bogo_ops > 0`), `gcc.c-torture` same-binary differential (`-ffp-contract=off`, `-O0`/`-O2` never cross-compared), `testfloat_gen \| guest testfloat_ver`, compiler-rt builtin probes, `libc-test`/LTP manifest, `lmbench` completion. |
 | `run_catalogue.sh grind-weekly` (`make catalogue-grind-weekly`) | `W` | Weekly | Tier N plus fixed-seed Csmith/Yarpgen soak and upstream Git/coreutils/gawk/BusyBox `make check`. |
 | `run_catalogue.sh guest-payload` | `T1`–`T4` | Per sysroot | Full `T1`–`T4` suite inside the guest (see below). |
 
-Fail-closed rules: host gates exit non-zero when `--arch` matches nothing (`matched=0`), when `pass=0`, or when `fail>0`; per-repo timeouts replace the old single `360s` wrapper and leftover `docker ps` containers fail the gate. `guest-payload` exits non-zero when `skip>0` unless `CATALOGUE_ALLOW_SKIP=1`; LuaJIT absence on `sparc32`/`sparc64`/`loongarch64`/`riscv32` is expected (`EXPECTED-SKIP`, detected via `CATALOGUE_ARCH`/`uname -m`) and never counts as skip.
+Fail-closed rules: host gates exit non-zero when `--arch` matches nothing (`matched=0`), when `pass=0`, when `fail>0`, or when any `PARITY_SUMMARY` in a per-repo log reports `skip>0` (series-level Wave C2 enforcement, applies even if the repo set `PARITY_ALLOW_SKIP=1` internally; `CATALOGUE_ALLOW_SKIP=1` opts out at the series level); per-repo timeouts replace the old single `360s` wrapper and leftover `docker ps` containers fail the gate. `guest-payload` exits non-zero when `skip>0` unless `CATALOGUE_ALLOW_SKIP=1`; LuaJIT absence on `sparc32`/`sparc64`/`loongarch64`/`riscv32` is expected (`EXPECTED-SKIP`, detected via `CATALOGUE_ARCH`/`uname -m`) and never counts as skip.
 
 `guest-payload` `T1`–`T4` coverage (all `P2` checks from `CATALOGUE-TODO.md`): `T1` shell arithmetic, `sort | uniq -c | sed | grep`, `gawk`/`awk` aggregation, `find`, `dash` + `bash` subshell/trap, `tar`+`gzip` round-trip, `sha256sum -c`, `diff -u` exit `0` vs `1`, `#!` shebang exec, `/proc/self` inspection; `T2` `openssl enc` round-trip, `openssl dgst -sha256`, `zstd`, `xz`, `gzip`+`bzip2` `>256 KiB` odd-offset round-trips, `jq`, `sqlite3` window + `ROLLBACK`/join; `T3` Lua 5.4 coroutines, LuaJIT `jit.status()==true` with `jit.attach` trace counter and golden `675631440`, Python 3 `hashlib`/`zlib` golden plus `threading`; `T4` `git init -q -b master`, `gcc -O2` `selfhost.elf` run (`6765:1.414`), `g++ -std=c++17 -pthread` `std::thread` `selfhost_cxx.elf` run, `as`+`ld` `.s` link with exit `42`, `objdump -d`, `make -j2` jobserver build.
 
 Portable Curated C11 fixtures (build and run on host and in guests): [`tests/p3_torture.c`](../tests/p3_torture.c) (`make check-p3-torture`: signal-frame GPR `si_signo`/`si_code`/stolen-reservation CAS, FPR env preservation, `sigaltstack` `SS_ONSTACK`, unaligned cross-page straddling, `mprotect`/`munmap` immediacy with `si_addr` page check, 2-thread `fetch_add` race) and [`tests/tcg/smoke_tcg.c`](../tests/tcg/smoke_tcg.c) (`make check-tcg-smoke` at `4096` and `8192`: `signals`, `segfault`, `prot-none`, `test-mmap`, `testthread` + `munmap-pthread`, `float_convs`, `sha1` KAT).
+
+### 2.8 Wave C2 Uniform 10-Category Guest Matrix & Uniform Guest Builds
+
+Every translator's `tests/parity_suite.sh` runs the same 10 guest categories (`--interp`, `--dbt`, and `--difftest` where single-thread/supported) plus a real-guest `aot_reload` cold-emit $\to$ warm-reload check with **`0 FAIL, 0 GAP, 0 SKIP`** (`608 PASS` total across the 10 repositories):
+
+| # | Category | Guest source |
+|---|---|---|
+| 1 | `p1_isa` | Integer/branch/unaligned/trap-fault ISA torture |
+| 2 | `p2_libc` | Static libc (`hello`, `printf`, `qsort`, `malloc`, `fileio`) |
+| 3 | `p3_fp` | Architecture FP/SIMD torture |
+| 4 | `p3_torture` | Shared [`tests/p3_torture.c`](../tests/p3_torture.c) (signal frames, VM immediacy, atomics) |
+| 5 | `tcg_smoke` | Shared [`tests/tcg/smoke_tcg.c`](../tests/tcg/smoke_tcg.c) (signals, mmap, threads, float, `sha1`) |
+| 6 | `p4_threads` | Threads (`clone`/futex), signals, pipes, `fork`/`wait4` |
+| 7 | `p5_dyn` | Dynamic ELF (`PT_INTERP` / `ld.so` + shared `libc.so`) from committed `tests/sysroot/` |
+| 8 | `h1_smc` | Self-modifying code + I-cache invalidation |
+| 9 | `h4_cxx` | C++17 exceptions/`dynamic_cast` RTTI/`std::thread` |
+| 10 | `bench_smoke` + `aot_reload` | `bench-<arch> --smoke` plus real guest ELF cold-emit / warm-reload AOT run |
+
+| Translator | ABIs in `parity_suite.sh` | `p1_isa` | `p2_libc` | `p3_fp` | `p3_torture` | `tcg_smoke` | `p4_threads` | `p5_dyn` | `h1_smc` | `h4_cxx` | `bench_smoke` | `aot_reload` | Summary (`PASS / FAIL / GAP / SKIP`) |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|---|
+| **`a32rt`** | `armhf` (A32) + `thumb` (T32) + `armel` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`45 / 0 / 0 / 0`** |
+| **`i686rt`** | `i686` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`41 / 0 / 0 / 0`** |
+| **`mips32rt`** | `mipsel` (O32 LE) + `mips` (O32 BE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`142 / 0 / 0 / 0`** |
+| **`ppc32rt`** | `ppc32` (`750` classic + `e500v2` SPE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`106 / 0 / 0 / 0`** |
+| **`sparc32rt`** | `sparcv8` (`LEON3/4` BE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`30 / 0 / 0 / 0`** |
+| **`rvrt`** | `riscv64` (`lp64d`) + `riscv32` (`ilp32d`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`68 / 0 / 0 / 0`** |
+| **`loongarch64rt`** | `loongarch64` (`LP64D`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`53 / 0 / 0 / 0`** |
+| **`ppc64rt`** | `ppc64le` (`ELFv2` Power10) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`35 / 0 / 0 / 0`** |
+| **`mips64rt`** | `n64le`, `n64be`, `n32le`, `n32be` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`56 / 0 / 0 / 0`** |
+| **`sparc64rt`** | `sparc64` (SPARC V9 BE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`32 / 0 / 0 / 0`** |
+
+The two shared torture sources are prebuilt for all 14 guest ABIs by [`tools/build_uniform_guests.sh`](../tools/build_uniform_guests.sh) into `_build/uniform/<abi>/{p3_torture,smoke_tcg}` (`armhf`, `armel`, `i686`, `mipsel`, `mips`, `ppc32`, `sparc32`, `riscv64`, `riscv32`, `loongarch64`, `ppc64le`, `mips64el`, `mips64eb`, `sparc64`; one bounded `timeout --kill-after=30s 180s docker run --rm --name c2-uniform-<abi>-23194` per ABI; Debian trixie cross toolchains for `arm`/`i686`/`mips`/`ppc32`/`riscv64`, cached `<arch>rt` images for `loongarch64`/`ppc64le`/`mips64`/`sparc`, musl.cc `riscv32` under emulated `amd64` since `riscv32` has no glibc port). `run_catalogue.sh qualify` fails when any of the 28 binaries is missing, and both `smoke` and `qualify` fail when any per-repo `PARITY_SUMMARY` reports `skip>0` unless `CATALOGUE_ALLOW_SKIP=1`.
 
 ---
 

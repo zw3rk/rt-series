@@ -3,10 +3,13 @@
 #
 # Commands (execution budgets from docs/CATALOGUE-TODO.md):
 #   smoke          : Tier S (<2 min total). Per-repo parity_suite.sh or `make check`
-#                    with per-repo timeout (default 240s).
+#                    with per-repo timeout (default 240s); fails when any
+#                    PARITY_SUMMARY reports skip>0 unless CATALOGUE_ALLOW_SKIP=1.
 #   qualify        : Tier M (<10 min). Per-repo parity + dynamic PT_INTERP,
 #                    guest-payload (T1-T4, skip==0), tests/tcg, P3 torture
-#                    presence checks, with per-repo timeout (default 600s).
+#                    presence checks, _build/uniform/<abi> guest presence,
+#                    and PARITY_SUMMARY skip==0 enforcement,
+#                    with per-repo timeout (default 600s).
 #   grind-nightly  : Tier N. Delegates to tools/run_grind.sh nightly.
 #   grind-weekly   : Tier W. Delegates to tools/run_grind.sh weekly.
 #   guest-payload  : Runs inside a guest sysroot under
@@ -15,9 +18,12 @@
 #                    crypto, DB, VMs, toolchains, git).
 #
 # Fail-closed: host gates exit non-zero when --arch matches nothing
-# (matched=0), when pass==0, or when fail>0. guest-payload exits non-zero
-# when skip>0 unless CATALOGUE_ALLOW_SKIP=1 (luajit on sparc32/sparc64/
-# loongarch64/riscv32 is expected-unavailable and never counts as skip).
+# (matched=0), when pass==0, when fail>0, or when any PARITY_SUMMARY in a
+# per-repo log reports skip>0 (unless CATALOGUE_ALLOW_SKIP=1). This outer
+# skip==0 enforcement applies even when a repo sets PARITY_ALLOW_SKIP=1
+# internally. guest-payload exits non-zero when skip>0 unless
+# CATALOGUE_ALLOW_SKIP=1 (luajit on sparc32/sparc64/loongarch64/riscv32 is
+# expected-unavailable and never counts as skip).
 #
 # Env overrides:
 #   CATALOGUE_SMOKE_TIMEOUT / CATALOGUE_QUALIFY_TIMEOUT (seconds),
@@ -64,6 +70,53 @@ SMOKE_TIMEOUT="${TIMEOUT_OVERRIDE:-${CATALOGUE_SMOKE_TIMEOUT:-240}}"
 QUALIFY_TIMEOUT="${TIMEOUT_OVERRIDE:-${CATALOGUE_QUALIFY_TIMEOUT:-600}}"
 
 REPOS="a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64rt sparc64rt"
+
+# Uniform Wave C2 guest ABIs: _build/uniform/<abi>/{p3_torture,smoke_tcg},
+# built by tools/build_uniform_guests.sh from tests/p3_torture.c and
+# tests/tcg/smoke_tcg.c.
+UNIFORM_ABIS="armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le mips64el mips64eb sparc64"
+
+# check_parity_no_skip <logfile> <repo>: fail when any PARITY_SUMMARY line in
+# the per-repo log reports skip>0, unless CATALOGUE_ALLOW_SKIP=1. This is the
+# series-level Wave C2 gate: it fires even if the repo masked skips with its
+# own PARITY_ALLOW_SKIP=1.
+check_parity_no_skip() {
+    _cns_log="$1"
+    _cns_repo="$2"
+    _cns_skips="$(grep -E '^PARITY_SUMMARY ' "$_cns_log" 2>/dev/null \
+        | sed -E 's/.*skip=([0-9]+).*/\1/' \
+        | awk 'BEGIN{s=0} {s+=$1} END{print s}')"
+    if [ -z "$_cns_skips" ]; then
+        _cns_skips=0
+    fi
+    if [ "$_cns_skips" -gt 0 ] && [ "${CATALOGUE_ALLOW_SKIP:-0}" != "1" ]; then
+        echo "FAIL [$_cns_repo]: PARITY_SUMMARY reports $_cns_skips SKIP(s); set CATALOGUE_ALLOW_SKIP=1 to allow" >&2
+        return 1
+    fi
+    return 0
+}
+
+# check_uniform_guests: fail when any _build/uniform/<abi> guest binary is
+# missing or not executable (Wave C2 qualify wiring).
+check_uniform_guests() {
+    _cug_missing=0
+    _cug_total=0
+    for _cug_abi in $UNIFORM_ABIS; do
+        for _cug_bin in p3_torture smoke_tcg; do
+            _cug_total=$((_cug_total + 1))
+            if [ ! -x "$ROOT_DIR/_build/uniform/$_cug_abi/$_cug_bin" ]; then
+                echo "GAP [uniform/$_cug_abi]: missing $_cug_bin (run tools/build_uniform_guests.sh)" >&2
+                _cug_missing=$((_cug_missing + 1))
+            fi
+        done
+    done
+    if [ "$_cug_missing" -gt 0 ]; then
+        echo "FAIL: $_cug_missing of $_cug_total uniform guest binaries missing under _build/uniform/" >&2
+        return 1
+    fi
+    echo "PASS [uniform]: all $_cug_total guest binaries present (_build/uniform/)"
+    return 0
+}
 
 docker_ids() {
     if command -v docker >/dev/null 2>&1; then
@@ -703,6 +756,10 @@ run_repo_gate() {
     echo "== Catalogue $CMD gate: $_repo (tier=$_tier, timeout=${_timeout_s}s) =="
     if [ -f "$ps" ]; then
         if PARITY_TIER="$_tier" timeout --kill-after=30s "${_timeout_s}s" sh "$ps" >"/tmp/cat-$CMD-$_repo.log" 2>&1; then
+            if ! check_parity_no_skip "/tmp/cat-$CMD-$_repo.log" "$_repo"; then
+                tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+                return 1
+            fi
             echo "PASS [$_repo]: parity_suite.sh"
             return 0
         else
@@ -715,6 +772,10 @@ run_repo_gate() {
             echo "GAP [$_repo]: repo dir missing, trying make target anyway"
         fi
         if timeout --kill-after=30s "${_timeout_s}s" make -C "$PROJECTS_DIR/$_repo" check >"/tmp/cat-$CMD-$_repo.log" 2>&1; then
+            if ! check_parity_no_skip "/tmp/cat-$CMD-$_repo.log" "$_repo"; then
+                tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+                return 1
+            fi
             echo "PASS [$_repo]: make check"
             return 0
         else
@@ -776,6 +837,10 @@ run_host_qualify() {
     if [ ! -f "$ROOT_DIR/tests/tcg/smoke_tcg.c" ]; then
         echo "GAP: tests/tcg/smoke_tcg.c missing (Tier M tcg suite)" >&2
     fi
+    # Wave C2: uniform guest binaries must exist before per-repo gates run.
+    if ! check_uniform_guests; then
+        exit 1
+    fi
     run_host_gate "qualify" "$QUALIFY_TIMEOUT"
     if [ ! -f "$ROOT_DIR/tests/p3_torture.c" ] || [ ! -f "$ROOT_DIR/tests/tcg/smoke_tcg.c" ]; then
         echo "FAIL: Tier M fixture files missing" >&2
@@ -802,9 +867,12 @@ Commands:
   guest-payload         Execute Tier 1..4 real-world software suite inside a guest sysroot
                         (e.g. `<arch>rt --sysroot <dir> /bin/sh tools/run_catalogue.sh guest-payload`)
   smoke                 Tier S host gate: per-repo parity_suite.sh or `make check`
+                        plus PARITY_SUMMARY skip==0 enforcement
                         (default per-repo timeout 240s, see CATALOGUE_SMOKE_TIMEOUT)
   qualify               Tier M host gate: per-repo parity at PARITY_TIER=qualify plus
-                        tests/p3_torture.c + tests/tcg presence checks
+                        tests/p3_torture.c + tests/tcg presence checks,
+                        _build/uniform/<abi> guest presence, and PARITY_SUMMARY
+                        skip==0 enforcement
                         (default per-repo timeout 600s, see CATALOGUE_QUALIFY_TIMEOUT)
   grind-nightly         Tier N grind (delegates to tools/run_grind.sh nightly)
   grind-weekly          Tier W grind (delegates to tools/run_grind.sh weekly)
