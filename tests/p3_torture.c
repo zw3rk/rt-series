@@ -85,10 +85,31 @@ static sigjmp_buf g_segv_jmp;
 static volatile sig_atomic_t g_segv_armed = 0;
 static volatile sig_atomic_t g_segv_signo = 0;
 static volatile sig_atomic_t g_segv_code = 0;
-static uintptr_t g_segv_addr = 0;
+/* C11 async-signal-safe 64-bit address bridge: three 22-bit chunks stored in
+ * volatile sig_atomic_t objects (POSIX guarantees sig_atomic_t >= 32-bit). */
+static volatile sig_atomic_t g_segv_addr_w0 = 0;
+static volatile sig_atomic_t g_segv_addr_w1 = 0;
+static volatile sig_atomic_t g_segv_addr_w2 = 0;
 
 static _Atomic int g_cas_cell = 0;
+static volatile uint32_t g_llsc_cell = 0x13572468U;
 static _Atomic long g_race_sum = 0;
+
+static void store_segv_addr(uintptr_t addr)
+{
+    uint64_t u = (uint64_t)addr;
+    g_segv_addr_w0 = (sig_atomic_t)(u & 0x3fffffULL);
+    g_segv_addr_w1 = (sig_atomic_t)((u >> 22) & 0x3fffffULL);
+    g_segv_addr_w2 = (sig_atomic_t)((u >> 44) & 0x3fffffULL);
+}
+
+static uintptr_t load_segv_addr(void)
+{
+    uint64_t u0 = (uint64_t)(uint32_t)g_segv_addr_w0 & 0x3fffffULL;
+    uint64_t u1 = (uint64_t)(uint32_t)g_segv_addr_w1 & 0x3fffffULL;
+    uint64_t u2 = (uint64_t)(uint32_t)g_segv_addr_w2 & 0x3fffffULL;
+    return (uintptr_t)(u0 | (u1 << 22) | (u2 << 44));
+}
 
 static void usr1_handler(int signo, siginfo_t *info, void *ctx)
 {
@@ -138,8 +159,12 @@ static void fp_handler(int signo, siginfo_t *info, void *ctx)
     (void)signo;
     (void)info;
     (void)ctx;
-    /* Touch the FPRs hard inside the handler; the interrupted FP computation
-     * in main must still resume bit-exact (write-through cached state). */
+    /* Touch the FPRs and mutate rounding mode + sticky exception flags inside
+     * the handler; sigreturn must restore the interrupted FP state. */
+#ifdef FE_TOWARDZERO
+    (void)fesetround(FE_TOWARDZERO);
+#endif
+    (void)feraiseexcept(FE_OVERFLOW | FE_DIVBYZERO);
     volatile double acc = 0.25;
     for (int i = 1; i <= 64; i++) {
         acc = acc * 1.5 + (double)i * 0.125;
@@ -166,7 +191,7 @@ static void segv_handler(int signo, siginfo_t *info, void *ctx)
     g_segv_signo = signo;
     if (info != NULL) {
         g_segv_code = info->si_code;
-        g_segv_addr = (uintptr_t)info->si_addr;
+        store_segv_addr((uintptr_t)info->si_addr);
     }
     if (g_segv_armed) {
         siglongjmp(g_segv_jmp, 1);
@@ -183,9 +208,61 @@ static int install_handler(int signo, void (*fn)(int, siginfo_t *, void *), int 
     return sigaction(signo, &sa, NULL);
 }
 
+/* Acquire a hardware/translator LL reservation on g_llsc_cell, deliver SIGUSR1
+ * (whose handler does NOT modify g_llsc_cell), and then attempt the matching
+ * SC instruction. On LL/SC architectures, exception return (sigreturn) must
+ * clear the active reservation so the post-signal SC fails without storing. */
+static int probe_llsc_broken_by_signal(void)
+{
+    g_llsc_cell = 0x13572468U;
+#if defined(__aarch64__)
+    uint32_t loaded = 0;
+    uint32_t sc_status = 0;
+    __asm__ volatile("ldxr %w0, [%1]" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
+    if (raise(SIGUSR1) != 0) {
+        return -1;
+    }
+    __asm__ volatile("stxr %w0, %w2, [%1]"
+                     : "=&r"(sc_status)
+                     : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
+                     : "memory");
+    return (loaded == 0x13572468U && sc_status != 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+#elif defined(__arm__) && (__ARM_ARCH >= 6)
+    uint32_t loaded = 0;
+    uint32_t sc_status = 0;
+    __asm__ volatile("ldrex %0, [%1]" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
+    if (raise(SIGUSR1) != 0) {
+        return -1;
+    }
+    __asm__ volatile("strex %0, %2, [%1]"
+                     : "=&r"(sc_status)
+                     : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
+                     : "memory");
+    return (loaded == 0x13572468U && sc_status != 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+#elif defined(__riscv) && defined(__riscv_atomic)
+    uint32_t loaded = 0;
+    uint32_t sc_status = 0;
+    __asm__ volatile("lr.w %0, (%1)" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
+    if (raise(SIGUSR1) != 0) {
+        return -1;
+    }
+    __asm__ volatile("sc.w %0, %2, (%1)"
+                     : "=&r"(sc_status)
+                     : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
+                     : "memory");
+    return (loaded == 0x13572468U && sc_status != 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+#else
+    if (raise(SIGUSR1) != 0) {
+        return -1;
+    }
+    return 0;
+#endif
+}
+
 /* Signal frame: async SIGUSR1 must arrive with exact si_signo, a
  * kill-family si_code, a non-null ucontext, live GPR preservation across
- * delivery, and a broken atomic reservation across the signal boundary. */
+ * delivery, and an invalidated LL/SC reservation + CAS retry across the
+ * signal boundary. */
 static void t_sig_frame_gpr(void)
 {
     if (install_handler(SIGUSR1, usr1_handler, 0) != 0 ||
@@ -201,7 +278,7 @@ static void t_sig_frame_gpr(void)
 
     /* Keep multiple GPRs and the pre-signal loaded value live across
      * signal delivery while usr1_handler + nested usr2_handler clobber
-     * registers and overwrite g_cas_cell. */
+     * registers, break the LL/SC reservation, and overwrite g_cas_cell. */
     uint64_t r0 = 0x0123456789ABCDEFULL;
     uint64_t r1 = 0xFEDCBA9876543210ULL;
     uint64_t r2 = 0xCAFEBABE12345678ULL;
@@ -217,8 +294,8 @@ static void t_sig_frame_gpr(void)
         r4 = (r4 ^ r2) + 0x500U;
         r5 = (r5 + r3) ^ 0x600U;
         if (step == 7) {
-            if (raise(SIGUSR1) != 0) {
-                report_fail("sig-frame-gpr", "raise failed");
+            if (probe_llsc_broken_by_signal() != 0) {
+                report_fail("sig-frame-gpr", "LL/SC reservation not cleared across signal");
                 return;
             }
         }
@@ -527,7 +604,9 @@ static void t_mprotect_munmap(void)
         return;
     }
     g_segv_armed = 1;
-    g_segv_addr = 0;
+    g_segv_signo = 0;
+    g_segv_code = 0;
+    store_segv_addr(0);
     if (sigsetjmp(g_segv_jmp, 1) == 0) {
         volatile unsigned char c = base[(size_t)ps];
         (void)c;
@@ -542,7 +621,12 @@ static void t_mprotect_munmap(void)
         munmap(base, two);
         return;
     }
-    if (g_segv_addr / (uintptr_t)ps != (uintptr_t)(base + (size_t)ps) / (uintptr_t)ps) {
+    if (g_segv_code <= 0) {
+        report_fail("mprotect-munmap", "missing positive si_code on PROT_NONE");
+        munmap(base, two);
+        return;
+    }
+    if (load_segv_addr() / (uintptr_t)ps != (uintptr_t)(base + (size_t)ps) / (uintptr_t)ps) {
         report_fail("mprotect-munmap", "si_addr outside protected page");
         munmap(base, two);
         return;
@@ -566,6 +650,9 @@ static void t_mprotect_munmap(void)
         return;
     }
     g_segv_armed = 1;
+    g_segv_signo = 0;
+    g_segv_code = 0;
+    store_segv_addr(0);
     if (sigsetjmp(g_segv_jmp, 1) == 0) {
         base[0] = 0x11;
         g_segv_armed = 0;
@@ -574,6 +661,12 @@ static void t_mprotect_munmap(void)
         return;
     }
     g_segv_armed = 0;
+    if ((g_segv_signo != SIGSEGV && g_segv_signo != SIGBUS) || g_segv_code <= 0 ||
+        load_segv_addr() / (uintptr_t)ps != (uintptr_t)base / (uintptr_t)ps) {
+        report_fail("mprotect-munmap", "RO write fault metadata mismatch");
+        munmap(base, two);
+        return;
+    }
     if (mprotect(base, (size_t)ps, PROT_READ | PROT_WRITE) != 0) {
         report_fail("mprotect-munmap", "mprotect RW restore failed");
         munmap(base, two);
@@ -586,6 +679,9 @@ static void t_mprotect_munmap(void)
         return;
     }
     g_segv_armed = 1;
+    g_segv_signo = 0;
+    g_segv_code = 0;
+    store_segv_addr(0);
     if (sigsetjmp(g_segv_jmp, 1) == 0) {
         volatile unsigned char c = base[(size_t)ps];
         (void)c;
@@ -595,6 +691,12 @@ static void t_mprotect_munmap(void)
         return;
     }
     g_segv_armed = 0;
+    if ((g_segv_signo != SIGSEGV && g_segv_signo != SIGBUS) || g_segv_code <= 0 ||
+        load_segv_addr() / (uintptr_t)ps != (uintptr_t)(base + (size_t)ps) / (uintptr_t)ps) {
+        report_fail("mprotect-munmap", "unmapped read fault metadata mismatch");
+        munmap(base, (size_t)ps);
+        return;
+    }
     munmap(base, (size_t)ps);
     report_pass("mprotect/munmap immediacy + si_addr page check");
 }

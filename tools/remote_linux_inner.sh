@@ -33,40 +33,8 @@ for item in $ARCH_LIST; do
     if [ "$KIND" = "qemu" ]; then
         out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/qemu/$q" "$guest" "$MODE")
         parse_and_print "qemu" "$arch" "tcg" "$out"
-    elif [ "$KIND" = "dbt" ]; then
-        case "$rt" in
-            rvrt|i686rt)
-                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" -- "$guest" "$MODE")
-                ;;
-            loongarch64rt|ppc64rt|mips64rt|sparc64rt)
-                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --dbt "$guest" "$MODE")
-                ;;
-            *)
-                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE")
-                ;;
-        esac
-        parse_and_print "linux" "$arch" "dbt" "$out"
-    elif [ "$KIND" = "interp" ]; then
-        case "$rt" in
-            rvrt)
-                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --engine interp -- "$guest" "$MODE")
-                ;;
-            i686rt)
-                out=$(I686RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" -- "$guest" "$MODE")
-                ;;
-            mips32rt)
-                out=$(MIPS32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE")
-                ;;
-            ppc32rt)
-                out=$(PPC32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE")
-                ;;
-            sparc32rt)
-                out=$(SPARC32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE")
-                ;;
-            *)
-                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --interp "$guest" "$MODE")
-                ;;
-        esac
-        parse_and_print "linux" "$arch" "interp" "$out"
+    elif [ "$KIND" = "dbt" ] || [ "$KIND" = "interp" ]; then
+        out=$(rt_run_bounded_translator "$REMOTE_BENCH_TIMEOUT" "$rt" "$KIND" "$bin" "$guest" "$MODE")
+        parse_and_print "linux" "$arch" "$KIND" "$out"
     fi
 done

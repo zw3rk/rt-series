@@ -81,8 +81,28 @@ static sigjmp_buf g_jmp;
 static volatile sig_atomic_t g_armed = 0;
 static volatile sig_atomic_t g_got_signo = 0;
 static volatile sig_atomic_t g_got_code = 0;
-static uintptr_t g_got_addr = 0;
+/* C11 async-signal-safe 64-bit address bridge: three 22-bit chunks stored in
+ * volatile sig_atomic_t objects (POSIX guarantees sig_atomic_t >= 32-bit). */
+static volatile sig_atomic_t g_got_addr_w0 = 0;
+static volatile sig_atomic_t g_got_addr_w1 = 0;
+static volatile sig_atomic_t g_got_addr_w2 = 0;
 static volatile sig_atomic_t g_sig_count = 0;
+
+static void store_got_addr(uintptr_t addr)
+{
+    uint64_t u = (uint64_t)addr;
+    g_got_addr_w0 = (sig_atomic_t)(u & 0x3fffffULL);
+    g_got_addr_w1 = (sig_atomic_t)((u >> 22) & 0x3fffffULL);
+    g_got_addr_w2 = (sig_atomic_t)((u >> 44) & 0x3fffffULL);
+}
+
+static uintptr_t load_got_addr(void)
+{
+    uint64_t u0 = (uint64_t)(uint32_t)g_got_addr_w0 & 0x3fffffULL;
+    uint64_t u1 = (uint64_t)(uint32_t)g_got_addr_w1 & 0x3fffffULL;
+    uint64_t u2 = (uint64_t)(uint32_t)g_got_addr_w2 & 0x3fffffULL;
+    return (uintptr_t)(u0 | (u1 << 22) | (u2 << 44));
+}
 
 static void fault_handler(int signo, siginfo_t *info, void *ctx)
 {
@@ -90,7 +110,7 @@ static void fault_handler(int signo, siginfo_t *info, void *ctx)
     g_got_signo = signo;
     if (info != NULL) {
         g_got_code = info->si_code;
-        g_got_addr = (uintptr_t)info->si_addr;
+        store_got_addr((uintptr_t)info->si_addr);
     }
     if (g_armed) {
         siglongjmp(g_jmp, 1);
@@ -159,7 +179,8 @@ static void t_segfault(void)
     }
     g_armed = 1;
     g_got_signo = 0;
-    g_got_addr = 0;
+    g_got_code = 0;
+    store_got_addr(0);
     if (sigsetjmp(g_jmp, 1) == 0) {
         volatile unsigned char c = p[0];
         (void)c;
@@ -172,7 +193,11 @@ static void t_segfault(void)
         tcg_fail("segfault", "wrong signal");
         return;
     }
-    if (g_got_addr / (uintptr_t)g_page != (uintptr_t)p / (uintptr_t)g_page) {
+    if (g_got_code <= 0) {
+        tcg_fail("segfault", "missing positive si_code");
+        return;
+    }
+    if (load_got_addr() / (uintptr_t)g_page != (uintptr_t)p / (uintptr_t)g_page) {
         tcg_fail("segfault", "si_addr outside faulting page");
         return;
     }
@@ -195,6 +220,9 @@ static void t_prot_none(void)
         return;
     }
     g_armed = 1;
+    g_got_signo = 0;
+    g_got_code = 0;
+    store_got_addr(0);
     if (sigsetjmp(g_jmp, 1) == 0) {
         volatile unsigned char c = p[0];
         (void)c;
@@ -204,6 +232,12 @@ static void t_prot_none(void)
         return;
     }
     g_armed = 0;
+    if ((g_got_signo != SIGSEGV && g_got_signo != SIGBUS) || g_got_code <= 0 ||
+        load_got_addr() / (uintptr_t)g_page != (uintptr_t)p / (uintptr_t)g_page) {
+        tcg_fail("prot-none", "PROT_NONE fault metadata mismatch");
+        munmap(p, len);
+        return;
+    }
     if (mprotect(p, len, PROT_READ | PROT_WRITE) != 0) {
         tcg_fail("prot-none", "mprotect restore failed");
         munmap(p, len);
@@ -246,6 +280,9 @@ static void t_test_mmap(void)
         return;
     }
     g_armed = 1;
+    g_got_signo = 0;
+    g_got_code = 0;
+    store_got_addr(0);
     if (sigsetjmp(g_jmp, 1) == 0) {
         volatile unsigned char c = p[ps * 3u];
         (void)c;
@@ -255,6 +292,12 @@ static void t_test_mmap(void)
         return;
     }
     g_armed = 0;
+    if ((g_got_signo != SIGSEGV && g_got_signo != SIGBUS) || g_got_code <= 0 ||
+        load_got_addr() / ps != (uintptr_t)(p + ps * 3u) / ps) {
+        tcg_fail("test-mmap", "NONE sub-page fault metadata mismatch");
+        munmap(p, len);
+        return;
+    }
     if (munmap(p, len) != 0) {
         tcg_fail("test-mmap", "munmap failed");
         return;

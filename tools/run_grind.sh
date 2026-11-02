@@ -13,17 +13,10 @@
 #   5. musl libc-test + LTP syscalls manifest runner.
 #   6. lmbench completion check (lat_syscall, lat_ctx, lat_pagefault,
 #      lat_proc, bw_mmap with per-test timeouts; timing is not an oracle).
-#   Weekly adds: fixed-seed Csmith/Yarpgen soak + upstream Git/coreutils/
-#   gawk/BusyBox `make check` stubs.
+#   Weekly adds: fixed-seed Csmith/Yarpgen differential soak + upstream
+#   `make check` when UPSTREAM_CHECK_DIR is provided.
 #
-# Usage: tools/run_grind.sh <nightly|weekly> [--arch <repo|all>] [--suite <name>]
-#
-# Env: GRIND_BACKEND=<linux|hl|darwin> (default from uname),
-#   STRESS_SECS (default 5 nightly, 60 weekly per stressor),
-#   GCC_TORTURE_DIR, TESTFLOAT_GEN, TESTFLOAT_VER, TESTFLOAT_ROUNDS,
-#   LIBC_TEST_DIR, LTP_DIR, LMBENCH_DIR, GRIND_QEMU/GRIND_INTERP/GRIND_DBT
-#   guest wrappers, GRIND_ALLOW_SKIP=1 (default: skips allowed, fails only
-#   on fail>0 or pass==0).
+# Usage: tools/run_grind.sh <nightly|weekly> [--arch <repo|all|host>] [--suite <name>]
 #
 # Copyright 2026 Moritz Angermann <moritz@zw3rk.com>, zw3rk pte. ltd.
 # SPDX-License-Identifier: Apache-2.0
@@ -33,6 +26,9 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECTS_DIR="$(cd "$ROOT_DIR/.." && pwd)"
+
+# shellcheck source=tools/remote_bench_common.sh
+. "$SCRIPT_DIR/remote_bench_common.sh"
 
 TIER="${1:-help}"
 if [ $# -gt 0 ]; then shift; fi
@@ -59,61 +55,15 @@ while [ $# -gt 0 ]; do
 done
 
 case "$ARCH_FILTER" in
-    all|a32rt|i686rt|mips32rt|ppc32rt|sparc32rt|rvrt|loongarch64rt|ppc64rt|mips64rt|sparc64rt) ;;
+    all|host|a32rt|i686rt|mips32rt|ppc32rt|sparc32rt|rvrt|loongarch64rt|ppc64rt|mips64rt|sparc64rt) ;;
     *)
         echo "ERROR: Invalid --arch '$ARCH_FILTER'" >&2
         exit 2
         ;;
 esac
 
-resolve_arch_defaults() {
-    if [ "$ARCH_FILTER" = "all" ]; then
-        return 0
-    fi
-    _rt_bin=""
-    for _cand in \
-        "$PROJECTS_DIR/$ARCH_FILTER/_build/${ARCH_FILTER}-darwin-arm64" \
-        "$PROJECTS_DIR/$ARCH_FILTER/_build/${ARCH_FILTER}-linux-aarch64" \
-        "$PROJECTS_DIR/$ARCH_FILTER/_build/${ARCH_FILTER}"; do
-        if [ -x "$_cand" ]; then
-            _rt_bin="$_cand"
-            break
-        fi
-    done
-    if [ -n "$_rt_bin" ]; then
-        case "$ARCH_FILTER" in
-            i686rt|sparc32rt)
-                : "${GRIND_INTERP:=$_rt_bin --engine interp --}"
-                : "${GRIND_DBT:=$_rt_bin --engine dbt --}"
-                ;;
-            a32rt|rvrt|mips32rt|ppc32rt)
-                : "${GRIND_INTERP:=$_rt_bin --interp --}"
-                : "${GRIND_DBT:=$_rt_bin --dbt --}"
-                ;;
-            *)
-                : "${GRIND_INTERP:=$_rt_bin --interp}"
-                : "${GRIND_DBT:=$_rt_bin --dbt}"
-                ;;
-        esac
-    fi
-    if [ -z "${GRIND_CC:-}" ]; then
-        case "$ARCH_FILTER" in
-            a32rt)         GRIND_CC="arm-linux-gnueabihf-gcc" ;;
-            i686rt)        GRIND_CC="i686-linux-gnu-gcc" ;;
-            mips32rt)      GRIND_CC="mipsel-linux-gnu-gcc" ;;
-            ppc32rt)       GRIND_CC="powerpc-linux-gnu-gcc" ;;
-            sparc32rt)     GRIND_CC="sparc-linux-gnu-gcc" ;;
-            rvrt)          GRIND_CC="riscv64-linux-gnu-gcc" ;;
-            loongarch64rt) GRIND_CC="loongarch64-linux-gnu-gcc" ;;
-            ppc64rt)       GRIND_CC="powerpc64le-linux-gnu-gcc" ;;
-            mips64rt)      GRIND_CC="mips64el-linux-gnuabi64-gcc" ;;
-            sparc64rt)     GRIND_CC="sparc64-linux-gnu-gcc" ;;
-        esac
-    fi
-}
-
-resolve_arch_defaults
-
+# Resolve and validate BACKEND first (RTS-R2-3) before any translator artifact
+# discovery so binary format (Mach-O vs Linux ELF vs hl wrapper) matches host.
 BACKEND="${GRIND_BACKEND:-}"
 if [ -z "$BACKEND" ]; then
     case "$(uname -s 2>/dev/null || echo Linux)" in
@@ -121,6 +71,13 @@ if [ -z "$BACKEND" ]; then
         *) BACKEND="linux" ;;
     esac
 fi
+case "$BACKEND" in
+    linux|hl|darwin) ;;
+    *)
+        echo "ERROR: Invalid GRIND_BACKEND '$BACKEND' (expected linux|hl|darwin)" >&2
+        exit 2
+        ;;
+esac
 
 case "$TIER" in
     nightly) STRESS_SECS="${STRESS_SECS:-5}" ;;
@@ -136,18 +93,25 @@ LINUXFD_STRESSORS="vma bad-altstack sigfd timer itimer epoll eventfd lockf procf
 GRIND_PASS=0
 GRIND_FAIL=0
 GRIND_SKIP=0
+CURRENT_ARCH="host"
+
+USER_GRIND_CC="${GRIND_CC:-}"
+USER_GRIND_CXX="${GRIND_CXX:-}"
+USER_GRIND_QEMU="${GRIND_QEMU:-}"
+USER_GRIND_INTERP="${GRIND_INTERP:-}"
+USER_GRIND_DBT="${GRIND_DBT:-}"
 
 grind_pass() {
     GRIND_PASS=$((GRIND_PASS + 1))
-    echo "PASS [$1]: $2"
+    echo "PASS [$CURRENT_ARCH/$1]: $2"
 }
 grind_fail() {
     GRIND_FAIL=$((GRIND_FAIL + 1))
-    echo "FAIL [$1]: $2" >&2
+    echo "FAIL [$CURRENT_ARCH/$1]: $2" >&2
 }
 grind_skip() {
     GRIND_SKIP=$((GRIND_SKIP + 1))
-    echo "SKIP [$1]: $2"
+    echo "SKIP [$CURRENT_ARCH/$1]: $2"
 }
 
 want_suite() {
@@ -155,8 +119,90 @@ want_suite() {
     [ "$SUITE_FILTER" = "$1" ]
 }
 
+find_backend_rt_bin() {
+    _fbr_repo="$1"
+    _fbr_dir="$PROJECTS_DIR/$_fbr_repo/_build"
+    case "$BACKEND" in
+        darwin)
+            for _cand in "$_fbr_dir/${_fbr_repo}-darwin-arm64" "$_fbr_dir/${_fbr_repo}-darwin" "$_fbr_dir/${_fbr_repo}"; do
+                if [ -x "$_cand" ] && file "$_cand" 2>/dev/null | grep -q "Mach-O 64-bit"; then
+                    printf '%s' "$_cand"
+                    return 0
+                fi
+            done
+            ;;
+        linux|hl)
+            for _cand in "$_fbr_dir/${_fbr_repo}-linux-aarch64" "$_fbr_dir/${_fbr_repo}"; do
+                if [ -x "$_cand" ] && file "$_cand" 2>/dev/null | grep -q "ELF 64-bit"; then
+                    printf '%s' "$_cand"
+                    return 0
+                fi
+            done
+            ;;
+    esac
+    return 1
+}
+
+find_hl_launcher() {
+    for _cand in "$PROJECTS_DIR/hyper-linux-u4/_build/hl" "$PROJECTS_DIR/hyper-linux/_build/hl"; do
+        if [ -x "$_cand" ]; then
+            printf '%s' "$_cand"
+            return 0
+        fi
+    done
+    return 1
+}
+
+resolve_arch_defaults() {
+    CURRENT_ARCH="$1"
+    GRIND_CC="$USER_GRIND_CC"
+    GRIND_CXX="$USER_GRIND_CXX"
+    GRIND_QEMU="$USER_GRIND_QEMU"
+    GRIND_INTERP="$USER_GRIND_INTERP"
+    GRIND_DBT="$USER_GRIND_DBT"
+
+    if [ "$CURRENT_ARCH" = "host" ]; then
+        : "${GRIND_CC:=${CC:-cc}}"
+        : "${GRIND_CXX:=${CXX:-c++}}"
+        return 0
+    fi
+
+    _rt_bin="$(find_backend_rt_bin "$CURRENT_ARCH" || true)"
+    if [ -n "$_rt_bin" ]; then
+        _interp_cmd="$(rt_format_cmd_prefix "$CURRENT_ARCH" "interp" "$_rt_bin")"
+        _dbt_cmd="$(rt_format_cmd_prefix "$CURRENT_ARCH" "dbt" "$_rt_bin")"
+        if [ "$BACKEND" = "hl" ]; then
+            _hl_bin="$(find_hl_launcher || true)"
+            if [ -n "$_hl_bin" ]; then
+                : "${GRIND_INTERP:=$_hl_bin $_interp_cmd}"
+                : "${GRIND_DBT:=$_hl_bin $_dbt_cmd}"
+            fi
+        else
+            : "${GRIND_INTERP:=$_interp_cmd}"
+            : "${GRIND_DBT:=$_dbt_cmd}"
+        fi
+    fi
+
+    if [ -z "$GRIND_CC" ]; then
+        case "$CURRENT_ARCH" in
+            a32rt)         GRIND_CC="arm-linux-gnueabihf-gcc" ;;
+            i686rt)        GRIND_CC="i686-linux-gnu-gcc" ;;
+            mips32rt)      GRIND_CC="mipsel-linux-gnu-gcc" ;;
+            ppc32rt)       GRIND_CC="powerpc-linux-gnu-gcc" ;;
+            sparc32rt)     GRIND_CC="sparc-linux-gnu-gcc" ;;
+            rvrt)          GRIND_CC="riscv64-linux-gnu-gcc" ;;
+            loongarch64rt) GRIND_CC="loongarch64-linux-gnu-gcc" ;;
+            ppc64rt)       GRIND_CC="powerpc64le-linux-gnu-gcc" ;;
+            mips64rt)      GRIND_CC="mips64el-linux-gnuabi64-gcc" ;;
+            sparc64rt)     GRIND_CC="sparc64-linux-gnu-gcc" ;;
+        esac
+    fi
+    if [ -z "$GRIND_CXX" ] && [ -n "$GRIND_CC" ]; then
+        GRIND_CXX="$(printf '%s' "$GRIND_CC" | sed 's/gcc$/g++/')"
+    fi
+}
+
 yaml_bogo_ops() {
-    # Print the first bogo-ops integer found in a stress-ng --yaml file.
     awk '
         /bogo-ops:/ { for (i = 1; i <= NF; i++) if ($i ~ /^[0-9]+$/) { print $i; exit } }
         /bogo_ops:/ { for (i = 1; i <= NF; i++) if ($i ~ /^[0-9]+$/) { print $i; exit } }
@@ -164,7 +210,6 @@ yaml_bogo_ops() {
 }
 
 yaml_has_verify_failure() {
-    # True (0) when the yaml reports any non-zero failure/verify-fail count.
     if grep -Ei 'verify[_ -]?fail(ed)?:[[:space:]]*[1-9]' "$1" >/dev/null 2>&1; then return 0; fi
     if grep -Ei 'failed:[[:space:]]*[1-9]' "$1" >/dev/null 2>&1; then return 0; fi
     if grep -Ei 'errors?:[[:space:]]*[1-9]' "$1" >/dev/null 2>&1; then return 0; fi
@@ -172,13 +217,13 @@ yaml_has_verify_failure() {
 }
 
 run_stressng_suite() {
-    echo "== Grind: stress-ng (arch=$ARCH_FILTER, backend=$BACKEND, ${STRESS_SECS}s/stressor) =="
+    echo "== Grind [$CURRENT_ARCH]: stress-ng (backend=$BACKEND, ${STRESS_SECS}s/stressor) =="
     _sng_cmd="stress-ng"
-    if [ "$ARCH_FILTER" != "all" ]; then
+    if [ "$CURRENT_ARCH" != "host" ]; then
         if [ -n "${GRIND_STRESS_NG:-}" ] && [ -n "${GRIND_DBT:-}" ]; then
             _sng_cmd="${GRIND_DBT} ${GRIND_STRESS_NG}"
         else
-            grind_skip "stress-ng" "foreign-arch ($ARCH_FILTER) requires GRIND_STRESS_NG + GRIND_DBT"
+            grind_skip "stress-ng" "foreign-arch ($CURRENT_ARCH) requires GRIND_STRESS_NG + GRIND_DBT"
             return 0
         fi
     elif ! command -v stress-ng >/dev/null 2>&1; then
@@ -189,7 +234,7 @@ run_stressng_suite() {
     if [ "$BACKEND" = "linux" ] || [ "$BACKEND" = "hl" ]; then
         _stressors="$_stressors $LINUXFD_STRESSORS"
     fi
-    _work="/tmp/grind_stress_$$"
+    _work="/tmp/grind_stress_${CURRENT_ARCH}_$$"
     mkdir -p "$_work"
     for s in $_stressors; do
         _yaml="$_work/$s.yaml"
@@ -222,28 +267,20 @@ run_stressng_suite() {
 }
 
 run_gcc_torture_suite() {
-    echo "== Grind: gcc.c-torture/execute (same-binary differential, -ffp-contract=off) =="
+    echo "== Grind [$CURRENT_ARCH]: gcc.c-torture/execute (same-binary differential, -ffp-contract=off) =="
     _dir="${GCC_TORTURE_DIR:-}"
     if [ -z "$_dir" ] || [ ! -d "$_dir" ]; then
         grind_skip "gcc-torture" "GCC_TORTURE_DIR not set or missing (point at gcc/testsuite/gcc.c-torture/execute)"
         return 0
     fi
-    if [ "$ARCH_FILTER" != "all" ]; then
-        _cc="${GRIND_CC:-}"
-        if [ -z "$_cc" ] || ! command -v "$_cc" >/dev/null 2>&1; then
-            grind_skip "gcc-torture" "cross-compiler '$_cc' for $ARCH_FILTER not on PATH"
-            return 0
-        fi
-        if [ -z "${GRIND_INTERP:-}" ] && [ -z "${GRIND_DBT:-}" ]; then
-            grind_skip "gcc-torture" "translator wrapper (GRIND_INTERP/GRIND_DBT) missing for $ARCH_FILTER"
-            return 0
-        fi
-    else
-        _cc="${GRIND_CC:-${CC:-cc}}"
-        if ! command -v "$_cc" >/dev/null 2>&1; then
-            grind_skip "gcc-torture" "no C compiler ($_cc)"
-            return 0
-        fi
+    _cc="${GRIND_CC:-}"
+    if [ -z "$_cc" ] || ! command -v "$_cc" >/dev/null 2>&1; then
+        grind_skip "gcc-torture" "compiler '$_cc' for $CURRENT_ARCH not on PATH"
+        return 0
+    fi
+    if [ "$CURRENT_ARCH" != "host" ] && { [ -z "${GRIND_INTERP:-}" ] || [ -z "${GRIND_DBT:-}" ]; }; then
+        grind_skip "gcc-torture" "translator wrappers (GRIND_INTERP + GRIND_DBT) missing for $CURRENT_ARCH ($BACKEND)"
+        return 0
     fi
     _cap=50
     if [ "$TIER" = "weekly" ]; then _cap=200; fi
@@ -254,13 +291,13 @@ run_gcc_torture_suite() {
         if [ "$_n" -gt "$_cap" ]; then break; fi
         _base="$(basename "$src" .c)"
         for opt in O0 O2; do
-            _bin="/tmp/grind_torture_${_base}_${opt}_$$"
+            _bin="/tmp/grind_torture_${CURRENT_ARCH}_${_base}_${opt}_$$"
             if ! "$_cc" -ffp-contract=off "-$opt" "$src" -o "$_bin" -lm >/dev/null 2>&1; then
                 grind_skip "gcc-torture" "$_base -$opt did not compile (target-specific, skipped)"
                 continue
             fi
             _have_ref=0
-            if [ "$ARCH_FILTER" = "all" ]; then
+            if [ "$CURRENT_ARCH" = "host" ]; then
                 if ! timeout --kill-after=10s 30s "$_bin" >/tmp/grind_torture_out_$$ 2>&1; then
                     grind_fail "gcc-torture" "$_base -$opt native exit!=0"
                     rm -f "$_bin"
@@ -306,7 +343,7 @@ run_gcc_torture_suite() {
 }
 
 run_testfloat_suite() {
-    echo "== Grind: Berkeley TestFloat (host testfloat_gen | guest testfloat_ver) =="
+    echo "== Grind [$CURRENT_ARCH]: Berkeley TestFloat (host testfloat_gen | guest testfloat_ver) =="
     _gen="${TESTFLOAT_GEN:-}"
     _ver="${TESTFLOAT_VER:-}"
     if [ -z "$_gen" ] || [ ! -x "$_gen" ]; then
@@ -321,17 +358,22 @@ run_testfloat_suite() {
         grind_skip "testfloat" "TESTFLOAT_VER not set (guest testfloat_ver binary missing)"
         return 0
     fi
+    if [ "$CURRENT_ARCH" != "host" ] && [ -z "${GRIND_INTERP:-}" ] && [ -z "${GRIND_DBT:-}" ]; then
+        grind_skip "testfloat" "translator wrapper missing for $CURRENT_ARCH ($BACKEND)"
+        return 0
+    fi
     _rounds="${TESTFLOAT_ROUNDS:-10000}"
     if [ "$TIER" = "weekly" ]; then _rounds="${TESTFLOAT_ROUNDS_WEEKLY:-$_rounds}"; fi
-    _vec="/tmp/grind_testfloat_vec_$$"
+    _vec="/tmp/grind_testfloat_vec_${CURRENT_ARCH}_$$"
     if ! timeout --kill-after=30s 300s "$_gen" -rounds "$_rounds" >"$_vec" 2>/tmp/grind_testfloat_$$.log; then
         grind_fail "testfloat" "testfloat_gen failed to produce vectors (see /tmp/grind_testfloat_$$.log)"
         rm -f "$_vec" /tmp/grind_testfloat_$$.log
         return 0
     fi
-    if [ -n "${GRIND_INTERP:-}" ]; then
+    _tf_wrap="${GRIND_INTERP:-${GRIND_DBT:-}}"
+    if [ -n "$_tf_wrap" ]; then
         # shellcheck disable=SC2086
-        if timeout --kill-after=30s 600s ${GRIND_INTERP} "$_ver" <"$_vec" \
+        if timeout --kill-after=30s 600s $_tf_wrap "$_ver" <"$_vec" \
             >/tmp/grind_testfloat_$$.log 2>&1; then
             _tf_rc=0
         else
@@ -357,26 +399,18 @@ run_testfloat_suite() {
 }
 
 run_builtins_suite() {
-    echo "== Grind: compiler-rt builtin ABI helpers =="
-    if [ "$ARCH_FILTER" != "all" ]; then
-        _cc="${GRIND_CC:-}"
-        if [ -z "$_cc" ] || ! command -v "$_cc" >/dev/null 2>&1; then
-            grind_skip "compiler-rt" "cross-compiler '$_cc' for $ARCH_FILTER not on PATH"
-            return 0
-        fi
-        if [ -z "${GRIND_INTERP:-}" ] && [ -z "${GRIND_DBT:-}" ]; then
-            grind_skip "compiler-rt" "translator wrapper (GRIND_INTERP/GRIND_DBT) missing for $ARCH_FILTER"
-            return 0
-        fi
-    else
-        _cc="${GRIND_CC:-${CC:-cc}}"
-        if ! command -v "$_cc" >/dev/null 2>&1; then
-            grind_skip "compiler-rt" "no C compiler ($_cc)"
-            return 0
-        fi
+    echo "== Grind [$CURRENT_ARCH]: compiler-rt builtin ABI helpers =="
+    _cc="${GRIND_CC:-}"
+    if [ -z "$_cc" ] || ! command -v "$_cc" >/dev/null 2>&1; then
+        grind_skip "compiler-rt" "compiler '$_cc' for $CURRENT_ARCH not on PATH"
+        return 0
     fi
-    _src="/tmp/grind_builtins_$$.c"
-    _bin="/tmp/grind_builtins_$$"
+    if [ "$CURRENT_ARCH" != "host" ] && [ -z "${GRIND_INTERP:-}" ] && [ -z "${GRIND_DBT:-}" ]; then
+        grind_skip "compiler-rt" "translator wrapper (GRIND_INTERP/GRIND_DBT) missing for $CURRENT_ARCH ($BACKEND)"
+        return 0
+    fi
+    _src="/tmp/grind_builtins_${CURRENT_ARCH}_$$.c"
+    _bin="/tmp/grind_builtins_${CURRENT_ARCH}_$$"
     cat << 'EOF' > "$_src"
 #include <stdio.h>
 #include <stdint.h>
@@ -440,7 +474,12 @@ EOF
 }
 
 run_libc_ltp_suite() {
-    echo "== Grind: libc-test + LTP syscalls manifest =="
+    echo "== Grind [$CURRENT_ARCH]: libc-test + LTP syscalls manifest =="
+    _wrap="${GRIND_DBT:-${GRIND_INTERP:-}}"
+    if [ "$CURRENT_ARCH" != "host" ] && [ -z "$_wrap" ]; then
+        grind_skip "libc-ltp" "translator wrapper missing for $CURRENT_ARCH ($BACKEND)"
+        return 0
+    fi
     _manifest="${GRIND_LIBC_MANIFEST:-$ROOT_DIR/tests/grind_libc_ltp.manifest}"
     if [ -f "$_manifest" ]; then
         _mfail=0
@@ -450,7 +489,8 @@ run_libc_ltp_suite() {
             esac
             _bin="$(printf '%s' "$_line" | awk '{print $1}')"
             if [ -x "$_bin" ]; then
-                if timeout --kill-after=10s 120s "$_bin" >/tmp/grind_libc_$$.log 2>&1; then
+                # shellcheck disable=SC2086
+                if timeout --kill-after=10s 120s $_wrap "$_bin" >/tmp/grind_libc_$$.log 2>&1; then
                     grind_pass "libc-ltp" "$_bin"
                 else
                     grind_fail "libc-ltp" "$_bin exit!=0"
@@ -460,6 +500,7 @@ run_libc_ltp_suite() {
                 grind_skip "libc-ltp" "$_bin not built"
             fi
         done < "$_manifest"
+        rm -f /tmp/grind_libc_$$.log
         if [ "$_mfail" -gt 0 ]; then return 1; fi
         return 0
     fi
@@ -474,7 +515,8 @@ run_libc_ltp_suite() {
     for _t in functional math pthread; do
         _b="${LIBC_TEST_DIR:-}/bin/$_t"
         if [ -x "$_b" ]; then
-            if timeout --kill-after=10s 300s "$_b" >/tmp/grind_libc_$$.log 2>&1; then
+            # shellcheck disable=SC2086
+            if timeout --kill-after=10s 300s $_wrap "$_b" >/tmp/grind_libc_$$.log 2>&1; then
                 grind_pass "libc-ltp" "libc-test $_t"
             else
                 grind_fail "libc-ltp" "libc-test $_t exit!=0"
@@ -487,15 +529,20 @@ run_libc_ltp_suite() {
 }
 
 run_lmbench_suite() {
-    echo "== Grind: lmbench completion (lat_syscall, lat_ctx, lat_pagefault, lat_proc, bw_mmap) =="
+    echo "== Grind [$CURRENT_ARCH]: lmbench completion (lat_syscall, lat_ctx, lat_pagefault, lat_proc, bw_mmap) =="
+    _wrap="${GRIND_DBT:-${GRIND_INTERP:-}}"
+    if [ "$CURRENT_ARCH" != "host" ] && [ -z "$_wrap" ]; then
+        grind_skip "lmbench" "translator wrapper missing for $CURRENT_ARCH ($BACKEND)"
+        return 0
+    fi
     _dir="${LMBENCH_DIR:-}"
     _bins=""
     if [ -n "$_dir" ] && [ -d "$_dir" ]; then
         _bins="$_dir/bin"
-    elif command -v lat_syscall >/dev/null 2>&1; then
+    elif [ "$CURRENT_ARCH" = "host" ] && command -v lat_syscall >/dev/null 2>&1; then
         _bins="PATH"
     else
-        grind_skip "lmbench" "LMBENCH_DIR unset and lat_syscall not on PATH"
+        grind_skip "lmbench" "LMBENCH_DIR unset for $CURRENT_ARCH"
         return 0
     fi
     for _t in lat_syscall lat_ctx lat_pagefault lat_proc; do
@@ -508,7 +555,8 @@ run_lmbench_suite() {
             _have_lm=0
         fi
         if [ "$_have_lm" -eq 1 ]; then
-            if timeout --kill-after=10s 120s "$_b" -P 1 null >/tmp/grind_lm_$$.log 2>&1; then
+            # shellcheck disable=SC2086
+            if timeout --kill-after=10s 120s $_wrap "$_b" -P 1 null >/tmp/grind_lm_$$.log 2>&1; then
                 if [ -s /tmp/grind_lm_$$.log ]; then
                     grind_pass "lmbench" "$_t completed"
                 else
@@ -523,7 +571,8 @@ run_lmbench_suite() {
     done
     if [ "$_bins" = "PATH" ]; then _b="bw_mmap"; else _b="$_bins/bw_mmap"; fi
     if { [ "$_bins" = "PATH" ] && command -v bw_mmap >/dev/null 2>&1; } || [ -x "$_b" ]; then
-        if timeout --kill-after=10s 180s "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
+        # shellcheck disable=SC2086
+        if timeout --kill-after=10s 180s $_wrap "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
             grind_pass "lmbench" "bw_mmap completed"
         else
             grind_fail "lmbench" "bw_mmap exited non-zero or timed out"
@@ -534,48 +583,110 @@ run_lmbench_suite() {
     rm -f /tmp/grind_lm_$$.log /tmp/grind_lm_bw_$$.log
 }
 
-run_weekly_soak() {
-    echo "== Grind weekly: Csmith/Yarpgen soak + upstream make check =="
-    _cc="${GRIND_CC:-${CC:-cc}}"
-    if command -v csmith >/dev/null 2>&1 && command -v "$_cc" >/dev/null 2>&1; then
-        _csrc="/tmp/grind_csmith_$$.c"
-        _cbin="/tmp/grind_csmith_$$"
-        _cinc="${CSMITH_INCLUDE:-/usr/include/csmith}"
-        if csmith --seed "${CSMITH_SEED:-1}" > "$_csrc" 2>/dev/null && \
-           "$_cc" -O1 -I"$_cinc" "$_csrc" -o "$_cbin" -lm >/dev/null 2>&1; then
-            _wrap="${GRIND_DBT:-${GRIND_INTERP:-}}"
-            # shellcheck disable=SC2086
-            if timeout --kill-after=10s 60s $_wrap "$_cbin" >/tmp/grind_csmith_out_$$ 2>&1; then
-                grind_pass "csmith" "seed=${CSMITH_SEED:-1} differential OK"
-            else
-                grind_fail "csmith" "seed=${CSMITH_SEED:-1} execution failed"
-            fi
-        else
-            grind_skip "csmith" "csmith header dir '$_cinc' or cross-compiler unavailable"
-        fi
-        rm -f "$_csrc" "$_cbin" /tmp/grind_csmith_out_$$
-    else
-        grind_skip "csmith" "csmith not installed (fixed-seed soak not run)"
+# Run a compiled differential binary across reference oracle (GRIND_QEMU or
+# GRIND_INTERP) and DBT (GRIND_DBT) and verify identical output.
+run_differential_binary() {
+    _rdb_suite="$1"
+    _rdb_label="$2"
+    _rdb_bin="$3"
+    _rdb_ref_wrap="${GRIND_QEMU:-${GRIND_INTERP:-}}"
+    _rdb_dbt_wrap="${GRIND_DBT:-}"
+    if [ -z "$_rdb_ref_wrap" ] || [ -z "$_rdb_dbt_wrap" ] || [ "$_rdb_ref_wrap" = "$_rdb_dbt_wrap" ]; then
+        grind_skip "$_rdb_suite" "differential soak requires distinct reference (GRIND_QEMU/GRIND_INTERP) and GRIND_DBT wrappers for $CURRENT_ARCH"
+        return 0
     fi
-    if command -v yarpgen >/dev/null 2>&1 && command -v "$_cc" >/dev/null 2>&1; then
-        _ydir="/tmp/grind_yarpgen_$$"
-        mkdir -p "$_ydir"
-        if yarpgen --seed="${YARPGEN_SEED:-1}" -o "$_ydir" >/dev/null 2>&1 && \
-           "$_cc" -O1 "$_ydir"/*.c "$_ydir"/*.cpp -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
-            _wrap="${GRIND_DBT:-${GRIND_INTERP:-}}"
-            # shellcheck disable=SC2086
-            if timeout --kill-after=10s 60s $_wrap "$_ydir/yarp_bin" >/dev/null 2>&1; then
-                grind_pass "yarpgen" "seed=${YARPGEN_SEED:-1} differential OK"
-            else
-                grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} execution failed"
-            fi
+    _rdb_ref_out="/tmp/grind_diff_ref_$$.out"
+    _rdb_dbt_out="/tmp/grind_diff_dbt_$$.out"
+    # shellcheck disable=SC2086
+    if ! timeout --kill-after=10s 60s $_rdb_ref_wrap "$_rdb_bin" >"$_rdb_ref_out" 2>&1; then
+        grind_fail "$_rdb_suite" "$_rdb_label reference wrapper exited non-zero"
+        rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
+        return 1
+    fi
+    # shellcheck disable=SC2086
+    if ! timeout --kill-after=10s 60s $_rdb_dbt_wrap "$_rdb_bin" >"$_rdb_dbt_out" 2>&1; then
+        grind_fail "$_rdb_suite" "$_rdb_label DBT wrapper exited non-zero"
+        rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
+        return 1
+    fi
+    if ! cmp -s "$_rdb_ref_out" "$_rdb_dbt_out"; then
+        grind_fail "$_rdb_suite" "$_rdb_label reference vs DBT output mismatch"
+        rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
+        return 1
+    fi
+    rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
+    grind_pass "$_rdb_suite" "$_rdb_label reference-vs-DBT differential OK"
+    return 0
+}
+
+run_weekly_soak() {
+    echo "== Grind weekly [$CURRENT_ARCH]: Csmith/Yarpgen soak + upstream make check =="
+    _cc="${GRIND_CC:-}"
+    _cxx="${GRIND_CXX:-}"
+    if command -v csmith >/dev/null 2>&1 && [ -n "$_cc" ] && command -v "$_cc" >/dev/null 2>&1; then
+        _cinc="${CSMITH_INCLUDE:-/usr/include/csmith}"
+        if [ ! -f "$_cinc/csmith.h" ]; then
+            grind_skip "csmith" "csmith.h not found in '$_cinc'"
         else
-            grind_skip "yarpgen" "yarpgen output could not be compiled with $_cc"
+            _csrc="/tmp/grind_csmith_${CURRENT_ARCH}_$$.c"
+            _cbin="/tmp/grind_csmith_${CURRENT_ARCH}_$$"
+            if ! csmith --seed "${CSMITH_SEED:-1}" > "$_csrc" 2>/dev/null || \
+               ! "$_cc" -ffp-contract=off -O1 -I"$_cinc" "$_csrc" -o "$_cbin" -lm >/dev/null 2>&1; then
+                grind_fail "csmith" "seed=${CSMITH_SEED:-1} generation or compilation failed with $_cc"
+            else
+                run_differential_binary "csmith" "seed=${CSMITH_SEED:-1}" "$_cbin" || true
+            fi
+            rm -f "$_csrc" "$_cbin"
+        fi
+    else
+        grind_skip "csmith" "csmith or cross-compiler ($_cc) not installed"
+    fi
+
+    if command -v yarpgen >/dev/null 2>&1; then
+        _ydir="/tmp/grind_yarpgen_${CURRENT_ARCH}_$$"
+        mkdir -p "$_ydir"
+        if ! yarpgen --seed="${YARPGEN_SEED:-1}" -o "$_ydir" >/dev/null 2>&1; then
+            grind_fail "yarpgen" "yarpgen --seed=${YARPGEN_SEED:-1} failed"
+        else
+            _yc_files=""
+            _ycpp_files=""
+            for _yf in "$_ydir"/*.c; do
+                if [ -f "$_yf" ]; then _yc_files="${_yc_files:+$_yc_files }$_yf"; fi
+            done
+            for _yf in "$_ydir"/*.cpp; do
+                if [ -f "$_yf" ]; then _ycpp_files="${_ycpp_files:+$_ycpp_files }$_yf"; fi
+            done
+            if [ -n "$_yc_files" ]; then
+                if [ -z "$_cc" ] || ! command -v "$_cc" >/dev/null 2>&1; then
+                    grind_skip "yarpgen" "C compiler '$_cc' for $CURRENT_ARCH not on PATH"
+                else
+                    # shellcheck disable=SC2086
+                    if ! "$_cc" -ffp-contract=off -O1 $_yc_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
+                        grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} C compilation failed with $_cc"
+                    else
+                        run_differential_binary "yarpgen" "seed=${YARPGEN_SEED:-1}" "$_ydir/yarp_bin" || true
+                    fi
+                fi
+            elif [ -n "$_ycpp_files" ]; then
+                if [ -z "$_cxx" ] || ! command -v "$_cxx" >/dev/null 2>&1; then
+                    grind_skip "yarpgen" "C++ compiler '$_cxx' for $CURRENT_ARCH not on PATH"
+                else
+                    # shellcheck disable=SC2086
+                    if ! "$_cxx" -ffp-contract=off -O1 $_ycpp_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
+                        grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} C++ compilation failed with $_cxx"
+                    else
+                        run_differential_binary "yarpgen" "seed=${YARPGEN_SEED:-1}" "$_ydir/yarp_bin" || true
+                    fi
+                fi
+            else
+                grind_fail "yarpgen" "yarpgen produced no .c or .cpp files in $_ydir"
+            fi
         fi
         rm -rf "$_ydir"
     else
         grind_skip "yarpgen" "yarpgen not installed (fixed-seed soak not run)"
     fi
+
     if [ -n "${UPSTREAM_CHECK_DIR:-}" ] && [ -f "${UPSTREAM_CHECK_DIR}/Makefile" ]; then
         if timeout --kill-after=30s 1800s make -C "$UPSTREAM_CHECK_DIR" check >/tmp/grind_upstream_$$.log 2>&1; then
             grind_pass "upstream-check" "make -C $UPSTREAM_CHECK_DIR check passed"
@@ -588,9 +699,22 @@ run_weekly_soak() {
     fi
 }
 
+run_arch_job() {
+    resolve_arch_defaults "$1"
+    if want_suite stress-ng; then run_stressng_suite; fi
+    if want_suite gcc-torture; then run_gcc_torture_suite; fi
+    if want_suite testfloat; then run_testfloat_suite; fi
+    if want_suite compiler-rt; then run_builtins_suite; fi
+    if want_suite libc-ltp; then run_libc_ltp_suite; fi
+    if want_suite lmbench; then run_lmbench_suite; fi
+    if [ "$TIER" = "weekly" ]; then
+        run_weekly_soak
+    fi
+}
+
 print_grind_usage() {
     cat << 'EOF'
-Usage: tools/run_grind.sh <nightly|weekly> [--arch <repo|all>] [--suite <name>]
+Usage: tools/run_grind.sh <nightly|weekly> [--arch <repo|all|host>] [--suite <name>]
 
 Suites: stress-ng, gcc-torture, testfloat, compiler-rt, libc-ltp, lmbench
         (weekly adds: csmith, yarpgen, upstream-check)
@@ -598,24 +722,15 @@ EOF
 }
 
 case "$TIER" in
-    nightly)
-        echo "== Tier N grind-nightly (arch=$ARCH_FILTER, backend=$BACKEND) =="
-        if want_suite stress-ng; then run_stressng_suite; fi
-        if want_suite gcc-torture; then run_gcc_torture_suite; fi
-        if want_suite testfloat; then run_testfloat_suite; fi
-        if want_suite compiler-rt; then run_builtins_suite; fi
-        if want_suite libc-ltp; then run_libc_ltp_suite; fi
-        if want_suite lmbench; then run_lmbench_suite; fi
-        ;;
-    weekly)
-        echo "== Tier W grind-weekly (arch=$ARCH_FILTER, backend=$BACKEND) =="
-        if want_suite stress-ng; then run_stressng_suite; fi
-        if want_suite gcc-torture; then run_gcc_torture_suite; fi
-        if want_suite testfloat; then run_testfloat_suite; fi
-        if want_suite compiler-rt; then run_builtins_suite; fi
-        if want_suite libc-ltp; then run_libc_ltp_suite; fi
-        if want_suite lmbench; then run_lmbench_suite; fi
-        run_weekly_soak
+    nightly|weekly)
+        echo "== Tier $TIER grind (arch=$ARCH_FILTER, backend=$BACKEND) =="
+        if [ "$ARCH_FILTER" = "all" ]; then
+            for _arch_repo in $ALL_RT_REPOS; do
+                run_arch_job "$_arch_repo"
+            done
+        else
+            run_arch_job "$ARCH_FILTER"
+        fi
         ;;
     *)
         print_grind_usage

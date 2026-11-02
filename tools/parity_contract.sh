@@ -90,9 +90,23 @@ parity_norm_stderr() {
 parity_check_golden() {
     _pcg_golden="$1"
     _pcg_actual="$2"
+    if [ -z "$_pcg_golden" ] || [ -z "$_pcg_actual" ] || [ ! -r "$_pcg_actual" ]; then
+        return 2
+    fi
     if [ "$PARITY_UPDATE_GOLDEN" = "1" ]; then
-        mkdir -p "$(dirname "$_pcg_golden")"
-        cp "$_pcg_actual" "$_pcg_golden"
+        _pcg_dir="$(dirname "$_pcg_golden")"
+        if ! mkdir -p "$_pcg_dir"; then
+            return 1
+        fi
+        _pcg_tmp="${_pcg_golden}.tmp.$$"
+        if ! cp "$_pcg_actual" "$_pcg_tmp"; then
+            rm -f "$_pcg_tmp"
+            return 1
+        fi
+        if ! mv "$_pcg_tmp" "$_pcg_golden"; then
+            rm -f "$_pcg_tmp"
+            return 1
+        fi
         return 0
     fi
     if [ ! -f "$_pcg_golden" ]; then

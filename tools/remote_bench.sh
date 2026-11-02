@@ -23,69 +23,22 @@ PHASE="${2:-all}"
 B="/Users/angerman/rt-bench"
 LIMACTL="/Users/angerman/.nix-profile/bin/limactl"
 
-run_darwin_dbt() {
+run_darwin_engine() {
     arch="$1"
     rt="$2"
+    eng="$3"
     guest="$B/bench/bench-$arch"
     bin="$B/rt-darwin/${rt}-darwin"
-    case "$rt" in
-        rvrt|i686rt)
-            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" -- "$guest" "$MODE"
-            ;;
-        loongarch64rt|ppc64rt|mips64rt|sparc64rt)
-            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --dbt "$guest" "$MODE"
-            ;;
-        *)
-            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE"
-            ;;
-    esac
+    rt_run_bounded_translator "$REMOTE_BENCH_TIMEOUT" "$rt" "$eng" "$bin" "$guest" "$MODE"
 }
 
-run_darwin_interp() {
+run_hl_engine() {
     arch="$1"
     rt="$2"
-    guest="$B/bench/bench-$arch"
-    bin="$B/rt-darwin/${rt}-darwin"
-    case "$rt" in
-        rvrt)
-            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --engine interp -- "$guest" "$MODE"
-            ;;
-        i686rt)
-            I686RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" -- "$guest" "$MODE"
-            ;;
-        mips32rt)
-            MIPS32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE"
-            ;;
-        ppc32rt)
-            PPC32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE"
-            ;;
-        sparc32rt)
-            SPARC32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE"
-            ;;
-        *)
-            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --interp "$guest" "$MODE"
-            ;;
-    esac
-}
-
-run_hl_dbt() {
-    arch="$1"
-    rt="$2"
+    eng="$3"
     guest="$B/bench/bench-$arch"
     lrt="$B/rt-linux/$rt"
-    case "$rt" in
-        rvrt)
-            HL_EXACT_CLOCK=1 run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/hl" --rvrt-native -- "$lrt" -- "$guest" "$MODE"
-            ;;
-        *)
-            HL_EXACT_CLOCK=1 \
-            LOONGARCH64RT_ENGINE=dbt \
-            PPC64RT_ENGINE=dbt \
-            MIPS64RT_ENGINE=dbt \
-            SPARC64RT_ENGINE=dbt \
-            run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/hl" "--${rt}" "$lrt" -- "$guest" "$MODE"
-            ;;
-    esac
+    rt_run_bounded_hl "$REMOTE_BENCH_TIMEOUT" "$B/hl" "$rt" "$eng" "$lrt" "$guest" "$MODE"
 }
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "baseline" ]; then
@@ -100,7 +53,7 @@ if [ "$PHASE" = "all" ] || [ "$PHASE" = "darwin" ]; then
         arch=${item%%:*}
         rest=${item#*:}
         rt=${rest%%:*}
-        out=$(run_darwin_dbt "$arch" "$rt")
+        out=$(run_darwin_engine "$arch" "$rt" "dbt")
         parse_and_print "darwin" "$arch" "dbt" "$out"
     done
 fi
@@ -110,7 +63,7 @@ if [ "$PHASE" = "all" ] || [ "$PHASE" = "darwin-interp" ]; then
         arch=${item%%:*}
         rest=${item#*:}
         rt=${rest%%:*}
-        out=$(run_darwin_interp "$arch" "$rt")
+        out=$(run_darwin_engine "$arch" "$rt" "interp")
         parse_and_print "darwin" "$arch" "interp" "$out"
     done
 fi
@@ -120,7 +73,7 @@ if [ "$PHASE" = "all" ] || [ "$PHASE" = "hl" ]; then
         arch=${item%%:*}
         rest=${item#*:}
         rt=${rest%%:*}
-        out=$(run_hl_dbt "$arch" "$rt")
+        out=$(run_hl_engine "$arch" "$rt" "dbt")
         parse_and_print "hl" "$arch" "dbt" "$out"
     done
 fi

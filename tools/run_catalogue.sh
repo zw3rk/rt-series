@@ -76,13 +76,18 @@ REPOS="a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64
 # tests/tcg/smoke_tcg.c.
 UNIFORM_ABIS="armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le mips64el mips64eb sparc64"
 
-# check_parity_no_skip <logfile> <repo>: fail when any PARITY_SUMMARY line in
-# the per-repo log reports skip>0, fail>0, gap>0, or pass==0, unless
-# CATALOGUE_ALLOW_SKIP=1 (for skips only). This is the series-level Wave C2
-# gate: it fires even if the repo masked skips with its own PARITY_ALLOW_SKIP=1.
+# check_parity_no_skip <logfile> <repo> [require_summary]: fail when the log is
+# empty, when any PARITY_ROW has FAIL/GAP (or SKIP unless CATALOGUE_ALLOW_SKIP=1),
+# or when PARITY_SUMMARY is missing/malformed or reports repo!=<repo>, pass==0,
+# fail>0, gap>0, or skip>0 (unless CATALOGUE_ALLOW_SKIP=1).
 check_parity_no_skip() {
     _cns_log="$1"
     _cns_repo="$2"
+    _cns_req_sum="${3:-1}"
+    if [ ! -s "$_cns_log" ]; then
+        echo "FAIL [$_cns_repo]: empty or missing gate log $_cns_log" >&2
+        return 1
+    fi
     if grep -qE '^PARITY_ROW	.*	(FAIL|GAP)	' "$_cns_log" 2>/dev/null; then
         echo "FAIL [$_cns_repo]: PARITY_ROW contains FAIL or GAP in $_cns_log" >&2
         return 1
@@ -91,23 +96,61 @@ check_parity_no_skip() {
         echo "FAIL [$_cns_repo]: PARITY_ROW contains SKIP in $_cns_log; set CATALOGUE_ALLOW_SKIP=1 to allow" >&2
         return 1
     fi
-    _cns_skips="$(grep -E '^PARITY_SUMMARY ' "$_cns_log" 2>/dev/null \
-        | sed -E 's/.*skip=([0-9]+).*/\1/' \
-        | awk 'BEGIN{s=0} {s+=$1} END{print s}')"
-    if [ -z "$_cns_skips" ]; then
-        _cns_skips=0
-    fi
-    if [ "$_cns_skips" -gt 0 ] && [ "${CATALOGUE_ALLOW_SKIP:-0}" != "1" ]; then
-        echo "FAIL [$_cns_repo]: PARITY_SUMMARY reports $_cns_skips SKIP(s); set CATALOGUE_ALLOW_SKIP=1 to allow" >&2
-        return 1
+    if [ "$_cns_req_sum" = "1" ] || grep -qE '^PARITY_SUMMARY' "$_cns_log" 2>/dev/null; then
+        if ! awk -v repo="$_cns_repo" -v allow_skip="${CATALOGUE_ALLOW_SKIP:-0}" '
+            /^PARITY_SUMMARY/ {
+                n++
+                if ($0 !~ /^PARITY_SUMMARY repo=[^ ]+ pass=[0-9]+ fail=[0-9]+ gap=[0-9]+ skip=[0-9]+$/) {
+                    bad_syntax = 1
+                }
+                r = $2; sub(/^repo=/, "", r)
+                p = $3; sub(/^pass=/, "", p)
+                f = $4; sub(/^fail=/, "", f)
+                g = $5; sub(/^gap=/, "", g)
+                s = $6; sub(/^skip=/, "", s)
+                if (r != repo) bad_repo = 1
+                if (p + 0 <= 0) zero_pass = 1
+                tot_pass += p + 0
+                tot_fail += f + 0
+                tot_gap  += g + 0
+                tot_skip += s + 0
+            }
+            END {
+                if (n == 0 || bad_syntax || bad_repo || zero_pass || tot_pass <= 0 || tot_fail > 0 || tot_gap > 0) {
+                    exit 1
+                }
+                if (tot_skip > 0 && allow_skip != "1") {
+                    exit 2
+                }
+                exit 0
+            }
+        ' "$_cns_log"; then
+            echo "FAIL [$_cns_repo]: invalid or failing PARITY_SUMMARY in $_cns_log" >&2
+            return 1
+        fi
     fi
     return 0
 }
 
-# check_parity_categories <logfile> <repo> <tier>: in qualify mode, verify that
-# the per-repo parity_suite.sh log contains PASS PARITY_ROW entries for all 7
-# required Wave C2 qualification categories (accepting either the canonical
-# category tag or the repo's equivalent parity case identifier).
+required_repo_abis() {
+    case "$1" in
+        a32rt)         echo "armhf armel" ;;
+        i686rt)        echo "i686" ;;
+        mips32rt)      echo "mipsel mips" ;;
+        ppc32rt)       echo "ppc32" ;;
+        sparc32rt)     echo "sparc32" ;;
+        rvrt)          echo "riscv64 riscv32" ;;
+        loongarch64rt) echo "loongarch64" ;;
+        ppc64rt)       echo "ppc64le" ;;
+        mips64rt)      echo "mips64el mips64eb" ;;
+        sparc64rt)     echo "sparc64" ;;
+        *)             echo "" ;;
+    esac
+}
+
+# check_parity_categories <logfile> <repo> <tier>: in qualify mode, parse
+# tab-separated PARITY_ROW fields and verify that every required (abi, engine,
+# category) tuple for <repo> has an explicit PASS row on the exact case column.
 check_parity_categories() {
     _cpc_log="$1"
     _cpc_repo="$2"
@@ -115,27 +158,70 @@ check_parity_categories() {
     if [ "$_cpc_tier" != "qualify" ]; then
         return 0
     fi
-    if ! grep -qE '^PARITY_ROW	' "$_cpc_log" 2>/dev/null; then
-        echo "FAIL [$_cpc_repo]: no PARITY_ROW lines found in $_cpc_log" >&2
+    _cpc_abis="$(required_repo_abis "$_cpc_repo")"
+    if [ -z "$_cpc_abis" ]; then
+        echo "FAIL [$_cpc_repo]: unknown repository for ABI matrix" >&2
         return 1
     fi
-    _cpc_missing=""
-    for _cpc_cat in p3-torture tcg-smoke dyn-pie t1-busybox t2-core t3-system t4-compiler; do
-        case "$_cpc_cat" in
-            p3-torture)  _cpc_pat='(p3-torture|p3_torture|p3torture)' ;;
-            tcg-smoke)   _cpc_pat='(tcg-smoke|tcg_smoke|smoke-tcg|tcg-)' ;;
-            dyn-pie)     _cpc_pat='(dyn-pie|p5_dyn|p5-dyn|test_p5_dyn|test-m8-glibc|aot-cache-dynamic-main)' ;;
-            t1-busybox)  _cpc_pat='(t1-busybox|p1_isa|p1-|	p1	|test_p1_isa|test-m1-|core-checks-|bb-sp)' ;;
-            t2-core)     _cpc_pat='(t2-core|p2_libc|p2libc|p2-|p2_|h2_libc|hello|d2-.*-hello)' ;;
-            t3-system)   _cpc_pat='(t3-system|p3_fp|p3-|	p3	|test_p5_fpu_sse|test-m4-|fp-checks-|p4_threads|p4-|	p4	|test_p4_threads|test-m3-|signal-context)' ;;
-            t4-compiler) _cpc_pat='(t4-compiler|h4_cxx|h4-|	h4	|test_h4_cxx|test-m8-cpp|cpp17-)' ;;
-        esac
-        if ! grep -E '^PARITY_ROW	.*	PASS	' "$_cpc_log" 2>/dev/null | grep -qE "$_cpc_pat"; then
-            _cpc_missing="${_cpc_missing:+$_cpc_missing }$_cpc_cat"
-        fi
-    done
-    if [ -n "$_cpc_missing" ]; then
-        echo "FAIL [$_cpc_repo]: qualify log missing PASS row(s) for category: $_cpc_missing" >&2
+    if ! awk -F '\t' -v repo="$_cpc_repo" -v req_abis="$_cpc_abis" '
+        function norm_abi(a) {
+            if (a == "o32le") return "mipsel"
+            if (a == "o32be") return "mips"
+            if (a == "rv64" || a == "rv64gc") return "riscv64"
+            if (a == "rv32" || a == "rv32gc") return "riscv32"
+            if (a == "lp64d") return "loongarch64"
+            if (a == "elfv2") return "ppc64le"
+            if (a == "n64le") return "mips64el"
+            if (a == "n64be") return "mips64eb"
+            if (a == "v8") return "sparc32"
+            if (a == "v9") return "sparc64"
+            return a
+        }
+        function map_cat(c) {
+            if (c ~ /^(p3-torture|p3_torture|p3torture)(-[a-z0-9_]+)?$/) return "p3-torture"
+            if (c ~ /^(tcg-smoke|tcg_smoke|smoke-tcg)(-[a-z0-9_]+)?$/) return "tcg-smoke"
+            if (c ~ /^(dyn-pie|p5_dyn|p5-dyn|test_p5_dyn)(-[a-z0-9_]+)?$/) return "dyn-pie"
+            if (c ~ /^(t1-busybox|t1_busybox|busybox-t1|guest-payload-t1)(-[a-z0-9_]+)?$/) return "t1-busybox"
+            if (c ~ /^(t2-core|t2_core|guest-payload-t2)(-[a-z0-9_]+)?$/) return "t2-core"
+            if (c ~ /^(t3-system|t3_system|guest-payload-t3)(-[a-z0-9_]+)?$/) return "t3-system"
+            if (c ~ /^(t4-compiler|t4_compiler|h4_cxx|test_h4_cxx|guest-payload-t4)(-[a-z0-9_]+)?$/) return "t4-compiler"
+            return ""
+        }
+        BEGIN {
+            n_abis = split(req_abis, abis, " ")
+            n_cats = split("p3-torture tcg-smoke dyn-pie t1-busybox t2-core t3-system t4-compiler", cats, " ")
+        }
+        $1 == "PARITY_ROW" && $2 == repo && $7 == "PASS" {
+            abi = norm_abi($3)
+            cat = map_cat($5)
+            eng = $6
+            if (cat == "") next
+            has_interp = (eng ~ /(^|[,+\/])(interp|dual|both)($|[,+\/])/)
+            has_dbt    = (eng ~ /(^|[,+\/])(dbt|dual|both)($|[,+\/])/)
+            if (has_interp) seen[abi, "interp", cat] = 1
+            if (has_dbt)    seen[abi, "dbt", cat] = 1
+        }
+        END {
+            missing = ""
+            for (i = 1; i <= n_abis; i++) {
+                a = abis[i]
+                for (e_idx = 1; e_idx <= 2; e_idx++) {
+                    e = (e_idx == 1) ? "interp" : "dbt"
+                    for (c_idx = 1; c_idx <= n_cats; c_idx++) {
+                        c = cats[c_idx]
+                        if (!seen[a, e, c]) {
+                            missing = missing (missing ? " " : "") a "/" e "/" c
+                        }
+                    }
+                }
+            }
+            if (missing != "") {
+                printf "FAIL [%s]: qualify log missing PASS tuple(s): %s\n", repo, missing > "/dev/stderr"
+                exit 1
+            }
+            exit 0
+        }
+    ' "$_cpc_log"; then
         return 1
     fi
     return 0
@@ -891,43 +977,44 @@ run_repo_gate() {
     _repo="$1"
     _timeout_s="$2"
     _tier="$3"
+    _log_file="$4"
     ps="$PROJECTS_DIR/$_repo/tests/parity_suite.sh"
     echo "== Catalogue $CMD gate: $_repo (tier=$_tier, timeout=${_timeout_s}s) =="
     if [ -f "$ps" ]; then
-        if PARITY_TIER="$_tier" timeout --kill-after=30s "${_timeout_s}s" sh "$ps" >"/tmp/cat-$CMD-$_repo.log" 2>&1; then
-            if ! check_parity_no_skip "/tmp/cat-$CMD-$_repo.log" "$_repo"; then
-                tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+        if PARITY_TIER="$_tier" timeout --kill-after=30s "${_timeout_s}s" sh "$ps" >"$_log_file" 2>&1; then
+            if ! check_parity_no_skip "$_log_file" "$_repo" 1; then
+                tail -n 20 "$_log_file" 2>/dev/null || true
                 return 1
             fi
-            if ! check_parity_categories "/tmp/cat-$CMD-$_repo.log" "$_repo" "$_tier"; then
-                tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+            if ! check_parity_categories "$_log_file" "$_repo" "$_tier"; then
+                tail -n 20 "$_log_file" 2>/dev/null || true
                 return 1
             fi
             echo "PASS [$_repo]: parity_suite.sh"
             return 0
         else
-            echo "FAIL [$_repo]: parity_suite.sh (see /tmp/cat-$CMD-$_repo.log)"
-            tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+            echo "FAIL [$_repo]: parity_suite.sh (see $_log_file)"
+            tail -n 20 "$_log_file" 2>/dev/null || true
             return 1
         fi
     else
         if [ ! -d "$PROJECTS_DIR/$_repo" ]; then
             echo "GAP [$_repo]: repo dir missing, trying make target anyway"
         fi
-        if timeout --kill-after=30s "${_timeout_s}s" make -C "$PROJECTS_DIR/$_repo" check >"/tmp/cat-$CMD-$_repo.log" 2>&1; then
-            if ! check_parity_no_skip "/tmp/cat-$CMD-$_repo.log" "$_repo"; then
-                tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+        if timeout --kill-after=30s "${_timeout_s}s" make -C "$PROJECTS_DIR/$_repo" check >"$_log_file" 2>&1; then
+            if ! check_parity_no_skip "$_log_file" "$_repo" 0; then
+                tail -n 20 "$_log_file" 2>/dev/null || true
                 return 1
             fi
-            if ! check_parity_categories "/tmp/cat-$CMD-$_repo.log" "$_repo" "$_tier"; then
-                tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+            if ! check_parity_categories "$_log_file" "$_repo" "$_tier"; then
+                tail -n 20 "$_log_file" 2>/dev/null || true
                 return 1
             fi
             echo "PASS [$_repo]: make check"
             return 0
         else
-            echo "FAIL [$_repo]: make check (see /tmp/cat-$CMD-$_repo.log)"
-            tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+            echo "FAIL [$_repo]: make check (see $_log_file)"
+            tail -n 20 "$_log_file" 2>/dev/null || true
             return 1
         fi
     fi
@@ -939,15 +1026,16 @@ run_host_gate() {
     matched=0
     pass=0
     fail=0
-    _docker_before="/tmp/cat-$CMD-docker-before.$$"
-    _docker_after="/tmp/cat-$CMD-docker-after.$$"
+    _gate_dir="$(mktemp -d "/tmp/rt-cat-${CMD}.XXXXXX")"
+    _docker_before="$_gate_dir/docker-before"
+    _docker_after="$_gate_dir/docker-after"
     docker_ids > "$_docker_before" 2>/dev/null || true
     for r in $REPOS; do
         if [ "$ARCH_FILTER" != "all" ] && [ "$ARCH_FILTER" != "$r" ]; then
             continue
         fi
         matched=$((matched + 1))
-        if run_repo_gate "$r" "$_timeout_s" "$_tier"; then
+        if run_repo_gate "$r" "$_timeout_s" "$_tier" "$_gate_dir/$r.log"; then
             pass=$((pass + 1))
         else
             fail=$((fail + 1))
@@ -957,19 +1045,18 @@ run_host_gate() {
         echo "FAIL: docker leftover check failed" >&2
         fail=$((fail + 1))
     fi
-    rm -f "$_docker_before" "$_docker_after"
+    rm -f "$_docker_before" "$_docker_after" "${_docker_after}.new"
     echo "CATALOGUE $CMD SUMMARY: matched=$matched pass=$pass fail=$fail"
     if [ "$matched" -eq 0 ]; then
+        rm -rf "$_gate_dir"
         echo "FAIL: --arch '$ARCH_FILTER' matched 0 repositories" >&2
         exit 1
     fi
-    if [ "$pass" -eq 0 ]; then
-        echo "FAIL: $CMD recorded 0 passes" >&2
+    if [ "$pass" -eq 0 ] || [ "$fail" -gt 0 ]; then
+        echo "Diagnostic logs preserved in $_gate_dir" >&2
         exit 1
     fi
-    if [ "$fail" -gt 0 ]; then
-        exit 1
-    fi
+    rm -rf "$_gate_dir"
 }
 
 run_host_smoke() {
