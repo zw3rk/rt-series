@@ -10,7 +10,7 @@
  *   - mprotect/munmap fault immediacy with si_addr page check,
  *   - atomic reservation broken by a signal handler and by a second thread.
  *
- * Build: cc -std=c11 -Wall -Wextra -Werror=vla -pedantic -O1 -pthread
+ * Build: cc -std=c11 -Wall -Wextra -Werror -Werror=vla -pedantic -O1 -pthread
  *        tests/p3_torture.c -o p3_torture
  * Run: ./p3_torture   (exit 0 iff fails == 0 and passes > 0)
  *
@@ -210,106 +210,176 @@ static int install_handler(int signo, void (*fn)(int, siginfo_t *, void *), int 
     return sigaction(signo, &sa, NULL);
 }
 
-/* Acquire a hardware/translator LL reservation on g_llsc_cell, deliver SIGUSR1
- * (whose handler does NOT modify g_llsc_cell), and then attempt the matching
- * SC instruction. On LL/SC architectures, exception return (sigreturn) must
- * clear the active reservation so the post-signal SC fails without storing. */
-static int probe_llsc_broken_by_signal(void)
+static volatile sig_atomic_t g_llsc_probe_seen = 0;
+
+/* Dedicated probe handler: counts its own signal only (no atomics, libc,
+ * nesting, or clobbering), isolating the signal-return boundary. */
+static void llsc_probe_handler(int signo, siginfo_t *info, void *ctx)
 {
-    g_llsc_cell = 0x13572468U;
-#if defined(__aarch64__)
+    (void)info;
+    (void)ctx;
+    if (signo == SIGURG) {
+        g_llsc_probe_seen++;
+    }
+}
+
+/* LL/SC pair shared by the control (do_signal == 0) and the interrupted
+ * probe. Caller owns the SIGURG disposition. stored: 1 = stored new_val,
+ * 0 = reservation lost. Returns -1 when the raise failed. */
+static int llsc_pair(int do_signal, uint32_t new_val, uint32_t *loaded_out, int *stored_out)
+{
     uint32_t loaded = 0;
+    int stored = 0;
+#if defined(__aarch64__)
     uint32_t sc_status = 0;
     __asm__ volatile("ldxr %w0, [%1]" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
-    if (raise(SIGUSR1) != 0) {
+    if (do_signal && raise(SIGURG) != 0) {
         return -1;
     }
     __asm__ volatile("stxr %w0, %w2, [%1]"
                      : "=&r"(sc_status)
-                     : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
+                     : "r"(&g_llsc_cell), "r"(new_val)
                      : "memory");
-    return (loaded == 0x13572468U && sc_status != 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+    stored = (sc_status == 0);
 #elif defined(__arm__) && (__ARM_ARCH >= 6)
-    uint32_t loaded = 0;
     uint32_t sc_status = 0;
     __asm__ volatile("ldrex %0, [%1]" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
-    if (raise(SIGUSR1) != 0) {
+    if (do_signal && raise(SIGURG) != 0) {
         return -1;
     }
     __asm__ volatile("strex %0, %2, [%1]"
                      : "=&r"(sc_status)
-                     : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
+                     : "r"(&g_llsc_cell), "r"(new_val)
                      : "memory");
-    return (loaded == 0x13572468U && sc_status != 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+    stored = (sc_status == 0);
 #elif defined(__riscv) && defined(__riscv_atomic)
-    uint32_t loaded = 0;
     uint32_t sc_status = 0;
     __asm__ volatile("lr.w %0, (%1)" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
-    if (raise(SIGUSR1) != 0) {
+    if (do_signal && raise(SIGURG) != 0) {
         return -1;
     }
     __asm__ volatile("sc.w %0, %2, (%1)"
                      : "=&r"(sc_status)
-                     : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
+                     : "r"(&g_llsc_cell), "r"(new_val)
                      : "memory");
-    return (loaded == 0x13572468U && sc_status != 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+    stored = (sc_status == 0);
 #elif defined(__mips__)
-    /* MIPS ll/sc: the sc source register doubles as the success flag
-     * (1 = stored, 0 = reservation lost), so a cleared reservation must
-     * yield 0 with the cell untouched. */
-    uint32_t loaded = 0;
-    uint32_t sc_word = 0xdeadbeefU;
+    uint32_t sc_word = new_val;
     __asm__ volatile("ll %0, 0(%1)" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
-    if (raise(SIGUSR1) != 0) {
+    if (do_signal && raise(SIGURG) != 0) {
         return -1;
     }
     __asm__ volatile("sc %0, 0(%1)"
                      : "+r"(sc_word)
                      : "r"(&g_llsc_cell)
                      : "memory");
-    return (loaded == 0x13572468U && sc_word == 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+    stored = (sc_word == 1U);
 #elif defined(__powerpc__) || defined(__ppc__)
-    /* PowerPC lwarx/stwcx.: stwcx. reports via CR0[EQ] (0x20000000 after
-     * mfcr), so a cleared reservation must leave EQ clear with the cell
-     * untouched. */
-    uint32_t loaded = 0;
+    /* stwcx. reports via CR0[EQ] (0x20000000 after mfcr). */
     uint32_t cr = 0;
     __asm__ volatile("lwarx %0, 0, %1"
                      : "=r"(loaded)
                      : "r"(&g_llsc_cell)
                      : "memory", "cc");
-    if (raise(SIGUSR1) != 0) {
+    if (do_signal && raise(SIGURG) != 0) {
         return -1;
     }
     __asm__ volatile("stwcx. %2, 0, %1\n\tmfcr %0"
                      : "=r"(cr)
-                     : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
+                     : "r"(&g_llsc_cell), "r"(new_val)
                      : "memory", "cc");
-    return (loaded == 0x13572468U && (cr & 0x20000000U) == 0U &&
-        g_llsc_cell == 0x13572468U) ? 0 : -1;
+    stored = ((cr & 0x20000000U) != 0U);
 #elif defined(__loongarch__)
-    /* LoongArch ll.w/sc.w: the sc source register doubles as the success
-     * flag (1 = stored, 0 = reservation lost), so a cleared reservation
-     * must yield 0 with the cell untouched. */
-    uint32_t loaded = 0;
-    uint32_t sc_word = 0xdeadbeefU;
+    uint32_t sc_word = new_val;
     __asm__ volatile("ll.w %0, %1, 0"
                      : "=r"(loaded)
                      : "r"(&g_llsc_cell)
                      : "memory");
-    if (raise(SIGUSR1) != 0) {
+    if (do_signal && raise(SIGURG) != 0) {
         return -1;
     }
     __asm__ volatile("sc.w %0, %1, 0"
                      : "+r"(sc_word)
                      : "r"(&g_llsc_cell)
                      : "memory");
-    return (loaded == 0x13572468U && sc_word == 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+    stored = (sc_word == 1U);
 #else
-    if (raise(SIGUSR1) != 0) {
+    (void)new_val;
+    if (do_signal && raise(SIGURG) != 0) {
         return -1;
     }
+    loaded = g_llsc_cell;
+    stored = 0;
+#endif
+    *loaded_out = loaded;
+    *stored_out = stored;
     return 0;
+}
+
+/* Bounded no-signal control: the same pair without delivery must store
+ * (retries bound spurious losses; persistent failure = always-fail SC). */
+static int probe_llsc_no_signal(void)
+{
+    for (int i = 0; i < 32; i++) {
+        uint32_t loaded = 0;
+        int stored = 0;
+        g_llsc_cell = 0x13572468U;
+        if (llsc_pair(0, 0xdeadbeefU, &loaded, &stored) != 0) {
+            return -1;
+        }
+        if (loaded == 0x13572468U && stored != 0 && g_llsc_cell == 0xdeadbeefU) {
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/* Interrupted probe: hold the reservation across one SIGURG delivery, then
+ * SC. sigreturn must have cleared it, so the SC fails without storing. */
+static int probe_llsc_broken_by_signal(void)
+{
+    uint32_t loaded = 0;
+    int stored = 0;
+    g_llsc_cell = 0x13572468U;
+    g_llsc_probe_seen = 0;
+    if (llsc_pair(1, 0xdeadbeefU, &loaded, &stored) != 0) {
+        return -1;
+    }
+    if (g_llsc_probe_seen != 1) {
+        return -1;
+    }
+    return (loaded == 0x13572468U && stored == 0 && g_llsc_cell == 0x13572468U) ? 0 : -1;
+}
+
+/* Reservation invalidation, isolated from the GPR/CAS fixture via its own
+ * signal (SIGURG) and counter-only handler. Control first (an always-fail
+ * SC cannot pass); the interrupted case validates the signal-return
+ * boundary. Arches without LL/SC take a vacuous pass. */
+static void t_llsc_reservation(void)
+{
+#if defined(__aarch64__) || (defined(__arm__) && (__ARM_ARCH >= 6)) || \
+    (defined(__riscv) && defined(__riscv_atomic)) || defined(__mips__) || \
+    defined(__powerpc__) || defined(__ppc__) || defined(__loongarch__)
+    struct sigaction sa;
+    struct sigaction old_sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = llsc_probe_handler;
+    sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIGURG, &sa, &old_sa) != 0) {
+        report_skip("llsc-reservation", "sigaction unavailable");
+        return;
+    }
+    if (probe_llsc_no_signal() != 0) {
+        report_fail("llsc-control", "LL/SC without signal did not store");
+    } else if (probe_llsc_broken_by_signal() != 0) {
+        report_fail("llsc-signal-invalidate", "reservation not cleared across signal return");
+    } else {
+        report_pass("llsc-reservation control stores; signal return clears");
+    }
+    (void)sigaction(SIGURG, &old_sa, NULL);
+#else
+    report_pass("llsc-reservation no LL/SC on this arch (vacuous)");
 #endif
 }
 
@@ -319,8 +389,8 @@ static int probe_llsc_broken_by_signal(void)
  * nested raise() round-trip and compared against an uninterrupted
  * recomputation, detecting corruption of compiler-visible state by the
  * handler or sigreturn (not a pinned-register liveness proof: no asm
- * register pinning is used). Plus an invalidated LL/SC reservation +
- * CAS retry across the signal boundary. */
+ * register pinning is used). Plus a CAS retry across the signal boundary
+ * (LL/SC reservation isolation lives in t_llsc_reservation()). */
 static void t_sig_frame_gpr(void)
 {
     if (install_handler(SIGUSR1, usr1_handler, 0) != 0 ||
@@ -336,8 +406,8 @@ static void t_sig_frame_gpr(void)
 
     /* Fold value-level state through a fixed sequence split around a
      * nested raise() round-trip while usr1_handler + nested usr2_handler
-     * clobber registers, break the LL/SC reservation, and overwrite
-     * g_cas_cell; the result must match an uninterrupted recomputation. */
+     * clobber registers and overwrite g_cas_cell; the result must match
+     * an uninterrupted recomputation. */
     uint64_t r0 = 0x0123456789ABCDEFULL;
     uint64_t r1 = 0xFEDCBA9876543210ULL;
     uint64_t r2 = 0xCAFEBABE12345678ULL;
@@ -353,8 +423,10 @@ static void t_sig_frame_gpr(void)
         r4 = (r4 ^ r2) + 0x500U;
         r5 = (r5 + r3) ^ 0x600U;
         if (step == 7) {
-            if (probe_llsc_broken_by_signal() != 0) {
-                report_fail("sig-frame-gpr", "LL/SC reservation not cleared across signal");
+            /* Async delivery mid-fold: the handler breaks the CAS cell
+             * (stale-CAS check below) while GPR state must survive. */
+            if (raise(SIGUSR1) != 0) {
+                report_fail("sig-frame-gpr", "raise failed");
                 return;
             }
         }
@@ -800,6 +872,7 @@ int main(void)
     int allow_skip = (allow_skip_env != NULL && strcmp(allow_skip_env, "1") == 0);
     printf("== P3 torture: signal frames, sigaltstack, VM, atomics ==\n");
     t_sig_frame_gpr();
+    t_llsc_reservation();
     t_sig_frame_fpr();
     t_sigaltstack();
     t_unaligned_cross_page();

@@ -220,7 +220,7 @@ build_guest_bins() {
     # 1. Fast-path: use local clang + ld.lld for freestanding ELF targets (zero container)
     local clang_raw="/nix/store/15n3slfdsd5zhyxrvaa7vm36f1jydwqp-clang-21.1.8/bin/clang"
     local lld_raw="/nix/store/smnrx7kvgcxbl6s2scgwk6zp0np6yw7q-lld-21.1.8/bin/ld.lld"
-    local fs_flags="-std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -fno-builtin -nostdlib -DBENCH_FREESTANDING=1"
+    local fs_flags="-std=c11 -Werror -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -fno-builtin -nostdlib -DBENCH_FREESTANDING=1"
     if [ -x "$clang_raw" ] && [ -x "$lld_raw" ]; then
         if need_bench_rebuild "$BENCH_DIR/bench-armhf"; then
             "$clang_raw" --target=armv7a-unknown-linux-eabihf -march=armv7ve -mfpu=neon-vfpv4 -mfloat-abi=hard $fs_flags -c "$SRC_FILE" -o "$BENCH_DIR/bench-armhf.o" && \
@@ -259,7 +259,7 @@ build_guest_bins() {
         fi
     fi
     if need_bench_rebuild "$BENCH_DIR/bench-darwin-arm64" && command -v cc >/dev/null 2>&1; then
-        cc -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 "$SRC_FILE" -o "$BENCH_DIR/bench-darwin-arm64.tmp.$$" && \
+        cc -std=c11 -Werror -Werror=vla -pedantic -Wall -Wextra -O2 "$SRC_FILE" -o "$BENCH_DIR/bench-darwin-arm64.tmp.$$" && \
         mv "$BENCH_DIR/bench-darwin-arm64.tmp.$$" "$BENCH_DIR/bench-darwin-arm64" || true
     fi
     if { need_bench_rebuild "$BENCH_DIR/bench-sparc32" || need_bench_rebuild "$BENCH_DIR/bench-sparc32-smoke"; } && \
@@ -267,8 +267,8 @@ build_guest_bins() {
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-sparc32-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w sparc32rt-oracle:latest sh -c "
                 set -eu
-                sparc64-linux-gnu-gcc -m32 -mcpu=v8 -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -nostdlib -static -DBENCH_FREESTANDING=1 /w/tests/bench_suite.c -lgcc -o /w/_build/bench/bench-sparc32.tmp.$$
-                sparc64-linux-gnu-gcc -m32 -mcpu=v8 -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -nostdlib -static -DBENCH_FREESTANDING=1 -DBENCH_SMOKE=1 /w/tests/bench_suite.c -lgcc -o /w/_build/bench/bench-sparc32-smoke.tmp.$$
+                sparc64-linux-gnu-gcc -m32 -mcpu=v8 -std=c11 -Werror -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -nostdlib -static -DBENCH_FREESTANDING=1 /w/tests/bench_suite.c -lgcc -o /w/_build/bench/bench-sparc32.tmp.$$
+                sparc64-linux-gnu-gcc -m32 -mcpu=v8 -std=c11 -Werror -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -nostdlib -static -DBENCH_FREESTANDING=1 -DBENCH_SMOKE=1 /w/tests/bench_suite.c -lgcc -o /w/_build/bench/bench-sparc32-smoke.tmp.$$
                 mv /w/_build/bench/bench-sparc32.tmp.$$ /w/_build/bench/bench-sparc32
                 mv /w/_build/bench/bench-sparc32-smoke.tmp.$$ /w/_build/bench/bench-sparc32-smoke
             " || true
@@ -279,28 +279,28 @@ build_guest_bins() {
     if need_bench_rebuild "$BENCH_DIR/bench-loongarch64" && command -v docker >/dev/null 2>&1 && docker image inspect loongarch64rt-l3a-tool:latest >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-la64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w loongarch64rt-l3a-tool:latest \
-            loongarch64-linux-gnu-gcc -std=c11 -O2 -fno-tree-vectorize -static -Wall -Wextra -Werror=vla -pedantic \
+            loongarch64-linux-gnu-gcc -std=c11 -O2 -fno-tree-vectorize -static -Wall -Wextra -Werror -Werror=vla -pedantic \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-loongarch64 || true
         cleanup_bench_containers
     fi
     if need_bench_rebuild "$BENCH_DIR/bench-ppc64le" && command -v docker >/dev/null 2>&1 && docker image inspect ppc64rt-l3a-tool:latest >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-ppc64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w ppc64rt-l3a-tool:latest \
-            powerpc64le-linux-gnu-gcc -std=c11 -O1 -mcpu=power8 -fno-stack-protector -static -Wall -Wextra -Werror=vla -pedantic \
+            powerpc64le-linux-gnu-gcc -std=c11 -O1 -mcpu=power8 -fno-stack-protector -static -Wall -Wextra -Werror -Werror=vla -pedantic \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-ppc64le || true
         cleanup_bench_containers
     fi
     if need_bench_rebuild "$BENCH_DIR/bench-mips64el" && command -v docker >/dev/null 2>&1 && docker image inspect mips64rt-parity-env:trixie >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-mips64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w mips64rt-parity-env:trixie \
-            mips64el-linux-gnuabi64-gcc -std=c11 -O2 -mabi=64 -static -Wl,-z,common-page-size=65536 -Wall -Wextra -Werror=vla -pedantic \
+            mips64el-linux-gnuabi64-gcc -std=c11 -O2 -mabi=64 -static -Wl,-z,common-page-size=65536 -Wall -Wextra -Werror -Werror=vla -pedantic \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-mips64el || true
         cleanup_bench_containers
     fi
     if need_bench_rebuild "$BENCH_DIR/bench-sparc64" && command -v docker >/dev/null 2>&1 && docker image inspect sparc64rt-l6a-tool:latest >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-sparc64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w sparc64rt-l6a-tool:latest \
-            sparc64-linux-gnu-gcc -std=c11 -O2 -static -Wall -Wextra -Werror=vla -pedantic \
+            sparc64-linux-gnu-gcc -std=c11 -O2 -static -Wall -Wextra -Werror -Werror=vla -pedantic \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-sparc64 || true
         cleanup_bench_containers
     fi
@@ -337,15 +337,15 @@ build_guest_bins() {
                     gcc-mips64el-linux-gnuabi64 libc6-dev-mips64el-cross >/dev/null
 
                 mkdir -p /w/_build/bench
-                CFLAGS="-std=c11 -O2 -static -Wall -Wextra -Werror=vla -pedantic"
+                CFLAGS="-std=c11 -O2 -static -Wall -Wextra -Werror -Werror=vla -pedantic"
                 arm-linux-gnueabihf-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-armhf
                 i686-linux-gnu-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-i686
                 mipsel-linux-gnu-gcc $CFLAGS -mips32r2 /w/tests/bench_suite.c -o /w/_build/bench/bench-mipsel
                 powerpc-linux-gnu-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-ppc32
-                sparc64-linux-gnu-gcc -m32 -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -nostdlib -static \
+                sparc64-linux-gnu-gcc -m32 -std=c11 -Werror -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -nostdlib -static \
                     -DBENCH_FREESTANDING=1 -DBENCH_SMOKE=1 /w/tests/bench_suite.c -lgcc \
                     -o /w/_build/bench/bench-sparc32-smoke
-                sparc64-linux-gnu-gcc -m32 -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -nostdlib -static \
+                sparc64-linux-gnu-gcc -m32 -std=c11 -Werror -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -nostdlib -static \
                     -DBENCH_FREESTANDING=1 /w/tests/bench_suite.c -lgcc \
                     -o /w/_build/bench/bench-sparc32
                 riscv64-linux-gnu-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-riscv64

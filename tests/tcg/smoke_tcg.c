@@ -9,7 +9,7 @@
  * Vendor per-arch .ref files for float_* beside this file when curating
  * a revision; pass an explicit page size (4096, or 8192 on sparc64rt).
  *
- * Build: cc -std=c11 -Wall -Wextra -Werror=vla -pedantic -O1 -pthread
+ * Build: cc -std=c11 -Wall -Wextra -Werror -Werror=vla -pedantic -O1 -pthread
  *        tests/tcg/smoke_tcg.c -o smoke_tcg -lm
  * Run: ./smoke_tcg [pagesize]   (exit 0 iff fails == 0 and passes > 0)
  *

@@ -100,6 +100,8 @@ USER_GRIND_CXX="${GRIND_CXX:-}"
 USER_GRIND_QEMU="${GRIND_QEMU:-}"
 USER_GRIND_INTERP="${GRIND_INTERP:-}"
 USER_GRIND_DBT="${GRIND_DBT:-}"
+GRIND_RT_BIN=""
+GRIND_HL_BIN=""
 
 grind_pass() {
     GRIND_PASS=$((GRIND_PASS + 1))
@@ -153,6 +155,45 @@ find_hl_launcher() {
     return 1
 }
 
+# Execute a guest binary under a configured engine wrapper.
+#
+# Foreign jobs on BACKEND=hl are routed through rt_run_bounded_hl (from
+# remote_bench_common.sh) so the RVRT --rvrt-native selector and the guest
+# environment variables come from the single shared hl policy instead of a
+# separately assembled `hl <prefix>` command string. Wrappers that already
+# embed the hl launcher (user-supplied hl commands) run literally: their
+# author owns the hl policy. GRIND_QEMU reference wrappers always run
+# literally. Usage: grind_run_guest <timeout_s> <wrapper> <guest> [args...]
+grind_run_guest() {
+    _gr_secs="$1"
+    _gr_wrap="$2"
+    _gr_guest="$3"
+    shift 3
+    if [ "$BACKEND" = "hl" ] && [ "$CURRENT_ARCH" != "host" ] \
+        && [ -n "${GRIND_HL_BIN:-}" ] && [ -n "${GRIND_RT_BIN:-}" ] \
+        && [ -n "$_gr_wrap" ]; then
+        case "$_gr_wrap" in
+            *"${GRIND_HL_BIN}"*)
+                ;;
+            *)
+                _gr_eng=""
+                if [ -n "${GRIND_DBT:-}" ] && [ "$_gr_wrap" = "$GRIND_DBT" ]; then
+                    _gr_eng="dbt"
+                elif [ -n "${GRIND_INTERP:-}" ] && [ "$_gr_wrap" = "$GRIND_INTERP" ]; then
+                    _gr_eng="interp"
+                fi
+                if [ -n "$_gr_eng" ]; then
+                    rt_run_bounded_hl "$_gr_secs" "$GRIND_HL_BIN" "$CURRENT_ARCH" \
+                        "$_gr_eng" "$GRIND_RT_BIN" "$_gr_guest" "$@"
+                    return $?
+                fi
+                ;;
+        esac
+    fi
+    # shellcheck disable=SC2086
+    run_bounded "$_gr_secs" $_gr_wrap "$_gr_guest" "$@"
+}
+
 resolve_arch_defaults() {
     CURRENT_ARCH="$1"
     GRIND_CC="$USER_GRIND_CC"
@@ -160,6 +201,8 @@ resolve_arch_defaults() {
     GRIND_QEMU="$USER_GRIND_QEMU"
     GRIND_INTERP="$USER_GRIND_INTERP"
     GRIND_DBT="$USER_GRIND_DBT"
+    GRIND_RT_BIN=""
+    GRIND_HL_BIN=""
 
     if [ "$CURRENT_ARCH" = "host" ]; then
         : "${GRIND_CC:=${CC:-cc}}"
@@ -171,13 +214,15 @@ resolve_arch_defaults() {
     if [ -n "$_rt_bin" ]; then
         _interp_cmd="$(rt_format_cmd_prefix "$CURRENT_ARCH" "interp" "$_rt_bin")"
         _dbt_cmd="$(rt_format_cmd_prefix "$CURRENT_ARCH" "dbt" "$_rt_bin")"
+        _hl_bin=""
         if [ "$BACKEND" = "hl" ]; then
             _hl_bin="$(find_hl_launcher || true)"
             if [ -n "$_hl_bin" ]; then
-                : "${GRIND_INTERP:=$_hl_bin $_interp_cmd}"
-                : "${GRIND_DBT:=$_hl_bin $_dbt_cmd}"
+                GRIND_HL_BIN="$_hl_bin"
+                GRIND_RT_BIN="$_rt_bin"
             fi
-        else
+        fi
+        if [ "$BACKEND" != "hl" ] || [ -n "$_hl_bin" ]; then
             : "${GRIND_INTERP:=$_interp_cmd}"
             : "${GRIND_DBT:=$_dbt_cmd}"
         fi
@@ -219,9 +264,10 @@ yaml_has_verify_failure() {
 run_stressng_suite() {
     echo "== Grind [$CURRENT_ARCH]: stress-ng (backend=$BACKEND, ${STRESS_SECS}s/stressor) =="
     _sng_cmd="stress-ng"
+    _sng_is_guest=0
     if [ "$CURRENT_ARCH" != "host" ]; then
         if [ -n "${GRIND_STRESS_NG:-}" ] && [ -n "${GRIND_DBT:-}" ]; then
-            _sng_cmd="${GRIND_DBT} ${GRIND_STRESS_NG}"
+            _sng_is_guest=1
         else
             grind_skip "stress-ng" "foreign-arch ($CURRENT_ARCH) requires GRIND_STRESS_NG + GRIND_DBT"
             return 0
@@ -238,8 +284,14 @@ run_stressng_suite() {
     mkdir -p "$_work"
     for s in $_stressors; do
         _yaml="$_work/$s.yaml"
+        if [ "$_sng_is_guest" -eq 1 ]; then
+            if grind_run_guest 120 "$GRIND_DBT" "$GRIND_STRESS_NG" --verify --metrics-brief --yaml "$_yaml" -t "$STRESS_SECS" --"$s" 1 >"$_work/$s.log" 2>&1; then
+                _rc=0
+            else
+                _rc=$?
+            fi
         # shellcheck disable=SC2086
-        if timeout --kill-after=30s 120s $_sng_cmd --verify --metrics-brief --yaml "$_yaml" -t "$STRESS_SECS" --"$s" 1 >"$_work/$s.log" 2>&1; then
+        elif timeout --kill-after=30s 120s $_sng_cmd --verify --metrics-brief --yaml "$_yaml" -t "$STRESS_SECS" --"$s" 1 >"$_work/$s.log" 2>&1; then
             _rc=0
         else
             _rc=$?
@@ -314,8 +366,7 @@ run_gcc_torture_suite() {
                     *)            _wrap="" ;;
                 esac
                 if [ -n "$_wrap" ]; then
-                    # shellcheck disable=SC2086
-                    if ! timeout --kill-after=10s 60s $_wrap "$_bin" >/tmp/grind_torture_g_$$ 2>&1; then
+                    if ! grind_run_guest 60 "$_wrap" "$_bin" >/tmp/grind_torture_g_$$ 2>&1; then
                         grind_fail "gcc-torture" "$_base -$opt $eng exit!=0"
                         _ok=0
                         break
@@ -342,8 +393,40 @@ run_gcc_torture_suite() {
     fi
 }
 
+# Run one TestFloat verifier pass over the shared vector file and report it
+# under its own engine label. An empty wrapper runs the verifier directly
+# (host). Otherwise the wrapper runs through grind_run_guest so hl-backend
+# foreign jobs keep the single shared hl policy. Uses the caller's $_ver,
+# $_vec, and $_rounds globals and the per-engine /tmp/grind_testfloat log.
+run_testfloat_one_engine() {
+    _tfo_label="$1"
+    _tfo_wrap="$2"
+    if [ -n "$_tfo_wrap" ]; then
+        if grind_run_guest 600 "$_tfo_wrap" "$_ver" <"$_vec" >/tmp/grind_testfloat_$$.log 2>&1; then
+            _tfo_rc=0
+        else
+            _tfo_rc=$?
+        fi
+    else
+        if timeout --kill-after=30s 600s "$_ver" <"$_vec" >/tmp/grind_testfloat_$$.log 2>&1; then
+            _tfo_rc=0
+        else
+            _tfo_rc=$?
+        fi
+    fi
+    if [ "$_tfo_rc" -eq 0 ]; then
+        if grep -Eqi 'fail|error|mismatch' /tmp/grind_testfloat_$$.log; then
+            grind_fail "$_tfo_label" "verifier reported failures (see /tmp/grind_testfloat_$$.log)"
+        else
+            grind_pass "$_tfo_label" "gen|ver pipeline clean ($_rounds rounds)"
+        fi
+    else
+        grind_fail "$_tfo_label" "verifier exited non-zero (rc=$_tfo_rc, see /tmp/grind_testfloat_$$.log)"
+    fi
+}
+
 run_testfloat_suite() {
-    echo "== Grind [$CURRENT_ARCH]: Berkeley TestFloat (host testfloat_gen | guest testfloat_ver) =="
+    echo "== Grind [$CURRENT_ARCH]: Berkeley TestFloat (host testfloat_gen | guest testfloat_ver, per-engine) =="
     _gen="${TESTFLOAT_GEN:-}"
     _ver="${TESTFLOAT_VER:-}"
     if [ -z "$_gen" ] || [ ! -x "$_gen" ]; then
@@ -370,30 +453,26 @@ run_testfloat_suite() {
         rm -f "$_vec" /tmp/grind_testfloat_$$.log
         return 0
     fi
-    _tf_wrap="${GRIND_INTERP:-${GRIND_DBT:-}}"
-    if [ -n "$_tf_wrap" ]; then
-        # shellcheck disable=SC2086
-        if timeout --kill-after=30s 600s $_tf_wrap "$_ver" <"$_vec" \
-            >/tmp/grind_testfloat_$$.log 2>&1; then
-            _tf_rc=0
-        else
-            _tf_rc=$?
-        fi
+    # Feed the same generated vectors to both configured engines and report
+    # their outcomes separately. Dual-engine qualification needs both; a job
+    # with only one engine configured is explicitly labelled single-engine.
+    if [ "$CURRENT_ARCH" = "host" ]; then
+        run_testfloat_one_engine "testfloat" ""
     else
-        if timeout --kill-after=30s 600s "$_ver" <"$_vec" >/tmp/grind_testfloat_$$.log 2>&1; then
-            _tf_rc=0
+        if [ -n "${GRIND_INTERP:-}" ]; then
+            run_testfloat_one_engine "testfloat-interp" "$GRIND_INTERP"
         else
-            _tf_rc=$?
+            grind_skip "testfloat-interp" "GRIND_INTERP not configured for $CURRENT_ARCH ($BACKEND); single-engine run"
         fi
-    fi
-    if [ "${_tf_rc:-1}" -eq 0 ]; then
-        if grep -Eqi 'fail|error|mismatch' /tmp/grind_testfloat_$$.log; then
-            grind_fail "testfloat" "verifier reported failures (see /tmp/grind_testfloat_$$.log)"
+        if [ -n "${GRIND_DBT:-}" ]; then
+            if [ "$GRIND_DBT" = "${GRIND_INTERP:-}" ]; then
+                grind_skip "testfloat-dbt" "GRIND_DBT duplicates GRIND_INTERP (single-engine run)"
+            else
+                run_testfloat_one_engine "testfloat-dbt" "$GRIND_DBT"
+            fi
         else
-            grind_pass "testfloat" "gen|ver pipeline clean ($_rounds rounds)"
+            grind_skip "testfloat-dbt" "GRIND_DBT not configured for $CURRENT_ARCH ($BACKEND); single-engine run"
         fi
-    else
-        grind_fail "testfloat" "verifier exited non-zero (rc=${_tf_rc:-1}, see /tmp/grind_testfloat_$$.log)"
     fi
     rm -f "$_vec" /tmp/grind_testfloat_$$.log
 }
@@ -448,8 +527,7 @@ EOF
     fi
     _wrap="${GRIND_INTERP:-${GRIND_DBT:-}}"
     if [ -n "$_wrap" ]; then
-        # shellcheck disable=SC2086
-        if timeout --kill-after=10s 60s $_wrap "$_bin" > /tmp/grind_builtins_out_$$ 2>&1; then
+        if grind_run_guest 60 "$_wrap" "$_bin" > /tmp/grind_builtins_out_$$ 2>&1; then
             _brc=0
         else
             _brc=$?
@@ -489,8 +567,7 @@ run_libc_ltp_suite() {
             esac
             _bin="$(printf '%s' "$_line" | awk '{print $1}')"
             if [ -x "$_bin" ]; then
-                # shellcheck disable=SC2086
-                if timeout --kill-after=10s 120s $_wrap "$_bin" >/tmp/grind_libc_$$.log 2>&1; then
+                if grind_run_guest 120 "$_wrap" "$_bin" >/tmp/grind_libc_$$.log 2>&1; then
                     grind_pass "libc-ltp" "$_bin"
                 else
                     grind_fail "libc-ltp" "$_bin exit!=0"
@@ -515,8 +592,7 @@ run_libc_ltp_suite() {
     for _t in functional math pthread; do
         _b="${LIBC_TEST_DIR:-}/bin/$_t"
         if [ -x "$_b" ]; then
-            # shellcheck disable=SC2086
-            if timeout --kill-after=10s 300s $_wrap "$_b" >/tmp/grind_libc_$$.log 2>&1; then
+            if grind_run_guest 300 "$_wrap" "$_b" >/tmp/grind_libc_$$.log 2>&1; then
                 grind_pass "libc-ltp" "libc-test $_t"
             else
                 grind_fail "libc-ltp" "libc-test $_t exit!=0"
@@ -555,8 +631,7 @@ run_lmbench_suite() {
             _have_lm=0
         fi
         if [ "$_have_lm" -eq 1 ]; then
-            # shellcheck disable=SC2086
-            if timeout --kill-after=10s 120s $_wrap "$_b" -P 1 null >/tmp/grind_lm_$$.log 2>&1; then
+            if grind_run_guest 120 "$_wrap" "$_b" -P 1 null >/tmp/grind_lm_$$.log 2>&1; then
                 if [ -s /tmp/grind_lm_$$.log ]; then
                     grind_pass "lmbench" "$_t completed"
                 else
@@ -571,8 +646,7 @@ run_lmbench_suite() {
     done
     if [ "$_bins" = "PATH" ]; then _b="bw_mmap"; else _b="$_bins/bw_mmap"; fi
     if { [ "$_bins" = "PATH" ] && command -v bw_mmap >/dev/null 2>&1; } || [ -x "$_b" ]; then
-        # shellcheck disable=SC2086
-        if timeout --kill-after=10s 180s $_wrap "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
+        if grind_run_guest 180 "$_wrap" "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
             grind_pass "lmbench" "bw_mmap completed"
         else
             grind_fail "lmbench" "bw_mmap exited non-zero or timed out"
@@ -597,14 +671,12 @@ run_differential_binary() {
     fi
     _rdb_ref_out="/tmp/grind_diff_ref_$$.out"
     _rdb_dbt_out="/tmp/grind_diff_dbt_$$.out"
-    # shellcheck disable=SC2086
-    if ! timeout --kill-after=10s 60s $_rdb_ref_wrap "$_rdb_bin" >"$_rdb_ref_out" 2>&1; then
+    if ! grind_run_guest 60 "$_rdb_ref_wrap" "$_rdb_bin" >"$_rdb_ref_out" 2>&1; then
         grind_fail "$_rdb_suite" "$_rdb_label reference wrapper exited non-zero"
         rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
         return 1
     fi
-    # shellcheck disable=SC2086
-    if ! timeout --kill-after=10s 60s $_rdb_dbt_wrap "$_rdb_bin" >"$_rdb_dbt_out" 2>&1; then
+    if ! grind_run_guest 60 "$_rdb_dbt_wrap" "$_rdb_bin" >"$_rdb_dbt_out" 2>&1; then
         grind_fail "$_rdb_suite" "$_rdb_label DBT wrapper exited non-zero"
         rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
         return 1
@@ -619,8 +691,41 @@ run_differential_binary() {
     return 0
 }
 
+# Foreign-arch upstream qualification (RTS-R3-1).
+#
+# An unwrapped host `make check` must never qualify a foreign translator:
+# with --arch all the same host result would otherwise be recorded once per
+# foreign repo under CURRENT_ARCH. Foreign jobs therefore require an
+# explicit target-aware adapter (UPSTREAM_CHECK_ADAPTER, an executable)
+# that runs the upstream suite for that target with the selected engine,
+# guest artifacts, and execution wrapper. Without an adapter the suite is
+# SKIPped, never passed; unwrapped `make check` is reserved for --arch host.
+#
+# Adapter contract: "$UPSTREAM_CHECK_ADAPTER" <arch> <upstream_dir> with
+# GRIND_INTERP/GRIND_DBT/GRIND_QEMU wrappers, GRIND_CC/GRIND_CXX compilers,
+# GRIND_RT_BIN/GRIND_HL_BIN binaries, and GRIND_BACKEND in the environment.
+# Exit 0 qualifies the foreign arch; nonzero fails it.
+run_upstream_adapter_check() {
+    _up_adapter="${UPSTREAM_CHECK_ADAPTER:-}"
+    if [ -z "$_up_adapter" ] || [ ! -x "$_up_adapter" ]; then
+        grind_skip "upstream-check" "foreign arch $CURRENT_ARCH needs executable UPSTREAM_CHECK_ADAPTER (target-aware upstream test adapter); unwrapped host 'make check' refused"
+        return 0
+    fi
+    if GRIND_INTERP="${GRIND_INTERP:-}" GRIND_DBT="${GRIND_DBT:-}" \
+        GRIND_QEMU="${GRIND_QEMU:-}" GRIND_CC="${GRIND_CC:-}" GRIND_CXX="${GRIND_CXX:-}" \
+        GRIND_RT_BIN="${GRIND_RT_BIN:-}" GRIND_HL_BIN="${GRIND_HL_BIN:-}" \
+        GRIND_BACKEND="$BACKEND" \
+        timeout --kill-after=30s 1800s "$_up_adapter" "$CURRENT_ARCH" "$UPSTREAM_CHECK_DIR" \
+        >/tmp/grind_upstream_$$.log 2>&1; then
+        grind_pass "upstream-check" "$_up_adapter $CURRENT_ARCH passed"
+    else
+        grind_fail "upstream-check" "$_up_adapter $CURRENT_ARCH failed (see /tmp/grind_upstream_$$.log)"
+    fi
+    rm -f /tmp/grind_upstream_$$.log
+}
+
 run_weekly_soak() {
-    echo "== Grind weekly [$CURRENT_ARCH]: Csmith/Yarpgen soak + upstream make check =="
+    echo "== Grind weekly [$CURRENT_ARCH]: Csmith/Yarpgen soak + upstream check (host make check / foreign adapter) =="
     _cc="${GRIND_CC:-}"
     _cxx="${GRIND_CXX:-}"
     if command -v csmith >/dev/null 2>&1 && [ -n "$_cc" ] && command -v "$_cc" >/dev/null 2>&1; then
@@ -688,12 +793,16 @@ run_weekly_soak() {
     fi
 
     if [ -n "${UPSTREAM_CHECK_DIR:-}" ] && [ -f "${UPSTREAM_CHECK_DIR}/Makefile" ]; then
-        if timeout --kill-after=30s 1800s make -C "$UPSTREAM_CHECK_DIR" check >/tmp/grind_upstream_$$.log 2>&1; then
-            grind_pass "upstream-check" "make -C $UPSTREAM_CHECK_DIR check passed"
+        if [ "$CURRENT_ARCH" = "host" ]; then
+            if timeout --kill-after=30s 1800s make -C "$UPSTREAM_CHECK_DIR" check >/tmp/grind_upstream_$$.log 2>&1; then
+                grind_pass "upstream-check" "make -C $UPSTREAM_CHECK_DIR check passed"
+            else
+                grind_fail "upstream-check" "make -C $UPSTREAM_CHECK_DIR check failed"
+            fi
+            rm -f /tmp/grind_upstream_$$.log
         else
-            grind_fail "upstream-check" "make -C $UPSTREAM_CHECK_DIR check failed"
+            run_upstream_adapter_check
         fi
-        rm -f /tmp/grind_upstream_$$.log
     else
         grind_skip "upstream-check" "UPSTREAM_CHECK_DIR not set (point at guest source tree for upstream make check)"
     fi

@@ -37,7 +37,30 @@ if [ ! -f "$TCG_SRC" ]; then
     exit 1
 fi
 
-cleanup_containers() {
+# Remove only containers owned by this script invocation (name suffix "-$$").
+# Removal errors propagate: the caller turns them into a nonzero result.
+cleanup_owned_containers() {
+    if ! command -v docker >/dev/null 2>&1; then
+        return 0
+    fi
+    _rm_rc=0
+    _left="$(docker ps -aq --filter "name=rt-u-" 2>/dev/null || true)"
+    for _cid in $_left; do
+        _cname="$(docker inspect --format '{{.Name}}' "$_cid" 2>/dev/null || true)"
+        case "$_cname" in
+            *"-$$")
+                if ! docker rm -f "$_cid" >/dev/null 2>&1; then
+                    echo "FAIL: could not remove owned container: ${_cname:-$_cid}" >&2
+                    _rm_rc=1
+                fi
+                ;;
+        esac
+    done
+    return $_rm_rc
+}
+
+# Fail when any container owned by this invocation is still present.
+verify_no_lingering_containers() {
     if ! command -v docker >/dev/null 2>&1; then
         return 0
     fi
@@ -45,11 +68,46 @@ cleanup_containers() {
     for _cid in $_left; do
         _cname="$(docker inspect --format '{{.Name}}' "$_cid" 2>/dev/null || true)"
         case "$_cname" in
-            *"-$$") docker rm -f "$_cid" >/dev/null 2>&1 || true ;;
+            *"-$$")
+                echo "FAIL: lingering owned container: ${_cname:-$_cid}" >&2
+                return 1
+                ;;
         esac
     done
+    return 0
 }
-trap cleanup_containers EXIT INT TERM
+
+# EXIT trap: preserve the script's own status, then require owned-container
+# removal and a clean lingering-container check to hold as well.
+on_uniform_exit() {
+    _exit_rc=$?
+    trap '' EXIT INT TERM
+    _trap_rc=0
+    cleanup_owned_containers || _trap_rc=1
+    verify_no_lingering_containers || _trap_rc=1
+    if [ "$_trap_rc" -ne 0 ]; then
+        exit 1
+    fi
+    exit "$_exit_rc"
+}
+
+on_uniform_int() {
+    trap '' EXIT INT TERM
+    cleanup_owned_containers || true
+    verify_no_lingering_containers || true
+    exit 130
+}
+
+on_uniform_term() {
+    trap '' EXIT INT TERM
+    cleanup_owned_containers || true
+    verify_no_lingering_containers || true
+    exit 143
+}
+
+trap on_uniform_exit EXIT
+trap on_uniform_int INT
+trap on_uniform_term TERM
 
 already_built() {
     _abi="$1"
@@ -64,7 +122,7 @@ want_abi() {
     [ "$ABI_FILTER" = "all" ] || [ "$ABI_FILTER" = "$1" ]
 }
 
-COMMON_CFLAGS="-std=c11 -O1 -static -pthread -Wall -Wextra -Werror=vla -pedantic"
+COMMON_CFLAGS="-std=c11 -O1 -static -pthread -Wall -Wextra -Werror -Werror=vla -pedantic"
 
 # build_trixie_abi <abi> <apt_pkgs> <cc_cmd> [extra_libs]
 build_trixie_abi() {
@@ -155,14 +213,8 @@ build_image_abi  mips64el    "mips64rt-parity-env:trixie"                "mips64
 build_image_abi  mips64eb    "mips64rt-parity-env:trixie"                "mips64-linux-gnuabi64-gcc -mabi=64"
 build_image_abi  sparc64     "sparc64rt-l6a-tool:latest"                 "sparc64-linux-gnu-gcc"
 
-cleanup_containers
-if command -v docker >/dev/null 2>&1; then
-    _lingering="$(docker ps --filter "name=rt-u-" --format '{{.Names}}' 2>/dev/null | grep -E -- "-$$\$" || true)"
-    if [ -n "$_lingering" ]; then
-        echo "FAIL: lingering docker containers: $_lingering" >&2
-        exit 1
-    fi
-fi
+cleanup_owned_containers || exit 1
+verify_no_lingering_containers || exit 1
 
 echo "== Uniform guest inventory: $OUT_DIR =="
 find "$OUT_DIR" -type f | sort

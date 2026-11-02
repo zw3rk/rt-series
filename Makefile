@@ -6,7 +6,7 @@
 .DEFAULT_GOAL := help
 
 CC      ?= cc
-CFLAGS  ?= -std=c11 -Wall -Wextra -Werror=vla -pedantic
+CFLAGS  ?= -std=c11 -Wall -Wextra -Werror -Werror=vla -pedantic
 BUILD   := _build
 
 REQUIRED_DOCS := \
