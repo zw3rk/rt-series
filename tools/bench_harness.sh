@@ -130,7 +130,24 @@ cleanup_bench_containers() {
     fi
     return 0
 }
-trap cleanup_bench_containers EXIT INT TERM
+bench_exit_trap() {
+    local rc=$?
+    if ! cleanup_bench_containers; then
+        rc=1
+    fi
+    exit "$rc"
+}
+bench_int_trap() {
+    cleanup_bench_containers || true
+    exit 130
+}
+bench_term_trap() {
+    cleanup_bench_containers || true
+    exit 143
+}
+trap bench_exit_trap EXIT
+trap bench_int_trap INT
+trap bench_term_trap TERM
 
 need_bench_rebuild() {
     local bin="$1"

@@ -86,7 +86,9 @@ static volatile sig_atomic_t g_segv_armed = 0;
 static volatile sig_atomic_t g_segv_signo = 0;
 static volatile sig_atomic_t g_segv_code = 0;
 /* C11 async-signal-safe 64-bit address bridge: three 22-bit chunks stored in
- * volatile sig_atomic_t objects (POSIX guarantees sig_atomic_t >= 32-bit). */
+ * volatile sig_atomic_t objects (C11 only guarantees a [-127, +127] range,
+ * so the 22-bit chunk width is enforced by _Static_assert below). */
+_Static_assert(SIG_ATOMIC_MAX >= 0x3fffff, "22-bit chunks need wide sig_atomic_t");
 static volatile sig_atomic_t g_segv_addr_w0 = 0;
 static volatile sig_atomic_t g_segv_addr_w1 = 0;
 static volatile sig_atomic_t g_segv_addr_w2 = 0;
@@ -251,6 +253,58 @@ static int probe_llsc_broken_by_signal(void)
                      : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
                      : "memory");
     return (loaded == 0x13572468U && sc_status != 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+#elif defined(__mips__)
+    /* MIPS ll/sc: the sc source register doubles as the success flag
+     * (1 = stored, 0 = reservation lost), so a cleared reservation must
+     * yield 0 with the cell untouched. */
+    uint32_t loaded = 0;
+    uint32_t sc_word = 0xdeadbeefU;
+    __asm__ volatile("ll %0, 0(%1)" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
+    if (raise(SIGUSR1) != 0) {
+        return -1;
+    }
+    __asm__ volatile("sc %0, 0(%1)"
+                     : "+r"(sc_word)
+                     : "r"(&g_llsc_cell)
+                     : "memory");
+    return (loaded == 0x13572468U && sc_word == 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
+#elif defined(__powerpc__) || defined(__ppc__)
+    /* PowerPC lwarx/stwcx.: stwcx. reports via CR0[EQ] (0x20000000 after
+     * mfcr), so a cleared reservation must leave EQ clear with the cell
+     * untouched. */
+    uint32_t loaded = 0;
+    uint32_t cr = 0;
+    __asm__ volatile("lwarx %0, 0, %1"
+                     : "=r"(loaded)
+                     : "r"(&g_llsc_cell)
+                     : "memory", "cc");
+    if (raise(SIGUSR1) != 0) {
+        return -1;
+    }
+    __asm__ volatile("stwcx. %2, 0, %1\n\tmfcr %0"
+                     : "=r"(cr)
+                     : "r"(&g_llsc_cell), "r"(0xdeadbeefU)
+                     : "memory", "cc");
+    return (loaded == 0x13572468U && (cr & 0x20000000U) == 0U &&
+        g_llsc_cell == 0x13572468U) ? 0 : -1;
+#elif defined(__loongarch__)
+    /* LoongArch ll.w/sc.w: the sc source register doubles as the success
+     * flag (1 = stored, 0 = reservation lost), so a cleared reservation
+     * must yield 0 with the cell untouched. */
+    uint32_t loaded = 0;
+    uint32_t sc_word = 0xdeadbeefU;
+    __asm__ volatile("ll.w %0, %1, 0"
+                     : "=r"(loaded)
+                     : "r"(&g_llsc_cell)
+                     : "memory");
+    if (raise(SIGUSR1) != 0) {
+        return -1;
+    }
+    __asm__ volatile("sc.w %0, %1, 0"
+                     : "+r"(sc_word)
+                     : "r"(&g_llsc_cell)
+                     : "memory");
+    return (loaded == 0x13572468U && sc_word == 0U && g_llsc_cell == 0x13572468U) ? 0 : -1;
 #else
     if (raise(SIGUSR1) != 0) {
         return -1;
@@ -260,9 +314,13 @@ static int probe_llsc_broken_by_signal(void)
 }
 
 /* Signal frame: async SIGUSR1 must arrive with exact si_signo, a
- * kill-family si_code, a non-null ucontext, live GPR preservation across
- * delivery, and an invalidated LL/SC reservation + CAS retry across the
- * signal boundary. */
+ * kill-family si_code, and a non-null ucontext. Value-level GPR check:
+ * C locals are folded through a fixed 16-step sequence split around a
+ * nested raise() round-trip and compared against an uninterrupted
+ * recomputation, detecting corruption of compiler-visible state by the
+ * handler or sigreturn (not a pinned-register liveness proof: no asm
+ * register pinning is used). Plus an invalidated LL/SC reservation +
+ * CAS retry across the signal boundary. */
 static void t_sig_frame_gpr(void)
 {
     if (install_handler(SIGUSR1, usr1_handler, 0) != 0 ||
@@ -276,9 +334,10 @@ static void t_sig_frame_gpr(void)
     g_usr1_has_ctx = 0;
     atomic_store(&g_cas_cell, 1);
 
-    /* Keep multiple GPRs and the pre-signal loaded value live across
-     * signal delivery while usr1_handler + nested usr2_handler clobber
-     * registers, break the LL/SC reservation, and overwrite g_cas_cell. */
+    /* Fold value-level state through a fixed sequence split around a
+     * nested raise() round-trip while usr1_handler + nested usr2_handler
+     * clobber registers, break the LL/SC reservation, and overwrite
+     * g_cas_cell; the result must match an uninterrupted recomputation. */
     uint64_t r0 = 0x0123456789ABCDEFULL;
     uint64_t r1 = 0xFEDCBA9876543210ULL;
     uint64_t r2 = 0xCAFEBABE12345678ULL;

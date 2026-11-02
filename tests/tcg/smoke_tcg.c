@@ -82,7 +82,9 @@ static volatile sig_atomic_t g_armed = 0;
 static volatile sig_atomic_t g_got_signo = 0;
 static volatile sig_atomic_t g_got_code = 0;
 /* C11 async-signal-safe 64-bit address bridge: three 22-bit chunks stored in
- * volatile sig_atomic_t objects (POSIX guarantees sig_atomic_t >= 32-bit). */
+ * volatile sig_atomic_t objects (C11 only guarantees a [-127, +127] range,
+ * so the 22-bit chunk width is enforced by _Static_assert below). */
+_Static_assert(SIG_ATOMIC_MAX >= 0x3fffff, "22-bit chunks need wide sig_atomic_t");
 static volatile sig_atomic_t g_got_addr_w0 = 0;
 static volatile sig_atomic_t g_got_addr_w1 = 0;
 static volatile sig_atomic_t g_got_addr_w2 = 0;
