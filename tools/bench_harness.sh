@@ -18,6 +18,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECTS_DIR="$(cd "$ROOT_DIR/.." && pwd)"
 BENCH_DIR="$ROOT_DIR/_build/bench"
 SRC_FILE="$ROOT_DIR/tests/bench_suite.c"
+HDR_FILE="$ROOT_DIR/tests/bench_sys.h"
 
 MODE="${1:-help}"
 shift || true
@@ -27,6 +28,7 @@ ARCH_FILTER="all"
 ENGINE="dbt"
 BENCH_MAX_LOAD="${BENCH_MAX_LOAD:-2.5}"
 BENCH_FORCE="${BENCH_FORCE:-0}"
+FORCE_REBUILD="${FORCE_REBUILD:-0}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -52,6 +54,22 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
+case "$TARGET" in
+    darwin|hl|linux|qemu|all) ;;
+    *)
+        echo "ERROR: Invalid --target '$TARGET' (expected darwin|hl|linux|qemu|all)" >&2
+        exit 2
+        ;;
+esac
+
+case "$ENGINE" in
+    dbt|interp) ;;
+    *)
+        echo "ERROR: Invalid --engine '$ENGINE' (expected dbt|interp)" >&2
+        exit 2
+        ;;
+esac
 
 ALL_ARCHES=(
     armhf
@@ -80,6 +98,22 @@ arch_repo() {
         sparc64)            echo "sparc64rt" ;;
         *)                  return 1 ;;
     esac
+}
+
+if [ "$ARCH_FILTER" != "all" ] && ! arch_repo "$ARCH_FILTER" >/dev/null 2>&1; then
+    echo "ERROR: Invalid --arch '$ARCH_FILTER'" >&2
+    exit 2
+fi
+
+need_bench_rebuild() {
+    local bin="$1"
+    if [ "$FORCE_REBUILD" = "1" ] || [ "$BENCH_FORCE" = "1" ]; then
+        return 0
+    fi
+    if [ ! -x "$bin" ] || [ "$SRC_FILE" -nt "$bin" ] || [ "$HDR_FILE" -nt "$bin" ]; then
+        return 0
+    fi
+    return 1
 }
 
 arch_qemu() {
@@ -144,68 +178,68 @@ build_guest_bins() {
     local lld_raw="/nix/store/smnrx7kvgcxbl6s2scgwk6zp0np6yw7q-lld-21.1.8/bin/ld.lld"
     local fs_flags="-std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -fno-builtin -nostdlib -DBENCH_FREESTANDING=1"
     if [ -x "$clang_raw" ] && [ -x "$lld_raw" ]; then
-        if [ ! -x "$BENCH_DIR/bench-armhf" ]; then
+        if need_bench_rebuild "$BENCH_DIR/bench-armhf"; then
             "$clang_raw" --target=armv7a-unknown-linux-eabihf -march=armv7ve -mfpu=neon-vfpv4 -mfloat-abi=hard $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-armhf.o" && \
             "$lld_raw" -m armelf_linux_eabi -Bstatic --no-dynamic-linker --image-base=0x00010000 -e _start "$BENCH_DIR/bench-armhf.o" -o "$BENCH_DIR/bench-armhf" && rm -f "$BENCH_DIR/bench-armhf.o" || true
         fi
-        if [ ! -x "$BENCH_DIR/bench-i686" ]; then
+        if need_bench_rebuild "$BENCH_DIR/bench-i686"; then
             "$clang_raw" --target=i686-unknown-linux-gnu -march=i686 -msse2 -mfpmath=sse $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-i686.o" && \
             "$lld_raw" -m elf_i386 -Bstatic --no-dynamic-linker --image-base=0x08048000 -e _start "$BENCH_DIR/bench-i686.o" -o "$BENCH_DIR/bench-i686" && rm -f "$BENCH_DIR/bench-i686.o" || true
         fi
-        if [ ! -x "$BENCH_DIR/bench-mipsel" ]; then
+        if need_bench_rebuild "$BENCH_DIR/bench-mipsel"; then
             "$clang_raw" --target=mipsel-unknown-linux-gnu -march=mips32r2 -mabi=32 -mhard-float $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-mipsel.o" && \
             "$lld_raw" -m elf32ltsmip -Bstatic --no-dynamic-linker --image-base=0x00400000 -e _start "$BENCH_DIR/bench-mipsel.o" -o "$BENCH_DIR/bench-mipsel" && rm -f "$BENCH_DIR/bench-mipsel.o" || true
         fi
-        if [ ! -x "$BENCH_DIR/bench-ppc32" ]; then
+        if need_bench_rebuild "$BENCH_DIR/bench-ppc32"; then
             "$clang_raw" --target=powerpc-unknown-linux-gnu -mcpu=7400 -mhard-float $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-ppc32.o" && \
             "$lld_raw" -m elf32ppclinux -Bstatic --no-dynamic-linker --image-base=0x10000000 -e _start "$BENCH_DIR/bench-ppc32.o" -o "$BENCH_DIR/bench-ppc32" && rm -f "$BENCH_DIR/bench-ppc32.o" || true
         fi
-        if [ ! -x "$BENCH_DIR/bench-riscv64" ]; then
+        if need_bench_rebuild "$BENCH_DIR/bench-riscv64"; then
             "$clang_raw" --target=riscv64-unknown-linux-gnu -march=rv64gc -mabi=lp64d $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-riscv64.o" && \
             "$lld_raw" -m elf64lriscv -Bstatic --no-dynamic-linker --image-base=0x00010000 -e _start "$BENCH_DIR/bench-riscv64.o" -o "$BENCH_DIR/bench-riscv64" && rm -f "$BENCH_DIR/bench-riscv64.o" || true
         fi
-        if [ ! -x "$BENCH_DIR/bench-riscv32" ]; then
+        if need_bench_rebuild "$BENCH_DIR/bench-riscv32"; then
             "$clang_raw" --target=riscv32-unknown-linux-gnu -march=rv32gc -mabi=ilp32d $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-riscv32.o" && \
             "$lld_raw" -m elf32lriscv -Bstatic --no-dynamic-linker --image-base=0x00010000 -e _start "$BENCH_DIR/bench-riscv32.o" -o "$BENCH_DIR/bench-riscv32" && rm -f "$BENCH_DIR/bench-riscv32.o" || true
         fi
-        if [ ! -x "$BENCH_DIR/bench-aarch64" ]; then
+        if need_bench_rebuild "$BENCH_DIR/bench-aarch64"; then
             "$clang_raw" --target=aarch64-unknown-linux-gnu $fs_flags -c "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-aarch64.o" && \
             "$lld_raw" -m aarch64linux -Bstatic --no-dynamic-linker --image-base=0x00400000 -e _start "$BENCH_DIR/bench-aarch64.o" -o "$BENCH_DIR/bench-aarch64" && rm -f "$BENCH_DIR/bench-aarch64.o" || true
         fi
     fi
-    if [ ! -x "$BENCH_DIR/bench-darwin-arm64" ] && command -v cc >/dev/null 2>&1; then
+    if need_bench_rebuild "$BENCH_DIR/bench-darwin-arm64" && command -v cc >/dev/null 2>&1; then
         cc -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 "$ROOT_DIR/tests/bench_suite.c" -o "$BENCH_DIR/bench-darwin-arm64" || true
     fi
-    if [ ! -x "$BENCH_DIR/bench-sparc32" ] && docker image inspect sparc32rt-oracle:latest >/dev/null 2>&1; then
+    if need_bench_rebuild "$BENCH_DIR/bench-sparc32" && docker image inspect sparc32rt-oracle:latest >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-sparc32-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w sparc32rt-oracle:latest \
-            sparc64-linux-gnu-gcc -m32 -mcpu=v8 -std=c11 -O2 -ffreestanding -fno-stack-protector -nostdlib -static \
+            sparc64-linux-gnu-gcc -m32 -mcpu=v8 -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -fno-stack-protector -nostdlib -static \
             -DBENCH_FREESTANDING=1 /w/tests/bench_suite.c -lgcc -o /w/_build/bench/bench-sparc32 || true
     fi
 
     # 2. Fast-path: use locally cached per-arch toolchain images if present (zero network)
-    if [ ! -x "$BENCH_DIR/bench-loongarch64" ] && docker image inspect loongarch64rt-l3a-tool:latest >/dev/null 2>&1; then
+    if need_bench_rebuild "$BENCH_DIR/bench-loongarch64" && docker image inspect loongarch64rt-l3a-tool:latest >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-la64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w loongarch64rt-l3a-tool:latest \
-            loongarch64-linux-gnu-gcc -std=c11 -O2 -fno-tree-vectorize -static -Wall -Wextra -Werror=vla \
+            loongarch64-linux-gnu-gcc -std=c11 -O2 -fno-tree-vectorize -static -Wall -Wextra -Werror=vla -pedantic \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-loongarch64 || true
     fi
-    if [ ! -x "$BENCH_DIR/bench-ppc64le" ] && docker image inspect ppc64rt-l3a-tool:latest >/dev/null 2>&1; then
+    if need_bench_rebuild "$BENCH_DIR/bench-ppc64le" && docker image inspect ppc64rt-l3a-tool:latest >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-ppc64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w ppc64rt-l3a-tool:latest \
-            powerpc64le-linux-gnu-gcc -std=c11 -O1 -mcpu=power8 -fno-stack-protector -static -Wall -Wextra -Werror=vla \
+            powerpc64le-linux-gnu-gcc -std=c11 -O1 -mcpu=power8 -fno-stack-protector -static -Wall -Wextra -Werror=vla -pedantic \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-ppc64le || true
     fi
-    if [ ! -x "$BENCH_DIR/bench-mips64el" ] && docker image inspect mips64rt-parity-env:trixie >/dev/null 2>&1; then
+    if need_bench_rebuild "$BENCH_DIR/bench-mips64el" && docker image inspect mips64rt-parity-env:trixie >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-mips64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w mips64rt-parity-env:trixie \
-            mips64el-linux-gnuabi64-gcc -std=c11 -O2 -mabi=64 -static -Wl,-z,common-page-size=65536 -Wall -Wextra -Werror=vla \
+            mips64el-linux-gnuabi64-gcc -std=c11 -O2 -mabi=64 -static -Wl,-z,common-page-size=65536 -Wall -Wextra -Werror=vla -pedantic \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-mips64el || true
     fi
-    if [ ! -x "$BENCH_DIR/bench-sparc64" ] && docker image inspect sparc64rt-l6a-tool:latest >/dev/null 2>&1; then
+    if need_bench_rebuild "$BENCH_DIR/bench-sparc64" && docker image inspect sparc64rt-l6a-tool:latest >/dev/null 2>&1; then
         timeout --kill-after=10s 45s docker run --rm --name "rt-bench-sparc64-$$" --platform linux/arm64 \
             -v "$ROOT_DIR:/w" -w /w sparc64rt-l6a-tool:latest \
-            sparc64-linux-gnu-gcc -std=c11 -O2 -static -Wall -Wextra -Werror=vla \
+            sparc64-linux-gnu-gcc -std=c11 -O2 -static -Wall -Wextra -Werror=vla -pedantic \
             /w/tests/bench_suite.c -o /w/_build/bench/bench-sparc64 || true
     fi
 
@@ -215,7 +249,7 @@ build_guest_bins() {
         if [ "$ARCH_FILTER" != "all" ] && [ "$ARCH_FILTER" != "$a" ]; then
             continue
         fi
-        if [ ! -x "$BENCH_DIR/bench-$a" ]; then
+        if need_bench_rebuild "$BENCH_DIR/bench-$a"; then
             missing=1
         fi
     done
@@ -242,15 +276,15 @@ build_guest_bins() {
                     gcc-mips64el-linux-gnuabi64 libc6-dev-mips64el-cross >/dev/null
 
                 mkdir -p /w/_build/bench
-                CFLAGS="-std=c11 -O2 -static -Wall -Wextra -Werror=vla"
+                CFLAGS="-std=c11 -O2 -static -Wall -Wextra -Werror=vla -pedantic"
                 arm-linux-gnueabihf-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-armhf
                 i686-linux-gnu-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-i686
                 mipsel-linux-gnu-gcc $CFLAGS -mips32r2 /w/tests/bench_suite.c -o /w/_build/bench/bench-mipsel
                 powerpc-linux-gnu-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-ppc32
-                sparc64-linux-gnu-gcc -m32 -std=c11 -O2 -ffreestanding -nostdlib -static \
+                sparc64-linux-gnu-gcc -m32 -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -nostdlib -static \
                     -DBENCH_FREESTANDING=1 -DBENCH_SMOKE=1 /w/tests/bench_suite.c -lgcc \
                     -o /w/_build/bench/bench-sparc32-smoke
-                sparc64-linux-gnu-gcc -m32 -std=c11 -O2 -ffreestanding -nostdlib -static \
+                sparc64-linux-gnu-gcc -m32 -std=c11 -Werror=vla -pedantic -Wall -Wextra -O2 -ffreestanding -nostdlib -static \
                     -DBENCH_FREESTANDING=1 /w/tests/bench_suite.c -lgcc \
                     -o /w/_build/bench/bench-sparc32
                 riscv64-linux-gnu-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-riscv64
@@ -285,6 +319,49 @@ check_calm_host() {
     echo "== Host load check OK (1-min loadavg=$load <= $BENCH_MAX_LOAD) =="
 }
 
+# Build CLI arguments for invoking `<repo>` translator with `$ENGINE` on `<guest_bin>`.
+build_rt_args() {
+    local repo="$1"
+    local rt_bin="$2"
+    local guest_bin="$3"
+    local guest_flag="$4"
+    local eng_flag="--dbt"
+    if [ "$ENGINE" = "interp" ]; then
+        eng_flag="--interp"
+    fi
+    RT_CMD_ARGS=("$rt_bin")
+    case "$repo" in
+        i686rt|sparc32rt)
+            RT_CMD_ARGS+=("--engine" "$ENGINE" "--" "$guest_bin")
+            ;;
+        a32rt|rvrt|mips32rt|ppc32rt)
+            RT_CMD_ARGS+=("$eng_flag" "--" "$guest_bin")
+            ;;
+        *)
+            RT_CMD_ARGS+=("$eng_flag" "$guest_bin")
+            ;;
+    esac
+    if [ -n "$guest_flag" ]; then
+        RT_CMD_ARGS+=("$guest_flag")
+    fi
+}
+
+check_bench_output() {
+    local label="$1"
+    local rc="$2"
+    local out="$3"
+    if [ "$rc" -eq 0 ] && printf "%s\n" "$out" | grep -q "ALL_PASS" && ! printf "%s\n" "$out" | grep -qE "FAIL|FAILED"; then
+        local tot
+        tot="$(printf "%s\n" "$out" | sed -n 's/.*total_us=\([0-9]*\).*/\1/p')"
+        echo "PASS [$label]: total_us=${tot:-?} ALL_PASS"
+        return 0
+    fi
+    echo "FAIL [$label] (rc=$rc):"
+    printf "%s\n" "$out"
+    return 1
+}
+
+# Returns: 0 = PASS, 1 = FAIL, 2 = SKIP
 run_one_target() {
     local suite_mode="$1"   # smoke | full
     local target="$2"       # darwin | hl | linux | qemu
@@ -300,12 +377,14 @@ run_one_target() {
 
     if [ ! -x "$guest_bin" ]; then
         echo "SKIP [$target/$arch]: $guest_bin not built (run 'tools/bench_harness.sh build' first)"
-        return 0
+        return 2
     fi
 
-    local eng_flag="--dbt"
+    local a32_interp=0
+    local i686_nojit=0
     if [ "$ENGINE" = "interp" ]; then
-        eng_flag="--interp"
+        a32_interp=1
+        i686_nojit=1
     fi
 
     case "$target" in
@@ -313,90 +392,99 @@ run_one_target() {
             local drt
             if ! drt="$(find_darwin_rt "$repo")"; then
                 echo "SKIP [darwin/$arch]: Darwin binary for $repo not built (run 'make -C ../$repo build-darwin')"
-                return 0
+                return 2
             fi
+            build_rt_args "$repo" "$drt" "$guest_bin" "$guest_flag"
             local out=""
-            if [ "$repo" = "a32rt" ] || [ "$repo" = "i686rt" ] || [ "$repo" = "rvrt" ]; then
-                out="$(timeout --kill-after=10s 60s "$drt" "$guest_bin" $guest_flag 2>&1 || true)"
-            else
-                out="$(timeout --kill-after=10s 60s "$drt" "$eng_flag" "$guest_bin" $guest_flag 2>&1 || true)"
-            fi
-            if printf "%s\n" "$out" | grep -q "ALL_PASS"; then
-                local tot
-                tot="$(printf "%s\n" "$out" | sed -n 's/.*total_us=\([0-9]*\).*/\1/p')"
-                echo "PASS [darwin/$arch/$ENGINE]: total_us=${tot:-?} ALL_PASS"
-            else
-                echo "FAIL [darwin/$arch/$ENGINE]:"
-                printf "%s\n" "$out"
-                return 1
-            fi
+            local rc=0
+            out="$(A32_INTERP="$a32_interp" I686_NO_JIT="$i686_nojit" \
+                I686RT_ENGINE="$ENGINE" RVRT_ENGINE="$ENGINE" MIPS32RT_ENGINE="$ENGINE" \
+                PPC32RT_ENGINE="$ENGINE" SPARC32RT_ENGINE="$ENGINE" LOONGARCH64RT_ENGINE="$ENGINE" \
+                PPC64RT_ENGINE="$ENGINE" MIPS64RT_ENGINE="$ENGINE" SPARC64RT_ENGINE="$ENGINE" \
+                timeout --kill-after=10s 60s "${RT_CMD_ARGS[@]}" 2>&1)" || rc=$?
+            check_bench_output "darwin/$arch/$ENGINE" "$rc" "$out"
+            return $?
             ;;
         hl)
             local hl_bin lrt
             if ! hl_bin="$(find_hl_bin)"; then
                 echo "SKIP [hl/$arch]: hyper-linux binary not found"
-                return 0
+                return 2
             fi
             if ! lrt="$(find_linux_rt "$repo")"; then
                 echo "SKIP [hl/$arch]: Linux $repo binary not found"
-                return 0
+                return 2
             fi
+            build_rt_args "$repo" "$lrt" "$guest_bin" "$guest_flag"
             local out=""
-            out="$(timeout --kill-after=15s 90s "$hl_bin" "$lrt" "$guest_bin" $guest_flag 2>&1 || true)"
-            if printf "%s\n" "$out" | grep -q "ALL_PASS"; then
-                local tot
-                tot="$(printf "%s\n" "$out" | sed -n 's/.*total_us=\([0-9]*\).*/\1/p')"
-                echo "PASS [hl/$arch/$ENGINE]: total_us=${tot:-?} ALL_PASS"
-            else
-                echo "FAIL [hl/$arch/$ENGINE]:"
-                printf "%s\n" "$out"
-                return 1
-            fi
+            local rc=0
+            out="$(A32_INTERP="$a32_interp" I686_NO_JIT="$i686_nojit" \
+                I686RT_ENGINE="$ENGINE" RVRT_ENGINE="$ENGINE" MIPS32RT_ENGINE="$ENGINE" \
+                PPC32RT_ENGINE="$ENGINE" SPARC32RT_ENGINE="$ENGINE" LOONGARCH64RT_ENGINE="$ENGINE" \
+                PPC64RT_ENGINE="$ENGINE" MIPS64RT_ENGINE="$ENGINE" SPARC64RT_ENGINE="$ENGINE" \
+                timeout --kill-after=15s 90s "$hl_bin" \
+                --env "A32_INTERP=$a32_interp" --env "I686_NO_JIT=$i686_nojit" \
+                --env "I686RT_ENGINE=$ENGINE" --env "RVRT_ENGINE=$ENGINE" \
+                --env "MIPS32RT_ENGINE=$ENGINE" --env "PPC32RT_ENGINE=$ENGINE" \
+                --env "SPARC32RT_ENGINE=$ENGINE" --env "LOONGARCH64RT_ENGINE=$ENGINE" \
+                --env "PPC64RT_ENGINE=$ENGINE" --env "MIPS64RT_ENGINE=$ENGINE" \
+                --env "SPARC64RT_ENGINE=$ENGINE" \
+                "${RT_CMD_ARGS[@]}" 2>&1)" || rc=$?
+            check_bench_output "hl/$arch/$ENGINE" "$rc" "$out"
+            return $?
             ;;
         linux)
             local lrt
             if ! lrt="$(find_linux_rt "$repo")"; then
                 echo "SKIP [linux/$arch]: Linux $repo binary not found"
-                return 0
+                return 2
             fi
             local cname="rt-bench-linux-${arch}-$$"
+            local c_lrt="/p/$repo/_build/$(basename "$lrt")"
+            local c_guest="/p/rt-series/_build/bench/$(basename "$guest_bin")"
+            build_rt_args "$repo" "$c_lrt" "$c_guest" "$guest_flag"
             local out=""
-            if [ "$repo" = "a32rt" ] || [ "$repo" = "i686rt" ] || [ "$repo" = "rvrt" ]; then
-                out="$(timeout --kill-after=15s 90s docker run --rm --name "$cname" --platform linux/arm64 \
-                    -v "$PROJECTS_DIR:/p:ro" debian:trixie-slim \
-                    "/p/$repo/_build/$(basename "$lrt")" "/p/rt-series/_build/bench/$(basename "$guest_bin")" $guest_flag 2>&1 || true)"
-            else
-                out="$(timeout --kill-after=15s 90s docker run --rm --name "$cname" --platform linux/arm64 \
-                    -v "$PROJECTS_DIR:/p:ro" debian:trixie-slim \
-                    "/p/$repo/_build/$(basename "$lrt")" "$eng_flag" "/p/rt-series/_build/bench/$(basename "$guest_bin")" $guest_flag 2>&1 || true)"
-            fi
+            local rc=0
+            out="$(timeout --kill-after=15s 90s docker run --rm --name "$cname" --platform linux/arm64 \
+                -e "A32_INTERP=$a32_interp" -e "I686_NO_JIT=$i686_nojit" \
+                -e "I686RT_ENGINE=$ENGINE" -e "RVRT_ENGINE=$ENGINE" \
+                -e "MIPS32RT_ENGINE=$ENGINE" -e "PPC32RT_ENGINE=$ENGINE" \
+                -e "SPARC32RT_ENGINE=$ENGINE" -e "LOONGARCH64RT_ENGINE=$ENGINE" \
+                -e "PPC64RT_ENGINE=$ENGINE" -e "MIPS64RT_ENGINE=$ENGINE" \
+                -e "SPARC64RT_ENGINE=$ENGINE" \
+                -v "$PROJECTS_DIR:/p:ro" debian:trixie-slim \
+                "${RT_CMD_ARGS[@]}" 2>&1)" || rc=$?
             docker rm -f "$cname" >/dev/null 2>&1 || true
-            if printf "%s\n" "$out" | grep -q "ALL_PASS"; then
-                local tot
-                tot="$(printf "%s\n" "$out" | sed -n 's/.*total_us=\([0-9]*\).*/\1/p')"
-                echo "PASS [linux/$arch/$ENGINE]: total_us=${tot:-?} ALL_PASS"
-            else
-                echo "FAIL [linux/$arch/$ENGINE]:"
-                printf "%s\n" "$out"
-                return 1
-            fi
+            check_bench_output "linux/$arch/$ENGINE" "$rc" "$out"
+            return $?
             ;;
         qemu)
             local qbin
             qbin="$(arch_qemu "$arch")"
+            if ! command -v docker >/dev/null 2>&1 || ! docker image inspect mips64rt-qemu:10.0.13 >/dev/null 2>&1; then
+                echo "SKIP [qemu/$arch]: mips64rt-qemu:10.0.13 image not present"
+                return 2
+            fi
+            local qcheck_name="rt-bench-qchk-${arch}-$$"
+            if ! timeout --kill-after=10s 30s docker run --rm --name "$qcheck_name" --platform linux/arm64 \
+                mips64rt-qemu:10.0.13 sh -c "command -v \"$qbin\" >/dev/null 2>&1"; then
+                docker rm -f "$qcheck_name" >/dev/null 2>&1 || true
+                echo "SKIP [qemu/$arch]: $qbin not installed in mips64rt-qemu:10.0.13"
+                return 2
+            fi
             local cname="rt-bench-qemu-${arch}-$$"
-            local out
+            local out=""
+            local rc=0
+            local qargs=("$qbin" "/p/rt-series/_build/bench/$(basename "$guest_bin")")
+            if [ -n "$guest_flag" ]; then
+                qargs+=("$guest_flag")
+            fi
             out="$(timeout --kill-after=15s 90s docker run --rm --name "$cname" --platform linux/arm64 \
                 -v "$PROJECTS_DIR:/p:ro" mips64rt-qemu:10.0.13 \
-                "$qbin" "/p/rt-series/_build/bench/$(basename "$guest_bin")" $guest_flag 2>&1 || true)"
+                "${qargs[@]}" 2>&1)" || rc=$?
             docker rm -f "$cname" >/dev/null 2>&1 || true
-            if printf "%s\n" "$out" | grep -q "ALL_PASS"; then
-                local tot
-                tot="$(printf "%s\n" "$out" | sed -n 's/.*total_us=\([0-9]*\).*/\1/p')"
-                echo "PASS [qemu/$arch]: total_us=${tot:-?} ALL_PASS"
-            else
-                echo "SKIP [qemu/$arch]: $qbin not in container or did not complete"
-            fi
+            check_bench_output "qemu/$arch" "$rc" "$out"
+            return $?
             ;;
     esac
 }
@@ -410,14 +498,35 @@ run_matrix() {
         targets=("$TARGET")
     fi
 
+    local matched=0
+    local passed=0
+    local failed=0
+    local skipped=0
+
     for t in "${targets[@]}"; do
         for a in "${ALL_ARCHES[@]}"; do
             if [ "$ARCH_FILTER" != "all" ] && [ "$ARCH_FILTER" != "$a" ]; then
                 continue
             fi
-            run_one_target "$suite_mode" "$t" "$a"
+            matched=$((matched + 1))
+            local rc=0
+            run_one_target "$suite_mode" "$t" "$a" || rc=$?
+            case "$rc" in
+                0) passed=$((passed + 1)) ;;
+                2) skipped=$((skipped + 1)) ;;
+                *) failed=$((failed + 1)) ;;
+            esac
         done
     done
+
+    echo "BENCH HARNESS SUMMARY ($suite_mode): matched=$matched pass=$passed fail=$failed skip=$skipped"
+    if [ "$matched" -eq 0 ] || [ "$failed" -gt 0 ] || [ "$passed" -eq 0 ]; then
+        exit 1
+    fi
+    if [ "$skipped" -gt 0 ] && [ "${BENCH_ALLOW_SKIP:-0}" != "1" ]; then
+        echo "ERROR: $skipped target(s) skipped; set BENCH_ALLOW_SKIP=1 to permit skips" >&2
+        exit 1
+    fi
 }
 
 case "$MODE" in

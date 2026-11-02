@@ -7,28 +7,21 @@
 
 set -eu
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -r "$SCRIPT_DIR/remote_bench_common.sh" ]; then
+    # shellcheck source=tools/remote_bench_common.sh
+    . "$SCRIPT_DIR/remote_bench_common.sh"
+elif [ -r "/Users/angerman/rt-bench/remote_bench_common.sh" ]; then
+    . "/Users/angerman/rt-bench/remote_bench_common.sh"
+else
+    echo "ERROR: remote_bench_common.sh not found" >&2
+    exit 1
+fi
+
 MODE="${1:---smoke}"
 PHASE="${2:-all}"
 B="/Users/angerman/rt-bench"
 LIMACTL="/Users/angerman/.nix-profile/bin/limactl"
-
-ARCH_LIST="armhf:a32rt:qemu-arm i686:i686rt:qemu-i386 mipsel:mips32rt:qemu-mipsel ppc32:ppc32rt:qemu-ppc sparc32:sparc32rt:qemu-sparc riscv64:rvrt:qemu-riscv64 riscv32:rvrt:qemu-riscv32 loongarch64:loongarch64rt:qemu-loongarch64 ppc64le:ppc64rt:qemu-ppc64le mips64el:mips64rt:qemu-mips64el sparc64:sparc64rt:qemu-sparc64"
-
-parse_and_print() {
-    target="$1"
-    arch="$2"
-    engine="$3"
-    out="$4"
-    cm=$(printf '%s\n' "$out" | awk '/BENCH coremark/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    cc=$(printf '%s\n' "$out" | awk '/BENCH chacha20/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    vf=$(printf '%s\n' "$out" | awk '/BENCH vfp_simd/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    ib=$(printf '%s\n' "$out" | awk '/BENCH calls_ibtc/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    sc=$(printf '%s\n' "$out" | awk '/BENCH syscalls/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    tot=$(printf '%s\n' "$out" | awk '/BENCH total_us=/ {for(i=1;i<=NF;i++) if($i ~ /^total_us=/) {sub(/^total_us=/,"",$i); print $i}}')
-    st=$(printf '%s\n' "$out" | awk '/BENCH total_us=/ {print $NF}')
-    printf "RESULT\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-        "$target" "$arch" "$engine" "${cm:--}" "${cc:--}" "${vf:--}" "${ib:--}" "${sc:--}" "${tot:--}" "${st:-FAIL}"
-}
 
 run_darwin_dbt() {
     arch="$1"
@@ -37,13 +30,13 @@ run_darwin_dbt() {
     bin="$B/rt-darwin/${rt}-darwin"
     case "$rt" in
         rvrt|i686rt)
-            "$bin" -- "$guest" "$MODE"
+            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" -- "$guest" "$MODE"
             ;;
         loongarch64rt|ppc64rt|mips64rt|sparc64rt)
-            "$bin" --dbt "$guest" "$MODE"
+            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --dbt "$guest" "$MODE"
             ;;
         *)
-            "$bin" "$guest" "$MODE"
+            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE"
             ;;
     esac
 }
@@ -55,22 +48,22 @@ run_darwin_interp() {
     bin="$B/rt-darwin/${rt}-darwin"
     case "$rt" in
         rvrt)
-            "$bin" --engine interp -- "$guest" "$MODE"
+            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --engine interp -- "$guest" "$MODE"
             ;;
         i686rt)
-            I686RT_ENGINE=interp "$bin" -- "$guest" "$MODE"
+            I686RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" -- "$guest" "$MODE"
             ;;
         mips32rt)
-            MIPS32RT_ENGINE=interp "$bin" "$guest" "$MODE"
+            MIPS32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE"
             ;;
         ppc32rt)
-            PPC32RT_ENGINE=interp "$bin" "$guest" "$MODE"
+            PPC32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE"
             ;;
         sparc32rt)
-            SPARC32RT_ENGINE=interp "$bin" "$guest" "$MODE"
+            SPARC32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE"
             ;;
         *)
-            "$bin" --interp "$guest" "$MODE"
+            run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --interp "$guest" "$MODE"
             ;;
     esac
 }
@@ -82,7 +75,7 @@ run_hl_dbt() {
     lrt="$B/rt-linux/$rt"
     case "$rt" in
         rvrt)
-            HL_EXACT_CLOCK=1 "$B/hl" --rvrt-native -- "$lrt" -- "$guest" "$MODE"
+            HL_EXACT_CLOCK=1 run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/hl" --rvrt-native -- "$lrt" -- "$guest" "$MODE"
             ;;
         *)
             HL_EXACT_CLOCK=1 \
@@ -90,15 +83,15 @@ run_hl_dbt() {
             PPC64RT_ENGINE=dbt \
             MIPS64RT_ENGINE=dbt \
             SPARC64RT_ENGINE=dbt \
-            "$B/hl" "--${rt}" "$lrt" -- "$guest" "$MODE"
+            run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/hl" "--${rt}" "$lrt" -- "$guest" "$MODE"
             ;;
     esac
 }
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "baseline" ]; then
-    out=$("$B/bench/bench-darwin-arm64" "$MODE")
+    out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/bench/bench-darwin-arm64" "$MODE")
     parse_and_print "native-darwin" "arm64" "native" "$out"
-    out=$("$LIMACTL" shell --workdir /tmp/rt-bench bench /tmp/rt-bench/bench/bench-aarch64 "$MODE")
+    out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$LIMACTL" shell --workdir /tmp/rt-bench bench /tmp/rt-bench/bench/bench-aarch64 "$MODE")
     parse_and_print "native-linux" "aarch64" "native" "$out"
 fi
 
@@ -133,13 +126,13 @@ if [ "$PHASE" = "all" ] || [ "$PHASE" = "hl" ]; then
 fi
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "linux" ]; then
-    "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "dbt"
+    run_bounded "$REMOTE_LIMA_TIMEOUT" "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "dbt"
 fi
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "linux-interp" ]; then
-    "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "interp"
+    run_bounded "$REMOTE_LIMA_TIMEOUT" "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "interp"
 fi
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "qemu" ]; then
-    "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "qemu"
+    run_bounded "$REMOTE_LIMA_TIMEOUT" "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "qemu"
 fi

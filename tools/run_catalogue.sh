@@ -77,12 +77,20 @@ REPOS="a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64
 UNIFORM_ABIS="armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le mips64el mips64eb sparc64"
 
 # check_parity_no_skip <logfile> <repo>: fail when any PARITY_SUMMARY line in
-# the per-repo log reports skip>0, unless CATALOGUE_ALLOW_SKIP=1. This is the
-# series-level Wave C2 gate: it fires even if the repo masked skips with its
-# own PARITY_ALLOW_SKIP=1.
+# the per-repo log reports skip>0, fail>0, gap>0, or pass==0, unless
+# CATALOGUE_ALLOW_SKIP=1 (for skips only). This is the series-level Wave C2
+# gate: it fires even if the repo masked skips with its own PARITY_ALLOW_SKIP=1.
 check_parity_no_skip() {
     _cns_log="$1"
     _cns_repo="$2"
+    if grep -qE '^PARITY_ROW	.*	(FAIL|GAP)	' "$_cns_log" 2>/dev/null; then
+        echo "FAIL [$_cns_repo]: PARITY_ROW contains FAIL or GAP in $_cns_log" >&2
+        return 1
+    fi
+    if [ "${CATALOGUE_ALLOW_SKIP:-0}" != "1" ] && grep -qE '^PARITY_ROW	.*	SKIP	' "$_cns_log" 2>/dev/null; then
+        echo "FAIL [$_cns_repo]: PARITY_ROW contains SKIP in $_cns_log; set CATALOGUE_ALLOW_SKIP=1 to allow" >&2
+        return 1
+    fi
     _cns_skips="$(grep -E '^PARITY_SUMMARY ' "$_cns_log" 2>/dev/null \
         | sed -E 's/.*skip=([0-9]+).*/\1/' \
         | awk 'BEGIN{s=0} {s+=$1} END{print s}')"
@@ -91,6 +99,43 @@ check_parity_no_skip() {
     fi
     if [ "$_cns_skips" -gt 0 ] && [ "${CATALOGUE_ALLOW_SKIP:-0}" != "1" ]; then
         echo "FAIL [$_cns_repo]: PARITY_SUMMARY reports $_cns_skips SKIP(s); set CATALOGUE_ALLOW_SKIP=1 to allow" >&2
+        return 1
+    fi
+    return 0
+}
+
+# check_parity_categories <logfile> <repo> <tier>: in qualify mode, verify that
+# the per-repo parity_suite.sh log contains PASS PARITY_ROW entries for all 7
+# required Wave C2 qualification categories (accepting either the canonical
+# category tag or the repo's equivalent parity case identifier).
+check_parity_categories() {
+    _cpc_log="$1"
+    _cpc_repo="$2"
+    _cpc_tier="$3"
+    if [ "$_cpc_tier" != "qualify" ]; then
+        return 0
+    fi
+    if ! grep -qE '^PARITY_ROW	' "$_cpc_log" 2>/dev/null; then
+        echo "FAIL [$_cpc_repo]: no PARITY_ROW lines found in $_cpc_log" >&2
+        return 1
+    fi
+    _cpc_missing=""
+    for _cpc_cat in p3-torture tcg-smoke dyn-pie t1-busybox t2-core t3-system t4-compiler; do
+        case "$_cpc_cat" in
+            p3-torture)  _cpc_pat='(p3-torture|p3_torture|p3torture)' ;;
+            tcg-smoke)   _cpc_pat='(tcg-smoke|tcg_smoke|smoke-tcg|tcg-)' ;;
+            dyn-pie)     _cpc_pat='(dyn-pie|p5_dyn|p5-dyn|test_p5_dyn|test-m8-glibc|aot-cache-dynamic-main)' ;;
+            t1-busybox)  _cpc_pat='(t1-busybox|p1_isa|p1-|	p1	|test_p1_isa|test-m1-|core-checks-|bb-sp)' ;;
+            t2-core)     _cpc_pat='(t2-core|p2_libc|p2libc|p2-|p2_|h2_libc|hello|d2-.*-hello)' ;;
+            t3-system)   _cpc_pat='(t3-system|p3_fp|p3-|	p3	|test_p5_fpu_sse|test-m4-|fp-checks-|p4_threads|p4-|	p4	|test_p4_threads|test-m3-|signal-context)' ;;
+            t4-compiler) _cpc_pat='(t4-compiler|h4_cxx|h4-|	h4	|test_h4_cxx|test-m8-cpp|cpp17-)' ;;
+        esac
+        if ! grep -E '^PARITY_ROW	.*	PASS	' "$_cpc_log" 2>/dev/null | grep -qE "$_cpc_pat"; then
+            _cpc_missing="${_cpc_missing:+$_cpc_missing }$_cpc_cat"
+        fi
+    done
+    if [ -n "$_cpc_missing" ]; then
+        echo "FAIL [$_cpc_repo]: qualify log missing PASS row(s) for category: $_cpc_missing" >&2
         return 1
     fi
     return 0
@@ -554,7 +599,10 @@ EOF
                 nm -D "$work/selfhost.elf" | grep -q "printf" || fail_now "T4" "nm printf"
             fi
             if command -v strip >/dev/null 2>&1; then
-                strip "$work/selfhost.elf" || fail_now "T4" "strip"
+                cp "$work/selfhost.elf" "$work/selfhost.elf.stripped" || fail_now "T4" "cp selfhost.elf"
+                strip "$work/selfhost.elf.stripped" || fail_now "T4" "strip"
+                strip_out="$("$work/selfhost.elf.stripped")" || fail_now "T4" "run selfhost.elf.stripped"
+                [ "$strip_out" = "GCC_SELFHOST_OK:6765:1.414" ] || fail_now "T4" "stripped selfhost ($strip_out)"
             fi
             self_out="$("$work/selfhost.elf")" || fail_now "T4" "run selfhost.elf"
             [ "$self_out" = "GCC_SELFHOST_OK:6765:1.414" ] || fail_now "T4" "gcc selfhost ($self_out)"
@@ -652,7 +700,7 @@ EOF
                 *)
                     case "$machine" in
                         aarch64|arm64)
-                    cat << 'EOF' > "$work/mini.s"
+                            cat << 'EOF' > "$work/mini.s"
     .text
     .global _start
 _start:
@@ -660,11 +708,9 @@ _start:
     mov x8, #93
     svc #0
 EOF
-                    as "$work/mini.s" -o "$work/mini.o" || fail_now "T4" "as mini.s"
-                    ld "$work/mini.o" -o "$work/mini.elf" || fail_now "T4" "ld mini.o"
-                    ;;
-                x86_64)
-                    cat << 'EOF' > "$work/mini.s"
+                            ;;
+                        x86_64|amd64)
+                            cat << 'EOF' > "$work/mini.s"
     .text
     .global _start
 _start:
@@ -672,14 +718,107 @@ _start:
     mov $42, %rdi
     syscall
 EOF
+                            ;;
+                        i386|i486|i586|i686)
+                            cat << 'EOF' > "$work/mini.s"
+    .text
+    .global _start
+_start:
+    movl $1, %eax
+    movl $42, %ebx
+    int $0x80
+EOF
+                            ;;
+                        arm*|armv*)
+                            cat << 'EOF' > "$work/mini.s"
+    .syntax unified
+    .text
+    .global _start
+_start:
+    mov r0, #42
+    mov r7, #1
+    svc #0
+EOF
+                            ;;
+                        mips64*)
+                            cat << 'EOF' > "$work/mini.s"
+    .text
+    .global _start
+_start:
+    li $4, 42
+    li $2, 5058
+    syscall
+EOF
+                            ;;
+                        mips|mipsel|mipseb)
+                            cat << 'EOF' > "$work/mini.s"
+    .text
+    .global _start
+_start:
+    li $4, 42
+    li $2, 4001
+    syscall
+EOF
+                            ;;
+                        ppc*|powerpc*)
+                            cat << 'EOF' > "$work/mini.s"
+    .text
+    .global _start
+_start:
+    li 3, 42
+    li 0, 1
+    sc
+EOF
+                            ;;
+                        sparc64|sparcv9)
+                            cat << 'EOF' > "$work/mini.s"
+    .text
+    .global _start
+_start:
+    mov 42, %o0
+    mov 1, %g1
+    ta 0x6d
+EOF
+                            ;;
+                        sparc*)
+                            cat << 'EOF' > "$work/mini.s"
+    .text
+    .global _start
+_start:
+    mov 42, %o0
+    mov 1, %g1
+    ta 0x10
+EOF
+                            ;;
+                        riscv*)
+                            cat << 'EOF' > "$work/mini.s"
+    .text
+    .global _start
+_start:
+    li a0, 42
+    li a7, 93
+    ecall
+EOF
+                            ;;
+                        loongarch*)
+                            cat << 'EOF' > "$work/mini.s"
+    .text
+    .global _start
+_start:
+    li.w $a0, 42
+    li.w $a7, 93
+    syscall 0
+EOF
+                            ;;
+                        *)
+                            fail_now "T4" "unsupported machine '$machine' for as+ld"
+                            ;;
+                    esac
                     as "$work/mini.s" -o "$work/mini.o" || fail_now "T4" "as mini.s"
                     ld "$work/mini.o" -o "$work/mini.elf" || fail_now "T4" "ld mini.o"
-                    ;;
-                *)
-                    printf '#!/bin/sh\nexit 42\n' > "$work/mini.elf"
-                    chmod +x "$work/mini.elf"
-                    ;;
-                    esac
+                    if command -v readelf >/dev/null 2>&1; then
+                        readelf -h "$work/mini.elf" | grep -q "ELF" || fail_now "T4" "mini.elf not ELF"
+                    fi
                     ;;
             esac
             if "$work/mini.elf"; then
@@ -760,6 +899,10 @@ run_repo_gate() {
                 tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
                 return 1
             fi
+            if ! check_parity_categories "/tmp/cat-$CMD-$_repo.log" "$_repo" "$_tier"; then
+                tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+                return 1
+            fi
             echo "PASS [$_repo]: parity_suite.sh"
             return 0
         else
@@ -773,6 +916,10 @@ run_repo_gate() {
         fi
         if timeout --kill-after=30s "${_timeout_s}s" make -C "$PROJECTS_DIR/$_repo" check >"/tmp/cat-$CMD-$_repo.log" 2>&1; then
             if ! check_parity_no_skip "/tmp/cat-$CMD-$_repo.log" "$_repo"; then
+                tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
+                return 1
+            fi
+            if ! check_parity_categories "/tmp/cat-$CMD-$_repo.log" "$_repo" "$_tier"; then
                 tail -n 20 "/tmp/cat-$CMD-$_repo.log" 2>/dev/null || true
                 return 1
             fi

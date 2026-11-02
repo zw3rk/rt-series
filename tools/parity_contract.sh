@@ -73,7 +73,17 @@ parity_row() {
 parity_norm_stderr() {
     _pns_in="$1"
     _pns_out="$2"
-    grep -v -E '^(hl: |note: )' "$_pns_in" > "$_pns_out" 2>/dev/null || true
+    if [ -z "$_pns_in" ] || [ -z "$_pns_out" ] || [ ! -r "$_pns_in" ]; then
+        return 2
+    fi
+    _pns_tmp="${_pns_out}.tmp.$$"
+    _pns_rc=0
+    grep -v -E '^(hl: |note: )' "$_pns_in" > "$_pns_tmp" 2>/dev/null || _pns_rc=$?
+    if [ "$_pns_rc" -gt 1 ]; then
+        rm -f "$_pns_tmp"
+        return "$_pns_rc"
+    fi
+    mv "$_pns_tmp" "$_pns_out"
 }
 
 # Compare actual output file against committed golden file (or update if PARITY_UPDATE_GOLDEN=1)

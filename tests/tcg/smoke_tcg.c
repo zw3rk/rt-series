@@ -264,14 +264,14 @@ static void t_test_mmap(void)
 
 static void *thread_fn(void *arg)
 {
-    long n = *(long *)arg;
-    volatile long acc = 0;
-    for (long i = 0; i < n; i++) {
+    int64_t n = *(int64_t *)arg;
+    volatile int64_t acc = 0;
+    for (int64_t i = 0; i < n; i++) {
         acc += i;
     }
-    long *out = (long *)malloc(sizeof(long));
+    int64_t *out = (int64_t *)malloc(sizeof(int64_t));
     if (out != NULL) {
-        *out = (long)acc;
+        *out = (int64_t)acc;
     }
     return out;
 }
@@ -280,8 +280,8 @@ static void *thread_fn(void *arg)
  * arithmetic result, racing an munmap on an adjacent region. */
 static void t_testthread(void)
 {
-    long n = 200000L;
-    long want = n * (n - 1L) / 2L;
+    static int64_t s_thread_n = 200000;
+    int64_t want = (s_thread_n * (s_thread_n - 1)) / 2;
     size_t eps = (size_t)eff_page();
     size_t len = eps * 2u;
     unsigned char *p = (unsigned char *)mmap(NULL, len, PROT_READ | PROT_WRITE,
@@ -292,24 +292,29 @@ static void t_testthread(void)
     }
     memset(p, 0x77, len);
     pthread_t th;
-    if (pthread_create(&th, NULL, thread_fn, &n) != 0) {
+    if (pthread_create(&th, NULL, thread_fn, &s_thread_n) != 0) {
         tcg_skip("testthread", "pthread_create unavailable");
         munmap(p, len);
         return;
     }
-    /* Unmap the second half while the thread computes (no shared page). */
-    if (munmap(p + eps, eps) != 0) {
+    /* Unmap the second half while the thread computes (no shared page).
+     * Always join the worker thread before returning even if munmap fails. */
+    int unmap_rc = munmap(p + eps, eps);
+    void *res = NULL;
+    int join_rc = pthread_join(th, &res);
+    if (unmap_rc != 0) {
+        free(res);
         tcg_fail("testthread", "munmap-pthread failed");
         munmap(p, eps);
         return;
     }
-    void *res = NULL;
-    if (pthread_join(th, &res) != 0) {
+    if (join_rc != 0) {
+        free(res);
         tcg_fail("testthread", "pthread_join failed");
         munmap(p, eps);
         return;
     }
-    if (res == NULL || *(long *)res != want) {
+    if (res == NULL || *(int64_t *)res != want) {
         free(res);
         tcg_fail("testthread", "thread result mismatch");
         munmap(p, eps);
@@ -432,11 +437,13 @@ static void t_sha1(void)
 int main(int argc, char **argv)
 {
     if (argc > 1) {
-        long ps = atol(argv[1]);
-        if (ps == 4096L || ps == 8192L || ps == 16384L) {
+        char *endp = NULL;
+        long ps = strtol(argv[1], &endp, 10);
+        if (endp != argv[1] && *endp == '\0' &&
+            (ps == 4096L || ps == 8192L || ps == 16384L)) {
             g_page = ps;
         } else {
-            printf("TCG_SMOKE: unsupported pagesize %ld (want 4096/8192/16384)\n", ps);
+            printf("TCG_SMOKE: unsupported pagesize %s (want 4096/8192/16384)\n", argv[1]);
             return 2;
         }
     }
@@ -456,6 +463,14 @@ int main(int argc, char **argv)
     if (g_fail > 0) {
         printf("TCG_SMOKE FAIL\n");
         return 1;
+    }
+    if (g_skip > 0) {
+        const char *allow_skip = getenv("TORTURE_ALLOW_SKIP");
+        if (allow_skip == NULL || strcmp(allow_skip, "1") != 0) {
+            printf("TCG_SMOKE FAIL (skip=%d not allowed; set TORTURE_ALLOW_SKIP=1 to override)\n",
+                g_skip);
+            return 1;
+        }
     }
     printf("TCG_SMOKE ALL_OK\n");
     return 0;

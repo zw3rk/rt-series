@@ -60,8 +60,10 @@ REQUIRED_DOCS := \
 	lode/reviews/2026-10-28-clean-dry-yagni-vm-softtlb-astra.md \
 	lode/reviews/2026-10-28-clean-dry-yagni-interp-build-astra.md \
 	tests/check_abi_invariants.c \
+	tests/bench_sys.h \
 	tests/bench_suite.c \
 	tools/bench_harness.sh \
+	tools/remote_bench_common.sh \
 	tools/run_catalogue.sh
 
 SIBLING_REPOS := \
@@ -158,10 +160,22 @@ catalogue-grind-nightly: ## Run Tier N nightly grind (stress-ng, torture, testfl
 catalogue-grind-weekly: ## Run Tier W weekly soak (Tier N + Csmith/Yarpgen + upstream make check)
 	./tools/run_catalogue.sh grind-weekly
 
-check-catalogue: ## Syntax-check catalogue runners, verify wrappers, and uniform guests
+check-catalogue: ## Syntax-check catalogue runners, verify wrappers, line limits, and uniform guests
 	sh -n tools/run_catalogue.sh
 	sh -n tools/run_grind.sh
 	sh -n tools/build_uniform_guests.sh
+	sh -n tools/parity_contract.sh
+	sh -n tools/remote_bench_common.sh
+	sh -n tools/remote_bench.sh
+	sh -n tools/remote_linux_inner.sh
+	bash -n tools/bench_harness.sh
+	@for f in include/*.h tests/*.c tests/*.h tests/tcg/*.c; do \
+		lines=$$(wc -l < "$$f" | tr -d ' '); \
+		if [ "$$lines" -gt 900 ]; then \
+			echo "FAIL: $$f exceeds 900 lines ($$lines)" >&2; \
+			exit 1; \
+		fi; \
+	done
 	test -x tests/catalogue/run_catalogue.sh
 	test -x tools/build_uniform_guests.sh
 	for abi in armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le mips64el mips64eb sparc64; do \

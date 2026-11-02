@@ -7,27 +7,20 @@
 
 set -eu
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -r "$SCRIPT_DIR/remote_bench_common.sh" ]; then
+    # shellcheck source=tools/remote_bench_common.sh
+    . "$SCRIPT_DIR/remote_bench_common.sh"
+elif [ -r "/tmp/rt-bench/remote_bench_common.sh" ]; then
+    . "/tmp/rt-bench/remote_bench_common.sh"
+else
+    echo "ERROR: remote_bench_common.sh not found" >&2
+    exit 1
+fi
+
 MODE="${1:---smoke}"
 KIND="${2:-dbt}"
 B="/tmp/rt-bench"
-
-ARCH_LIST="armhf:a32rt:qemu-arm i686:i686rt:qemu-i386 mipsel:mips32rt:qemu-mipsel ppc32:ppc32rt:qemu-ppc sparc32:sparc32rt:qemu-sparc riscv64:rvrt:qemu-riscv64 riscv32:rvrt:qemu-riscv32 loongarch64:loongarch64rt:qemu-loongarch64 ppc64le:ppc64rt:qemu-ppc64le mips64el:mips64rt:qemu-mips64el sparc64:sparc64rt:qemu-sparc64"
-
-parse_and_print() {
-    target="$1"
-    arch="$2"
-    engine="$3"
-    out="$4"
-    cm=$(printf '%s\n' "$out" | awk '/BENCH coremark/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    cc=$(printf '%s\n' "$out" | awk '/BENCH chacha20/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    vf=$(printf '%s\n' "$out" | awk '/BENCH vfp_simd/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    ib=$(printf '%s\n' "$out" | awk '/BENCH calls_ibtc/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    sc=$(printf '%s\n' "$out" | awk '/BENCH syscalls/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    tot=$(printf '%s\n' "$out" | awk '/BENCH total_us=/ {for(i=1;i<=NF;i++) if($i ~ /^total_us=/) {sub(/^total_us=/,"",$i); print $i}}')
-    st=$(printf '%s\n' "$out" | awk '/BENCH total_us=/ {print $NF}')
-    printf "RESULT\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-        "$target" "$arch" "$engine" "${cm:--}" "${cc:--}" "${vf:--}" "${ib:--}" "${sc:--}" "${tot:--}" "${st:-FAIL}"
-}
 
 for item in $ARCH_LIST; do
     arch=${item%%:*}
@@ -38,40 +31,40 @@ for item in $ARCH_LIST; do
     bin="$B/rt-linux/$rt"
 
     if [ "$KIND" = "qemu" ]; then
-        out=$("$B/qemu/$q" "$guest" "$MODE")
+        out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/qemu/$q" "$guest" "$MODE")
         parse_and_print "qemu" "$arch" "tcg" "$out"
     elif [ "$KIND" = "dbt" ]; then
         case "$rt" in
             rvrt|i686rt)
-                out=$("$bin" -- "$guest" "$MODE")
+                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" -- "$guest" "$MODE")
                 ;;
             loongarch64rt|ppc64rt|mips64rt|sparc64rt)
-                out=$("$bin" --dbt "$guest" "$MODE")
+                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --dbt "$guest" "$MODE")
                 ;;
             *)
-                out=$("$bin" "$guest" "$MODE")
+                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE")
                 ;;
         esac
         parse_and_print "linux" "$arch" "dbt" "$out"
     elif [ "$KIND" = "interp" ]; then
         case "$rt" in
             rvrt)
-                out=$("$bin" --engine interp -- "$guest" "$MODE")
+                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --engine interp -- "$guest" "$MODE")
                 ;;
             i686rt)
-                out=$(I686RT_ENGINE=interp "$bin" -- "$guest" "$MODE")
+                out=$(I686RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" -- "$guest" "$MODE")
                 ;;
             mips32rt)
-                out=$(MIPS32RT_ENGINE=interp "$bin" "$guest" "$MODE")
+                out=$(MIPS32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE")
                 ;;
             ppc32rt)
-                out=$(PPC32RT_ENGINE=interp "$bin" "$guest" "$MODE")
+                out=$(PPC32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE")
                 ;;
             sparc32rt)
-                out=$(SPARC32RT_ENGINE=interp "$bin" "$guest" "$MODE")
+                out=$(SPARC32RT_ENGINE=interp run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" "$guest" "$MODE")
                 ;;
             *)
-                out=$("$bin" --interp "$guest" "$MODE")
+                out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$bin" --interp "$guest" "$MODE")
                 ;;
         esac
         parse_and_print "linux" "$arch" "interp" "$out"

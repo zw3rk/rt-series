@@ -1,6 +1,8 @@
 # Catalogue coverage: current gates and improvement todos
 
-Status of `tools/run_catalogue.sh` and the per-repository qualification gates, plus the grind suites worth adding. Companion to [`SOFTWARE-CATALOGUE.md`](SOFTWARE-CATALOGUE.md). Reviewed by `astra` ([`lode/reviews/2026-10-29-catalogue-todo-astra.md`](../lode/reviews/2026-10-29-catalogue-todo-astra.md)) and `fable` ([`lode/reviews/2026-10-29-catalogue-todo-fable.md`](../lode/reviews/2026-10-29-catalogue-todo-fable.md)). The smoke command and the catalogue document disagree; the tables below are from the scripts as they stand.
+> **Historical Audit Snapshot (Resolved in Wave C1 / Wave C2)**: Sections 1 and 2 below record the pre-Wave-C1 audit baseline of `tools/run_catalogue.sh` and per-repository gates. Since Wave C1/C2, `tools/run_catalogue.sh` enforces fail-closed execution (`matched > 0`, `pass > 0`, `fail == 0`, and `skip == 0` unless `CATALOGUE_ALLOW_SKIP=1`), `tests/catalogue/run_catalogue.sh` delegates to `tools/run_catalogue.sh`, and `guest-payload` implements all Tier 1–4 assertions and exits non-zero on any skipped check unless `CATALOGUE_ALLOW_SKIP=1`.
+
+Status of `tools/run_catalogue.sh` and the per-repository qualification gates, plus the grind suites worth adding. Companion to [`SOFTWARE-CATALOGUE.md`](SOFTWARE-CATALOGUE.md). Reviewed by `astra` ([`lode/reviews/2026-10-29-catalogue-todo-astra.md`](../lode/reviews/2026-10-29-catalogue-todo-astra.md)) and `fable` ([`lode/reviews/2026-10-29-catalogue-todo-fable.md`](../lode/reviews/2026-10-29-catalogue-todo-fable.md)). The smoke command and the catalogue document disagree; the tables below are from the scripts as they stood prior to Wave C1/C2.
 
 `make catalogue-smoke` runs `tools/run_catalogue.sh smoke`. For each of the ten repositories it executes `tests/parity_suite.sh` when that file exists, and `make check` otherwise. The whole script sits inside `timeout 360s`. An unknown `--arch` selects nothing and the command still exits 0.
 
@@ -44,7 +46,7 @@ Tier 5 is described in the script header and in [`SOFTWARE-CATALOGUE.md`](SOFTWA
 | T3 | Lua 5.4 coroutine sum `5050`; LuaJIT bit loop golden `675631440`; Python 3 SHA-256 prefix `b5abbd2c04884798` plus zlib | `jit.status()==true` + trace-compilation proof (the LuaJIT loop can stay in the interpreter or abort trace recording); Python `threading` |
 | T4 | `git init -b master` and one commit; `gcc -O2` fib(20)+`sqrt(2)` then `readelf`/`nm`/`strip` and run the ELF; `g++ -std=c++17` exception plus `dynamic_cast` | `make -j2`, `std::thread`, `objdump`, `as`/`ld` of a `.s` file |
 
-A missing T2–T4 tool increments `skip` and the script still prints `ALL_OK` and exits 0. An empty sysroot that lacks `sh` fails T1. A sysroot with a shell and nothing else passes.
+Prior to Wave C1, a missing T2–T4 tool incremented `skip` and the script still printed `ALL_OK` and exited 0 (an empty sysroot that lacked `sh` failed T1, while a sysroot with a shell and nothing else passed). As of Wave C1/C2, `guest-payload` exits non-zero whenever `skip > 0` unless `CATALOGUE_ALLOW_SKIP=1` is explicitly set.
 
 The suite that is already uniform is [`tests/bench_suite.c`](../tests/bench_suite.c) plus [`tools/bench_harness.sh`](../tools/bench_harness.sh): `coremark`, `chacha20`, `vfp_simd`, `calls_ibtc`, and `getpid`, with a CRC check on every guest ABI. It uses the default rounding mode, one thread, and no signals, `mmap`, `fork`, `exec`, dynamic linker, or self-modifying code. `getpid` does not exercise the vDSO. Keep it as the minute-scale smoke. It does not qualify the translator.
 

@@ -76,6 +76,7 @@ static volatile sig_atomic_t g_usr1_count = 0;
 static volatile sig_atomic_t g_usr1_signo = 0;
 static volatile sig_atomic_t g_usr1_code = 0;
 static volatile sig_atomic_t g_usr1_has_ctx = 0;
+static volatile sig_atomic_t g_usr1_clobber_sink = 0;
 static volatile sig_atomic_t g_on_altstack = 0;
 static volatile sig_atomic_t g_nest_depth = 0;
 static volatile sig_atomic_t g_fp_handler_ran = 0;
@@ -97,6 +98,21 @@ static void usr1_handler(int signo, siginfo_t *info, void *ctx)
         g_usr1_code = info->si_code;
     }
     g_usr1_has_ctx = (ctx != NULL) ? 1 : 0;
+    /* Clobber caller/callee-saved GPRs inside the signal frame to verify
+     * that interrupted live GPR state is restored by sigreturn. */
+    {
+        uint64_t c0 = 0x1111222233334444ULL ^ (uint64_t)signo;
+        uint64_t c1 = 0x5555666677778888ULL;
+        uint64_t c2 = 0x9999AAAABBBBCCCCULL;
+        uint64_t c3 = 0xDDDDEEEEFFFF0001ULL;
+        for (int i = 0; i < 32; i++) {
+            c0 = (c0 + c1) ^ (c2 >> 3);
+            c1 = (c1 ^ c3) + (c0 << 5);
+            c2 = (c2 + 0x9E3779B97F4A7C15ULL) ^ c1;
+            c3 = (c3 ^ c0) + c2;
+        }
+        g_usr1_clobber_sink = (sig_atomic_t)((c0 ^ c1 ^ c2 ^ c3) & 0x7FFFU);
+    }
     /* Break any in-flight "reservation": the main thread's CAS retry loop
      * must observe this store, exactly like a stolen LL/SC reservation. */
     atomic_store(&g_cas_cell, 2);
@@ -168,8 +184,8 @@ static int install_handler(int signo, void (*fn)(int, siginfo_t *, void *), int 
 }
 
 /* Signal frame: async SIGUSR1 must arrive with exact si_signo, a
- * kill-family si_code, and a non-null ucontext; nested SIGUSR2 delivery
- * exercises re-entrant frames. */
+ * kill-family si_code, a non-null ucontext, live GPR preservation across
+ * delivery, and a broken atomic reservation across the signal boundary. */
 static void t_sig_frame_gpr(void)
 {
     if (install_handler(SIGUSR1, usr1_handler, 0) != 0 ||
@@ -182,8 +198,48 @@ static void t_sig_frame_gpr(void)
     g_usr1_code = 0;
     g_usr1_has_ctx = 0;
     atomic_store(&g_cas_cell, 1);
-    if (raise(SIGUSR1) != 0) {
-        report_fail("sig-frame-gpr", "raise failed");
+
+    /* Keep multiple GPRs and the pre-signal loaded value live across
+     * signal delivery while usr1_handler + nested usr2_handler clobber
+     * registers and overwrite g_cas_cell. */
+    uint64_t r0 = 0x0123456789ABCDEFULL;
+    uint64_t r1 = 0xFEDCBA9876543210ULL;
+    uint64_t r2 = 0xCAFEBABE12345678ULL;
+    uint64_t r3 = 0xDEADBEEF87654321ULL;
+    uint64_t r4 = 0x0F1E2D3C4B5A6978ULL;
+    uint64_t r5 = 0x8796A5B4C3D2E1F0ULL;
+    int expect = atomic_load(&g_cas_cell);
+    for (int step = 0; step < 16; step++) {
+        r0 = (r0 ^ (uint64_t)step) + 0x100U;
+        r1 = (r1 + (uint64_t)step) ^ 0x200U;
+        r2 = (r2 ^ r0) + 0x300U;
+        r3 = (r3 + r1) ^ 0x400U;
+        r4 = (r4 ^ r2) + 0x500U;
+        r5 = (r5 + r3) ^ 0x600U;
+        if (step == 7) {
+            if (raise(SIGUSR1) != 0) {
+                report_fail("sig-frame-gpr", "raise failed");
+                return;
+            }
+        }
+    }
+
+    uint64_t w0 = 0x0123456789ABCDEFULL;
+    uint64_t w1 = 0xFEDCBA9876543210ULL;
+    uint64_t w2 = 0xCAFEBABE12345678ULL;
+    uint64_t w3 = 0xDEADBEEF87654321ULL;
+    uint64_t w4 = 0x0F1E2D3C4B5A6978ULL;
+    uint64_t w5 = 0x8796A5B4C3D2E1F0ULL;
+    for (int step = 0; step < 16; step++) {
+        w0 = (w0 ^ (uint64_t)step) + 0x100U;
+        w1 = (w1 + (uint64_t)step) ^ 0x200U;
+        w2 = (w2 ^ w0) + 0x300U;
+        w3 = (w3 + w1) ^ 0x400U;
+        w4 = (w4 ^ w2) + 0x500U;
+        w5 = (w5 + w3) ^ 0x600U;
+    }
+    if (r0 != w0 || r1 != w1 || r2 != w2 || r3 != w3 || r4 != w4 || r5 != w5) {
+        report_fail("sig-frame-gpr", "live GPR state corrupted across signal");
         return;
     }
     if (g_usr1_count != 1) {
@@ -213,24 +269,26 @@ static void t_sig_frame_gpr(void)
         report_fail("sig-frame-gpr", "handler store lost");
         return;
     }
-    /* Reservation broken by the handler: CAS expecting the pre-signal
-     * value must fail, CAS on the handler's value must succeed. */
-    {
-        int expect = 1;
-        if (atomic_compare_exchange_strong(&g_cas_cell, &expect, 3)) {
-            report_fail("sig-frame-gpr", "stale CAS unexpectedly won");
-            return;
-        }
-        if (expect != 2) {
-            report_fail("sig-frame-gpr", "CAS did not report handler value");
-            return;
-        }
-        expect = 2;
-        if (!atomic_compare_exchange_strong(&g_cas_cell, &expect, 3) ||
-            atomic_load(&g_cas_cell) != 3) {
-            report_fail("sig-frame-gpr", "fresh CAS lost");
-            return;
-        }
+    /* Reservation broken by the handler: CAS using the pre-signal loaded
+     * value (`expect == 1`) must fail, and CAS on the handler's value must
+     * succeed. */
+    if (expect != 1) {
+        report_fail("sig-frame-gpr", "pre-signal expect corrupted");
+        return;
+    }
+    if (atomic_compare_exchange_strong(&g_cas_cell, &expect, 3)) {
+        report_fail("sig-frame-gpr", "stale CAS unexpectedly won");
+        return;
+    }
+    if (expect != 2) {
+        report_fail("sig-frame-gpr", "CAS did not report handler value");
+        return;
+    }
+    expect = 2;
+    if (!atomic_compare_exchange_strong(&g_cas_cell, &expect, 3) ||
+        atomic_load(&g_cas_cell) != 3) {
+        report_fail("sig-frame-gpr", "fresh CAS lost");
+        return;
     }
     report_pass("sig-frame-gpr si_signo/si_code/ucontext + stolen reservation");
 }
@@ -254,17 +312,22 @@ static void t_sig_frame_fpr(void)
     feclearexcept(FE_ALL_EXCEPT);
     volatile double a = 1.0 / 3.0;
     volatile double b = 0.0;
-    /* The alarm fires mid-computation; handler clobbers FP regs. */
+    /* Arm alarm(1) and guarantee mid-computation delivery at the midpoint
+     * if the wall-clock timer has not fired yet on a fast host. */
     alarm(1);
     for (int i = 0; i < 1000000; i++) {
         b += a * 0.5;
+        if (i == 500000 && g_fp_handler_ran == 0) {
+            raise(SIGALRM);
+        }
     }
-    if (g_fp_handler_ran != 1) {
-        /* Alarm may coalesce after the loop on fast hosts; force one. */
-        raise(SIGALRM);
-    }
-    if (g_fp_handler_ran != 1) {
+    /* Cancel any pending alarm before the reference computation loop. */
+    alarm(0);
+    if (g_fp_handler_ran < 1) {
         report_fail("sig-frame-fpr", "handler never ran");
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
         return;
     }
     /* Bit-exact resume check: recompute without signals and compare. */
@@ -275,6 +338,9 @@ static void t_sig_frame_fpr(void)
         }
         if (memcmp((const void *)&b, (const void *)&ref, sizeof(b)) != 0) {
             report_fail("sig-frame-fpr", "FP value corrupted by handler");
+#ifdef FE_TONEAREST
+            fesetround(old_rm);
+#endif
             return;
         }
     }
@@ -306,36 +372,68 @@ static void t_sigaltstack(void)
         return;
     }
     stack_t ss;
+    stack_t old_ss;
     memset(&ss, 0, sizeof(ss));
+    memset(&old_ss, 0, sizeof(old_ss));
     ss.ss_sp = stack;
     ss.ss_size = (size_t)alt_size;
     ss.ss_flags = 0;
-    if (sigaltstack(&ss, NULL) != 0) {
+    if (sigaltstack(&ss, &old_ss) != 0) {
         report_skip("sigaltstack", "sigaltstack unavailable");
         free(stack);
         return;
     }
-    if (install_handler(SIGURG, alt_handler, SA_ONSTACK) != 0) {
-        report_skip("sigaltstack", "sigaction unavailable");
-        free(stack);
-        return;
+
+    struct sigaction sa;
+    struct sigaction old_sa;
+    memset(&sa, 0, sizeof(sa));
+    memset(&old_sa, 0, sizeof(old_sa));
+    sa.sa_sigaction = alt_handler;
+    sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+    sigemptyset(&sa.sa_mask);
+
+    int have_old_sa = 0;
+    int sigact_rc = sigaction(SIGURG, &sa, &old_sa);
+    if (sigact_rc == 0) {
+        have_old_sa = 1;
     }
     g_on_altstack = 0;
-    if (raise(SIGURG) != 0) {
-        report_fail("sigaltstack", "raise failed");
-        free(stack);
-        return;
+    int raise_rc = (sigact_rc == 0) ? raise(SIGURG) : -1;
+
+    if (have_old_sa) {
+        (void)sigaction(SIGURG, &old_sa, NULL);
     }
-    /* Disable the alternate stack before freeing it. */
+
+    /* Always disable the alternate stack before freeing its backing buffer.
+     * Keep ss_sp and ss_size populated (>= MINSIGSTKSZ) because Darwin/BSD
+     * validates ss_size before checking SS_DISABLE, while Linux ignores
+     * ss_sp/ss_size when SS_DISABLE is set. */
     memset(&ss, 0, sizeof(ss));
+    ss.ss_sp = stack;
+    ss.ss_size = (size_t)alt_size;
     ss.ss_flags = SS_DISABLE;
-    sigaltstack(&ss, NULL);
-    if (!g_on_altstack) {
-        report_fail("sigaltstack", "handler not on alt stack");
-        free(stack);
+    int dis_rc = sigaltstack(&ss, NULL);
+    if (dis_rc != 0 && (old_ss.ss_flags & SS_DISABLE) == 0 && old_ss.ss_sp != NULL) {
+        dis_rc = sigaltstack(&old_ss, NULL);
+    }
+    if (dis_rc != 0) {
+        report_fail("sigaltstack", "sigaltstack SS_DISABLE failed");
         return;
     }
     free(stack);
+
+    if (sigact_rc != 0) {
+        report_skip("sigaltstack", "sigaction unavailable");
+        return;
+    }
+    if (raise_rc != 0) {
+        report_fail("sigaltstack", "raise failed");
+        return;
+    }
+    if (!g_on_altstack) {
+        report_fail("sigaltstack", "handler not on alt stack");
+        return;
+    }
     report_pass("sigaltstack SS_ONSTACK verified");
 }
 
@@ -358,16 +456,21 @@ static void t_unaligned_cross_page(void)
     for (size_t i = 0; i < two; i++) {
         base[i] = (unsigned char)((i * 2654435761u) & 255u);
     }
-    /* Straddle the boundary: last 3 bytes of page 0 + first 5 of page 1. */
+    /* Straddle the boundary: last 3 bytes of page 0 + first 5 of page 1.
+     * Construct reference in native guest byte order via an aligned staging
+     * buffer so both little-endian and big-endian guests are verified. */
     {
         unsigned char *edge = base + (size_t)ps - 3;
-        uint64_t got = 0;
-        memcpy(&got, edge, sizeof(got));
-        uint64_t want = 0;
-        for (size_t k = 0; k < sizeof(got); k++) {
-            want |= (uint64_t)edge[k] << (8u * k);
+        unsigned char want_bytes[sizeof(uint64_t)];
+        for (size_t k = 0; k < sizeof(uint64_t); k++) {
+            size_t idx = (size_t)ps - 3u + k;
+            want_bytes[k] = (unsigned char)((idx * 2654435761u) & 255u);
         }
-        if (got != want) {
+        uint64_t got = 0;
+        uint64_t want = 0;
+        memcpy(&got, edge, sizeof(got));
+        memcpy(&want, want_bytes, sizeof(want));
+        if (got != want || memcmp(&got, want_bytes, sizeof(got)) != 0) {
             report_fail("unaligned-cross-page", "straddling load mismatch");
             munmap(base, two);
             return;
@@ -377,10 +480,12 @@ static void t_unaligned_cross_page(void)
     {
         unsigned char *edge = base + (size_t)ps - 5;
         uint64_t pattern = 0x0123456789ABCDEFULL;
+        unsigned char pat_bytes[sizeof(pattern)];
+        memcpy(pat_bytes, &pattern, sizeof(pattern));
         memcpy(edge, &pattern, sizeof(pattern));
         uint64_t got = 0;
         memcpy(&got, edge, sizeof(got));
-        if (got != pattern) {
+        if (got != pattern || memcmp(edge, pat_bytes, sizeof(pattern)) != 0) {
             report_fail("unaligned-cross-page", "straddling store mismatch");
             munmap(base, two);
             return;
@@ -530,6 +635,8 @@ static void t_atomic_race(void)
 
 int main(void)
 {
+    const char *allow_skip_env = getenv("TORTURE_ALLOW_SKIP");
+    int allow_skip = (allow_skip_env != NULL && strcmp(allow_skip_env, "1") == 0);
     printf("== P3 torture: signal frames, sigaltstack, VM, atomics ==\n");
     t_sig_frame_gpr();
     t_sig_frame_fpr();
@@ -542,7 +649,7 @@ int main(void)
         printf("P3_TORTURE FAIL (0 passes)\n");
         return 1;
     }
-    if (g_fail > 0) {
+    if (g_fail > 0 || (g_skip > 0 && !allow_skip)) {
         printf("P3_TORTURE FAIL\n");
         return 1;
     }
