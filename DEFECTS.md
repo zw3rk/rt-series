@@ -1,6 +1,6 @@
-# `rt-series` Master Defect, Curated-C11, DRY, YAGNI & CLEAN Checklist (Round 3 + Round 2 & Round 1 Archives)
+# `rt-series` Master Defect, Curated-C11, DRY, YAGNI & CLEAN Checklist (Round 4 + Rounds 1–3 Archives)
 
-**Audit Date:** 2026-11-02 (Round 1, Round 2 & Round 3)  
+**Audit Date:** 2026-11-03 (Round 4; Rounds 1–3 on 2026-11-02)  
 **Static Auditor ("Hunting"):** `gpt-6-astra` (`codex exec -m gpt-6-astra --sandbox read-only`) across 11 concurrent read-only static audit lanes  
 **Remediation Engine ("Fixing"):** `muse` (`muse exec --yolo --parallel-tool-calls`)  
 **Post-Remediation Verifier ("Review"):** `claude-fable-5-1` (`claude -p --model claude-fable-5-1 --effort high`)  
@@ -11,7 +11,1294 @@
 
 ---
 
-## 0. Executive Summary & Per-Repository Audit Matrix
+## Part I — Round-4 Active Checklist (`0 / 125` Resolved)
+
+### 0.1 Round 4 Audit Matrix (Active Open Checklist — `0 / 125` Resolved)
+
+Following complete remediation, `fable` (`claude-fable-5-1`) verification review, and `muse` post-review follow-up across Round 1 (`187` items), Round 2 (`145` items), and Round 3 (`85` items), Round 4 performed a fresh `gpt-6-astra` static audit of all 11 repositories at their post-Round-3 `HEAD` commits (`125` findings: `0 Critical`, `76 High`, `33 Medium`, `16 Low`).
+
+| # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R4 Open** | Raw Round-4 `astra` Transcript |
+|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | `a32rt` | Class A | `5561e7e` | 8 | 1 | 0 | 8 | 1 | 0 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r4-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-a32rt-astra.md) |
+| 2 | `i686rt` | Class A | `ca4c9a2` | 7 | 3 | 2 | 8 | 2 | 1 | 1 | 0 | **0 / 12** | [`2026-11-03-defects-r4-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r4-i686rt-astra.md) |
+| 3 | `mips32rt` | Class A | `4cead69` | 8 | 2 | 2 | 8 | 2 | 1 | 1 | 0 | **0 / 12** | [`2026-11-03-defects-r4-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-mips32rt-astra.md) |
+| 4 | `ppc32rt` | Class A | `f083489` | 12 | 0 | 1 | 11 | 1 | 0 | 1 | 0 | **0 / 13** | [`2026-11-03-defects-r4-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-ppc32rt-astra.md) |
+| 5 | `sparc32rt` | Class A | `f7d73db` | 11 | 3 | 2 | 12 | 2 | 1 | 1 | 0 | **0 / 16** | [`2026-11-03-defects-r4-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-sparc32rt-astra.md) |
+| 6 | `rvrt` | Class B | `b1b08af` | 3 | 5 | 1 | 6 | 2 | 1 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r4-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r4-rvrt-astra.md) |
+| 7 | `loongarch64rt` | Class B | `1907d96` | 12 | 4 | 2 | 13 | 2 | 1 | 1 | 1 | **0 / 18** | [`2026-11-03-defects-r4-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-loongarch64rt-astra.md) |
+| 8 | `ppc64rt` | Class B | `56bec31` | 3 | 3 | 2 | 6 | 1 | 1 | 0 | 0 | **0 / 8** | [`2026-11-03-defects-r4-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-ppc64rt-astra.md) |
+| 9 | `mips64rt` | Class B | `f7c6924` | 4 | 4 | 2 | 7 | 1 | 1 | 1 | 0 | **0 / 10** | [`2026-11-03-defects-r4-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-mips64rt-astra.md) |
+| 10 | `sparc64rt` | Class B | `5232650` | 8 | 2 | 1 | 9 | 1 | 1 | 0 | 0 | **0 / 11** | [`2026-11-03-defects-r4-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-sparc64rt-astra.md) |
+| 11 | `rt-series` | Harness | `5e6cbc0` | 0 | 6 | 1 | 2 | 4 | 1 | 0 | 0 | **0 / 7** | [`2026-11-03-defects-r4-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r4-rt-series-astra.md) |
+| | **Total (Round 4)** | | | **76** | **33** | **16** | **90** | **19** | **9** | **6** | **1** | **0 / 125** | |
+
+### 0.2 Round 4 Cross-Cutting Defect Clusters (Cross-Runtime Check Index)
+
+- [ ] **X-R4-1 — High — File-Mapping Coordinate vs Guest-VA Confusion, Truncate/EOF Handling & Staged `MAP_SHARED` Coherence**
+  - **Linked Items**: `A32-R4-4`, `I686-R4-3`, `M32-R4-5`, `M32-R4-9`, `M32-R4-10`, `P32-R4-2..5`, `P32-R4-7`, `P32-R4-9`, `P32-R4-10`, `S32-R4-12`, `LA64-R4-3`, `LA64-R4-5`, `LA64-R4-6`, `LA64-R4-9`, `LA64-R4-10`, `M64-R4-1`, `M64-R4-2`
+  - **Summary**: Truncate discard (`LA64-R4-6`) and file-write invalidation (`M64-R4-1`) comparing file offsets against guest VAs instead of intersecting `[file_off, file_off + len)` and translating back to GVA; `ftruncate` hooks (`I686-R4-3`, `P32-R4-9`) calling `memset()` on read-only or beyond-EOF pages; fork snapshots (`A32-R4-4`), `ppc32rt` (`P32-R4-7`), and `sparc32rt` (`S32-R4-12`) reading/exposing zero pages beyond EOF; and staged `MAP_SHARED` writeback/refresh/EOF clamping (`M32-R4-9..10`, `P32-R4-2..5`, `LA64-R4-3`, `LA64-R4-5`, `LA64-R4-9..10`, `M64-R4-2`).
+- [ ] **X-R4-2 — High — Transactional VMA / File-Backing Splits, `mremap` Growth/Relocation Rollback & Darwin Anonymous Replacement**
+  - **Linked Items**: `A32-R4-1`, `A32-R4-2`, `A32-R4-5`, `A32-R4-6`, `A32-R4-8`, `I686-R4-4`, `I686-R4-5`, `I686-R4-11`, `M32-R4-5`, `M32-R4-6`, `M32-R4-7`, `P32-R4-6`, `S32-R4-11`, `S32-R4-13`, `RV-R4-3..6`, `LA64-R4-4`, `P64-R4-3`, `M64-R4-3`, `M64-R4-4`, `S64-R4-3..6`
+  - **Summary**: Darwin anonymous `MAP_FIXED` replacement (`PROT_NONE` or over shared-file sub-pages) retaining old bytes or shared-file backing (`A32-R4-2`, `M32-R4-5`, `S32-R4-11`); 16 KiB sub-page protection widening/restoration and shared-tail placement (`I686-R4-4`, `P32-R4-6`, `RV-R4-3`, `RV-R4-6`, `M64-R4-3`); and non-transactional VMA/file-backing splits, `mremap` growth/relocation rollback, and same-start prefix replacement (`A32-R4-1`, `A32-R4-5..6`, `A32-R4-8`, `I686-R4-5`, `M32-R4-6..7`, `S32-R4-13`, `RV-R4-4`, `LA64-R4-4`, `P64-R4-3`, `M64-R4-4`, `S64-R4-3..6`).
+- [ ] **X-R4-3 — High — `execve` Internal Signal Handoff Env Vars Leaking into Guest Stack & Signal/Exec/FD Lifecycle**
+  - **Linked Items**: `A32-R4-7`, `I686-R4-6`, `S32-R4-4..10`, `S32-R4-14`, `LA64-R4-12..14`, `P64-R4-4..7`, `M64-R4-8`, `S64-R4-7..8`
+  - **Summary**: `A32RT_EXEC_SIG*` / `PPC64RT_EXEC_SIG*` handoff env vars copied onto the guest stack before `unsetenv()` or duplicated across repeated `execve` (`A32-R4-7`, `P64-R4-6`); worker `execve` pending-signal & default-disposition inheritance (`P64-R4-4..5`, `S32-R4-9`); `SA_RESETHAND` handler snapshotting before reset (`LA64-R4-12`), `sigaltstack` old-state snapshot before overwrite (`M64-R4-8`), thread-safe signal-action snapshots (`I686-R4-6`), SPARC↔host signal translation & per-thread signal state (`S32-R4-4..8`, `S64-R4-8`), and `CLOEXEC` deferral until exec commit (`S32-R4-10`, `S32-R4-14`, `S64-R4-7`).
+- [ ] **X-R4-4 — High — Multi-Threaded `fork()` / `clone()` Lock Ordering, Shared Metadata Privatization & DBT Quiescence**
+  - **Linked Items**: `A32-R4-3`, `I686-R4-1`, `I686-R4-2`, `M32-R4-8`, `P32-R4-8`, `S32-R4-1..3`, `LA64-R4-7..8`, `LA64-R4-11`, `S64-R4-9`
+  - **Summary**: `a32rt` resuming parent threads before restoring guest protections after `fork` (`A32-R4-3`), `i686rt` `fork` vs A2 futex lock-order inversion (`I686-R4-1`) and `MAP_SHARED` `s_prot`/`s_state`/`s_flags` metadata (`I686-R4-2`), `ppc32rt` `fork` vs `ftruncate` lock-order inversion (`P32-R4-8`), `sparc32rt` `clone` startup struct UAF (`S32-R4-1`), retired thread copyout (`S32-R4-2`), and DBT invalidation before releasing `vm_lock` (`S32-R4-3`), `loongarch64rt` pre-fork inode refcount & process-local `dupfd` (`LA64-R4-7..8`) and file map/unmap under VM quiescence (`LA64-R4-11`), and `sparc64rt` futex deadline preservation across `-EINTR` retries (`S64-R4-9`).
+- [ ] **X-R4-5 — High — Syscall Copyout LL/SC Interior Bucket Invalidation, Sub-Page Permission Checks & Vectored I/O**
+  - **Linked Items**: `A32-R4-9`, `I686-R4-8`, `I686-R4-9`, `M32-R4-1`, `M32-R4-2`, `P32-R4-1`, `P32-R4-11`, `P32-R4-12`
+  - **Summary**: `mips32rt` bulk copyout bumping only the first and last 64-byte LL/SC buckets instead of all spanned buckets (`M32-R4-1`) and `read`/`readv` bypassing tracked copyout (`M32-R4-2`), `ppc32rt` `sys_vec` `readv` subtracting `total` during SMC invalidation and returning `0` (`P32-R4-1`) plus sub-page permission & LL/SC copyout (`P32-R4-11..12`), `a32rt` `epoll_wait` validating only 1 event (`A32-R4-9`), and `i686rt` `pread64`/`pwrite64` A2 marshalling (`I686-R4-8`).
+- [ ] **X-R4-6 — High — ISA / FPU Emulation, DBT Codegen & Intra-Repo DRY / YAGNI / Harness**
+  - **Linked Items**: `I686-R4-7`, `I686-R4-10..12`, `M32-R4-3..4`, `M32-R4-11..12`, `P32-R4-13`, `S32-R4-15..16`, `RV-R4-1..2`, `RV-R4-7..9`, `LA64-R4-1..2`, `LA64-R4-15..18`, `P64-R4-1..2`, `P64-R4-8`, `M64-R4-5..7`, `M64-R4-9..10`, `S64-R4-1..2`, `S64-R4-10..11`, `RTS-R4-1..7`
+
+---
+
+## 1. `a32rt` (`5561e7e`) — 9 Round-4 Findings (`0 / 9` Resolved)
+
+Found **9 actionable issues** at HEAD `5561e7e`. The Round-3 fixes are present, but several replacement, remapping, fork, and exec paths remain incomplete.
+
+Used exactly **7 shell inspection commands**, including the requested history commands. No Markdown files, builds, tests, containers, or QEMU were read or run. These are static findings; runtime reproduction remains outstanding. The working tree is clean.
+
+**A32-R4-1 — Repeated private-file `mremap` loses backing**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_mremap.c:194`
+- **Evidence & Root Cause:** In-place growth creates a separate file-tracking record for the extension. Only shared mappings receive the attempted record merge at line 207. A subsequent private remap spanning the enlarged range fails `mremap_priv_lookup()`’s single-record coverage requirement at line 66. The caller treats this as anonymous backing: further growth supplies zero-filled pages, and relocation drops file identity and EOF behavior. Descriptor-duplication failure also silently takes this anonymous fallback.
+- **Concrete Fix:** Coalesce compatible private backing records after growth, or resolve backing across contiguous records with matching inode and offsets. Distinguish absent backing from lookup/resource errors and propagate errors. Add regressions for grow→grow and grow→move, including descriptor exhaustion.
+
+**A32-R4-2 — Darwin anonymous replacement retains old storage and sharing**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/backend_darwin.c:77`
+- **Evidence & Root Cause:** The replacement branch uses `mprotect`, optional `memset`, and `minherit`; it never replaces the backing object. Replacing a shared-file mapping with private anonymous memory therefore writes zeros into the shared file and leaves subsequent accesses attached to it. Separately, anonymous `PROT_NONE` replacement skips zeroing entirely; a later `mprotect` exposes bytes from the previous mapping.
+- **Concrete Fix:** Install genuinely fresh anonymous backing. For sub-page replacements, preserve unaffected 4 KiB siblings while replacing the necessary host-page storage, and retain shared aliases correctly. Add shared-file→anonymous replacement and `PROT_NONE`→read/write zero-fill regressions on Darwin.
+
+**A32-R4-3 — Fork resumes parent threads before restoring protections**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/os_sys_fork_time.c:226`
+- **Evidence & Root Cause:** The snapshot path changes guest clusters to `PROT_NONE` at lines 211–218. Immediately after `fork()`, the parent calls `a32_jit_fork_parent()`, clearing the execution barrier and releasing the JIT lock. Guest protections are restored only at lines 250–255. Another guest thread can resume inside this interval and fault on valid memory.
+- **Concrete Fix:** Keep parent execution blocked until all guest protections are restored, including the failed-fork path. Check restoration failures before reopening execution. Add a concurrent memory-access/fork regression.
+
+**A32-R4-4 — Fork snapshot reads inaccessible EOF pages**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/os_sys_fork_time.c:208`
+- **Evidence & Root Cause:** Snapshot selection uses VMA permissions, then copies each entire region. File mappings retain their requested VMA permissions even when `a32_vm32_set_eof_cut()` makes trailing pages inaccessible on A1. A readable mapping extending beyond EOF consequently reaches this unconditional `memcpy` over protected pages. Signals are blocked during the operation. The new EOF-aware `mremap` handling has no equivalent here.
+- **Concrete Fix:** Snapshot accessible file-backed prefixes page by page, respecting EOF cuts. Preserve cut metadata and protections during restoration rather than applying VMA permissions across the whole region. Add fork coverage for fresh beyond-EOF mappings and mappings truncated before fork.
+
+**A32-R4-5 — Same-start prefix replacement defeats the new capacity preflight**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:151`
+- **Evidence & Root Cause:** `a32_vmfile_check_replace()` treats any record beginning at `start_gva` as reusable. If the replacement covers only its prefix, retirement moves that record’s start to `unmap_end` at lines 664–666; its slot remains occupied by the surviving suffix. With a full table, preflight nevertheless succeeds. `a32_vm_mmap_locked()` retires metadata at line 635, then fails its second capacity check at line 639, leaving the old host prefix mapped without its previous tracking.
+- **Concrete Fix:** Count same-start records as freed only when fully covered. Reserve replacement and split resources before retiring anything. Add a full-table test replacing only the first page of a larger file mapping.
+
+**A32-R4-6 — Failed backing splits silently preserve records over unmapped memory**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:634`
+- **Evidence & Root Cause:** Middle splits silently `continue` when a slot or duplicated descriptor cannot be obtained; the private-record path does likewise at lines 673–678. The caller receives no error. `munmap` has already replaced the host range, and anonymous `MAP_FIXED` bypasses the file replacement preflight. Old backing records can therefore cover holes or unrelated anonymous mappings. Later file truncation can apply EOF cuts to that unrelated memory.
+- **Concrete Fix:** Make backing retirement fallible and reserve all split slots/descriptors before host or VMA mutation. Propagate failure without changing the mapping. Exercise both table exhaustion and `EMFILE` during middle unmap/replacement.
+
+**A32-R4-7 — Exec signal variables survive in the guest environment and override fresh state**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/main.c:349`
+- **Evidence & Root Cause:** The guest stack receives `envp` before `exec_signal_restore()` unsets the three transport variables at line 357. Unsetting the host environment does not remove the guest’s copied strings. On another exec, `os_sys_sig_time.c:669` copies those old entries and appends new entries with identical names. Startup `getenv()` can consequently consume the earlier, stale signal mask, ignored set, and pending set. The claimed native-child cleanup is also incomplete because native exec receives the guest-supplied environment.
+- **Concrete Fix:** Consume and remove transport entries before constructing the guest environment. Filter existing transport keys when composing subsequent exec environments, then insert exactly one current value per key. Add repeated-exec tests that change masks and dispositions between execs.
+
+**A32-R4-8 — VMA exhaustion makes partial `mprotect` alter unrelated metadata**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm.c:280`
+- **Evidence & Root Cause:** When splitting a VMA cannot allocate entries, `vm_mprotect_regions_locked()` substitutes `r->prot = prot` for the whole original region. Similar fallbacks exist at lines 288 and 297. Host permissions and Soft-TLB permissions are changed only for the requested range, while the VMA records claim broader changes. The syscall still reports success, leaving contradictory permission state for subsequent VM operations.
+- **Concrete Fix:** Preflight required VMA splits before changing host permissions. Return `-ENOMEM` without mutation when capacity is insufficient; never widen the metadata update. Add a saturated-region-table partial-`mprotect` regression.
+
+**A32-R4-9 — Epoll output validation covers only one event**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `src/os/os_sys_fs_arm.c:89`
+- **Evidence & Root Cause:** Both `epoll_wait` and `epoll_pwait` validate only `sizeof(struct epoll_event)` bytes, then pass guest memory directly to the kernel with guest-controlled `maxevents`. Additional returned events can cross guest protection boundaries. This matters on A2 Linux hosts, where host-page permissions can permit writes that guest 4 KiB permissions prohibit.
+- **Concrete Fix:** Check the complete bounded output extent, or receive events into a host buffer and perform checked guest copyout for the returned count. Share that validation/copyout helper between both branches. Add a multiple-ready-event test with the buffer ending immediately before a protected guest page.
+
+The inspected source files satisfy the 900-line limit, and the targeted search found no forbidden string functions, unity includes, or literal `x18` use. Warning policy includes the requested C11 flags. This was not compilation-based compliance verification. No sufficiently supported standalone DRY, YAGNI, or CLEAN finding emerged; ISA/FPU and concurrency coverage is not exhaustive within the inspection budget.
+
+- [ ] **A32-R4-1:** Preserve private backing across repeated remaps and propagate lookup errors.
+- [ ] **A32-R4-2:** Replace Darwin anonymous backing without retaining old bytes or file aliases.
+- [ ] **A32-R4-3:** Restore parent protections before reopening JIT execution.
+- [ ] **A32-R4-4:** Make fork snapshots and restoration respect EOF cuts.
+- [ ] **A32-R4-5:** Correct capacity accounting for same-start prefix replacements.
+- [ ] **A32-R4-6:** Reserve backing-split resources before mutation and propagate failures.
+- [ ] **A32-R4-7:** Remove stale exec signal transport entries from guest environments.
+- [ ] **A32-R4-8:** Reject partial protection changes when VMA splits cannot be represented.
+- [ ] **A32-R4-9:** Validate or safely copy out the complete epoll result.
+
+---
+
+## 2. `i686rt` (`ca4c9a2`) — 12 Round-4 Findings (`0 / 12` Resolved)
+
+Found **12 actionable issues** at HEAD `ca4c9a2`. The Round-3 and follow-up changes are present, but fork locking, remap rollback, and file-backing paths remain incomplete.
+
+Used seven shell inspection commands, including the requested history commands. No builds, tests, containers, or QEMU ran. Findings below are static conclusions, not runtime reproductions. The line-count scan found no `.c`, `.h`, or `.S` file over 900 lines; no separate CLEAN finding is asserted.
+
+**I686-R4-1 — Fork preparation reverses the A2 futex lock order**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm32.c:89`
+- **Evidence & Root Cause:** `i686_vm32_fork_prepare()` acquires `s_subpage_mtx`, then `s_futex_mtx`. `i686_vm32_futex()` acquires `s_futex_mtx` at line 351 and calls `vm32_futex_load_u32()`, which acquires the subpage lock at line 295. Concurrent fork and A2 `FUTEX_WAIT` can each hold the mutex the other needs. `FUTEX_CMP_REQUEUE` has the same inversion.
+- **Concrete Fix:** Establish one lock order for fork, futex value validation, and waiter registration. Preserve atomic check-and-enqueue semantics when restructuring; simply releasing the futex mutex before checking introduces lost wakeups.
+
+**I686-R4-2 — Fork shares address-space protection metadata**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:126`
+- **Evidence & Root Cause:** `s_prot`, `s_state`, and `s_flags` use `MAP_SHARED | MAP_ANONYMOUS`. Fork handlers reset locks but do not privatize these arrays. A child's `munmap()` clears protection and mapped flags through `rt32_vm_file_sync_prot_locked()` (`src/rt32/rt32_vm.c:232`), changing the parent's metadata despite separate VMAs. A2 permission checks and host-page protection reconstruction consequently use another process's mapping state.
+- **Concrete Fix:** Make per-address-space protection, presence, and private-COW state fork-private. Keep any genuinely shared file-object state separate and keyed by backing identity rather than guest address.
+
+**I686-R4-3 — Truncate maintenance writes directly into inaccessible file pages**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:336`
+- **Evidence & Root Cause:** `i686_pass_r_ftruncate64()` invokes `i686_vm_file_note_ftruncate()` after successful host truncation. That function calls `i686_vm_file_note_shrink()`, which blindly `memset()`s entire pages past EOF. Read-only staged mappings are not writable; native file mappings wholly beyond the new EOF can raise SIGBUS even when writable. The hook also traverses `s_maps` without the VM lock, racing mapping removal and replacement.
+- **Concrete Fix:** Serialize tracking changes. Let native mappings retain host EOF behavior without touching invalidated pages. For staged mappings, maintain explicit EOF validity and update accessible partial-page bytes through a checked protection window. Do not implement beyond-EOF pages as ordinarily readable zero pages.
+
+**I686-R4-4 — A2 remap copies through protections that have already been restored**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/rt32_vm_mmap.c:525`
+- **Evidence & Root Cause:** The provisional destination comes from `vm_mmap2_locked()`, which restores A2 covering-page protections and releases the subpage lock before returning. Relocation then performs raw `memcpy()` at line 534. A valid writable destination sharing a 16 KiB host page with an unmapped subpage can therefore be host `PROT_NONE`. The source workaround at line 529 also passes a merely 4 KiB-aligned address to `mprotect()` and ignores failure.
+- **Concrete Fix:** Copy staged mappings under the subpage exclusion protocol, temporarily opening aligned source and destination host-page covers. Check protection changes and restore every opened cover on success and failure.
+
+**I686-R4-5 — File remap rollback can discard the original backing record**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/rt32_vm_mmap.c:409`
+- **Evidence & Root Cause:** In-place growth removes tracking for the entire expanded range before installing its replacement. `i686_vm_file_track_map()` can fail when duplicating the backing descriptor (`src/vm/vm_file.c:348`). The error branch only unmaps the extension; it never restores the original mapping's tracking. HEAD's `rec_rc` check fixes one earlier failure ordering, but does not make this replacement transactional.
+- **Concrete Fix:** Prepare the replacement record and owned descriptor before deleting existing records. Commit the replacement atomically under the VM lock; preserve the original record and descriptor on every failure.
+
+**I686-R4-6 — Signal-action lookup returns a process-global scratch object**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/sys_pass.c:29`
+- **Evidence & Root Cause:** Every `i686_gsig_tab()` call overwrites the same static `v`. Concurrent deliveries for different signals retain pointers to that object while building frames and reading flags and masks. One thread can substitute another signal's action mid-delivery. Concurrent `rt_sigaction()` also reads and writes `s_sigact` without synchronization, allowing torn actions and C data races.
+- **Concrete Fix:** Return an action snapshot into caller-owned storage. Synchronize publication and reads of the complete action, using a mechanism suitable for every calling context. Carry that single snapshot through delivery and frame construction.
+
+**I686-R4-7 — Default x87 logarithm handling rejects valid inputs and reverses infinity signs**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/interp/h_x87_math.c:534`
+- **Evidence & Root Cause:** The default binary64 path rejects every `a < 0.0`, including valid `FYL2XP1` inputs such as `a = -0.25`. For `FYL2X` with `a = 0` and positive `b`, line 542 produces positive infinity, although `b × log2(0)` is negative infinity. Zero multipliers also need invalid-operation handling rather than unconditional infinity.
+- **Concrete Fix:** Separate the two instructions' domain checks. Handle zero, signed multiplier, infinities, and invalid products explicitly before the ordinary logarithm calculation. Add focused cases for negative valid `FYL2XP1` inputs and `FYL2X` zero operands.
+
+**I686-R4-8 — Positioned I/O bypasses A2 guest-buffer marshalling**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/sys_pass_io.c:436`
+- **Evidence & Root Cause:** `sys_pread64()` and `sys_pwrite64()` pass `i686_guest_ptr()` directly to host I/O after checking only the lower address bound. A valid guest buffer on a restrictive A2 covering page returns host `EFAULT`; kernel copy faults do not enter the runtime's user-space healing checkpoint. These paths also omit the guest-span overflow validation provided by the copy helpers.
+- **Concrete Fix:** Use bounded host buffers with checked guest copy-in/copy-out, or a complete validated and synchronized host-access window. Preserve short-I/O semantics and route successful copyout through the required memory-write bookkeeping.
+
+**I686-R4-9 — Darwin file-copy backend ignores the explicit output offset**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `src/os/backend_darwin_io.c:280`
+- **Evidence & Root Cause:** `rt_host_copy_file_range()` calculates `out` from `*off_out`, then calls `rt_host_sendfile()`. That helper uses `write(out_fd, ...)`, so copying occurs at the descriptor's current position and advances it. The function nevertheless reports advancement of the supplied explicit offset. This differs from the Linux backend contract. No guest syscall caller was found, so this is currently a backend API defect.
+- **Concrete Fix:** Implement positioned writes when `off_out` is supplied, leaving the descriptor position unchanged. Advance only the offsets corresponding to bytes actually copied, and reject unsupported flags.
+
+**I686-R4-10 — x86_64 incremental builds ignore header changes**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `Makefile:74`
+- **Evidence & Root Cause:** The x86_64 object rule depends only on `src/%.c`, unlike the ordinary and Darwin rules that include `$(HDRS)`. Editing context layouts, decoder declarations, or inline helpers can leave stale interpreter objects and produce an inconsistent binary.
+- **Concrete Fix:** Add `$(HDRS)` to this rule, or generate and include compiler dependency files consistently across object variants.
+
+**I686-R4-11 — File-map replacement capacity logic is duplicated**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `src/vm/vm_file.c:405`
+- **Evidence & Root Cause:** `i686_vm_file_can_replace()` and `i686_vm_file_untrack_map()` independently calculate free slots and interior splits. Their validation already differs: only the former rejects zero-length or beyond-window spans. This duplicates the rules governing a mutation-sensitive operation.
+- **Concrete Fix:** Introduce one repo-local replacement planner that validates the span and computes required slots and splits. Use its result for both preflight and commit, including preparation of required descriptors.
+
+**I686-R4-12 — The old registry host-TID setter is unused**
+
+- **Severity:** Low
+- **Category:** YAGNI
+- **Location:** `src/os/clone.c:158`
+- **Evidence & Root Cause:** Round-3 removed the setter's call from `thread_entry()` in favor of the startup handshake. Source searches found only its declaration and definition, with no callers or public-header declaration. The compatibility comment now preserves unused mutation machinery.
+- **Concrete Fix:** Remove `i686_thread_registry_set_host_tid()` and its obsolete compatibility comment.
+
+- [ ] **I686-R4-1:** Unify fork and A2 futex lock ordering.
+- [ ] **I686-R4-2:** Make address-space metadata fork-private.
+- [ ] **I686-R4-3:** Repair truncate protection, EOF, and synchronization handling.
+- [ ] **I686-R4-4:** Copy A2 remaps through checked protection windows.
+- [ ] **I686-R4-5:** Make file-remap tracking replacement transactional.
+- [ ] **I686-R4-6:** Publish and consume coherent signal-action snapshots.
+- [ ] **I686-R4-7:** Correct x87 logarithm domain and exceptional results.
+- [ ] **I686-R4-8:** Marshal positioned-I/O guest buffers safely.
+- [ ] **I686-R4-9:** Honor Darwin file-copy output offsets.
+- [ ] **I686-R4-10:** Track headers in x86_64 incremental builds.
+- [ ] **I686-R4-11:** Unify file-map replacement planning.
+- [ ] **I686-R4-12:** Remove the unused registry setter.
+
+---
+
+## 3. `mips32rt` (`4cead69`) — 12 Round-4 Findings (`0 / 12` Resolved)
+
+Found **12 actionable issues** at HEAD `4cead69`. The Round-3 and post-fable fixes are present, but several paths remain incomplete.
+
+Used exactly **7 shell inspection commands**, including the requested history commands. No Markdown documents, builds, tests, containers, or QEMU were run. The working tree is clean. Findings below are static traces, not runtime reproductions.
+
+**M32-R4-1 — Bulk copyout misses interior LL/SC reservation epochs**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/mem.c:405`
+- **Evidence & Root Cause:** `rt32_vm_copy_to()` now reaches `mips_guest_store_commit()`, but `ll_epoch_bump_locked()` increments only the first and last 64-byte buckets. That was sufficient for small stores, not arbitrary copyout or mremap lengths. A peer’s reservation at `base + 64` survives a same-value 192-byte copyout starting at aligned `base`. The Round-3 test covers only four bytes.
+- **Concrete Fix:** Increment every affected bucket under the existing lock; for ranges spanning the entire hash table, increment each bucket once. Add a two-context regression reserving an interior word.
+
+**M32-R4-2 — `read` and `readv` still bypass tracked copyout**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/syscall_min.c:149`
+- **Evidence & Root Cause:** `sc_read()` passes the guest address directly to host `read()`. Likewise, `src/os/syscalls.c:665` builds guest-backed iovecs for host `readv()`. Neither path invokes the new store-commit primitive. A host read that overwrites a peer’s reserved word with the same value leaves its epoch unchanged, allowing SC to succeed.
+- **Concrete Fix:** Read into host staging storage, then commit the returned bytes through validated, epoch-tracked copyout. Preserve partial-read and iovec ordering semantics. Do not hold the LL spinlock across blocking I/O. Add actual read/readv regressions.
+
+**M32-R4-3 — DBT `CVT.L` destroys the low result word**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/dbt/emit_fp_cvt.c:203`
+- **Evidence & Root Cause:** The 64-bit conversion initially places its low word in `A64_TMP1`. The negative-overflow check then overwrites that register with a Boolean predicate at lines 203–207. Line 212 selects between `0xFFFFFFFF` and that predicate, and line 215 stores it as the conversion result. For an ordinary exact conversion such as `CVT.L.D(1.0)`, the low word becomes zero.
+- **Concrete Fix:** Preserve both result halves while calculating the overflow predicate in separate scratch storage. Add interpreter/DBT comparisons for exact positive and negative values with nonzero low words, plus both overflow boundaries.
+
+**M32-R4-4 — DBT conversion pre-rounding loses Inexact**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/dbt/emit_fp_cvt.c:123`
+- **Evidence & Root Cause:** For `CVT.W`/`CVT.L` with round-to-nearest, the emitter uses `FRINTN` before `FCVTZS`. The rounding step does not report Inexact, and the subsequent conversion receives an integral operand. In contrast, `src/interp/fp.c:618` raises `FP_E_I` for discarded fractional bits in these conversions. Thus `CVT.W.D(1.5)` can produce matching integer results but divergent FCSR state.
+- **Concrete Fix:** Preserve discarded-fraction information or use an appropriate exact rounding sequence, then merge Inexact into the guest exception machinery. Test FCSR flags, causes, and enabled-exception behavior across rounding modes.
+
+**M32-R4-5 — Darwin sub-page replacement retains the previous file backing**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/vm_mmap.c:173`
+- **Evidence & Root Cause:** An aligned 16 KiB file mapping takes the direct host `mmap()` path at line 161. Replacing one 4 KiB slice takes the shadow path, which merely changes protection and calls `memset()`/`pread()` on the existing host mapping. If that mapping was `MAP_SHARED`, creating a supposedly anonymous replacement writes zeros into the original file. The replacement also remains physically file-backed despite its new VMA metadata.
+- **Concrete Fix:** Convert affected direct host pages to owned shadow backing before replacing sub-pages, preserving neighboring bytes and their backing metadata. Add a regression mapping a shared 16 KiB file page, replacing one 4 KiB slice anonymously, and checking file contents and subsequent isolation.
+
+**M32-R4-6 — `mremap` accepts incompatible adjacent file mappings**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/vm.c:514`
+- **Evidence & Root Cause:** `vm_check_mapped_range_locked()` checks subsequent regions only for matching protection and flags. It returns backing information from the first region without checking subsequent inode identities or file offsets. `rt32_vm_mremap()` then uses that single backing to recreate the whole shared range at `src/rt32/vm_mmap.c:506`. Adjacent mappings of different files with identical flags/protection can therefore become entirely backed by the first file.
+- **Concrete Fix:** Require compatible backing identity and contiguous offsets for a remappable range, or preserve each segment explicitly. Reject unsupported multi-mapping ranges before modifying the destination. Cover different files and discontinuous offsets within one file.
+
+**M32-R4-7 — Failed Darwin population leaves modified mappings and elevated protection**
+
+- **Severity:** High
+- **Category:** DEFECT
+- **Location:** `src/rt32/vm_mmap.c:187`
+- **Evidence & Root Cause:** The shadow path elevates the host-rounded range to RW and zeros its contents before reading the file. On a population error, it closes the duplicate descriptor and returns immediately. It neither restores protection nor reconciles the old VMA metadata with the overwritten bytes. With `MAP_FIXED`, an existing mapping can retain its old metadata after its contents have been destroyed.
+- **Concrete Fix:** Stage fallible file population before modifying live mappings. Ensure every failure after protection elevation restores host protections and leaves mapping metadata consistent with the actual backing. Add injected read-error coverage for both vacant and occupied destinations.
+
+**M32-R4-8 — Clone writes `ctid` without `CLONE_CHILD_SETTID`**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/os/threads.c:250`
+- **Evidence & Root Cause:** Clone stores the supplied `ctid` unconditionally in `t->ctid` at line 355. The child then writes its TID whenever that pointer is nonzero, regardless of `CLONE_CHILD_SETTID`. This modifies an argument that should be ignored when neither child-TID flag is set, and adds an unintended startup write for `CLONE_CHILD_CLEARTID` alone.
+- **Concrete Fix:** Track startup SETTID and exit CLEARTID separately. Gate the startup write on `CLONE_CHILD_SETTID`; retain the pointer independently for clearing on exit. Revisit the parent alias suppression using the actual startup-write condition.
+
+**M32-R4-9 — Darwin writeback treats read errors as a valid zero baseline**
+
+- **Severity:** High
+- **Category:** DEFECT
+- **Location:** `src/rt32/vm_darw.c:173`
+- **Evidence & Root Cause:** The baseline buffer is zero-initialized. A non-EINTR `pread()` failure merely breaks the loop; it does not set `rc` or abort processing. The function then compares against incomplete baseline data, propagates bytes into aliases, and may write the whole chunk back. A failed baseline read can consequently erase file bytes represented by the untouched zero portion of the buffer.
+- **Concrete Fix:** Distinguish EOF from read failure and stop before alias mutation or writeback on failure. Propagate the error through flush callers that currently discard it. Add fault-injected short-read/EIO coverage.
+
+**M32-R4-10 — Shadow flush can overwrite newer direct-mapping writes**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/vm_darw.c:209`
+- **Evidence & Root Cause:** Dirty detection compares a shadow against the *current file*, not the shadow’s last synchronized contents. Create a shadow alias and an aligned direct shared alias of the same initially zero bytes. Write `1` through the direct alias; the file now reads `1`, while the shadow still contains `0`. Flushing the untouched shadow classifies its zero as dirty and overwrites both the direct alias and file. The Round-3 shadow-to-shadow propagation does not resolve this mixed-backing case.
+- **Concrete Fix:** Use coherent shared backing or actual dirty tracking with a retained synchronization baseline. Do not infer dirtiness solely from disagreement with current file contents. Add both alias-creation orders and direct-write/shadow-flush regressions.
+
+**M32-R4-11 — FPR cache indexing is duplicated across emitters**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `src/dbt/emit_fp_cvt.c:29`
+- **Evidence & Root Cause:** The cache hash implemented by `fpr_slot()` in `src/dbt/emit_fp.c:142` is repeated in conversion invalidation, including line 221. The comment explicitly acknowledges the duplication. A change to indexing can leave invalidation targeting a different slot.
+- **Concrete Fix:** Put the cache-index calculation in one repo-local inline helper in `emit_fp_priv.h`, and use it for lookup and invalidation.
+
+**M32-R4-12 — Follow-up kill handling contains unreachable fallback scaffolding**
+
+- **Severity:** Low
+- **Category:** YAGNI
+- **Location:** `src/os/kill.c:232`
+- **Evidence & Root Cause:** The fallback handles nonzero `mips_signal_pend()` results for real-time `SI_USER`. However, `src/os/sigqueue.c:126` explicitly returns success for that overflow case, making the fallback unreachable. `KILL_SI_QUEUE` at line 59 also has no use.
+- **Concrete Fix:** Remove the unreachable fallback and unused macro. Keep overflow policy in `mips_signal_pend()`.
+
+The CLEAN inspection found no source exceeding 900 lines; the largest is `src/dbt/emit_int.c` at 899. Searches found no forbidden string functions, `atoi`, or `.c` includes, and textual `x18`/`w18` matches were comments. Makefile warning flags match the requested set. These checks do not establish full C11 compliance or validate encoded register operands.
+
+- [ ] **M32-R4-1:** Update every reservation bucket affected by bulk copyout.
+- [ ] **M32-R4-2:** Route read/readv results through tracked copyout.
+- [ ] **M32-R4-3:** Preserve the low word of DBT 64-bit conversion results.
+- [ ] **M32-R4-4:** Preserve conversion Inexact state.
+- [ ] **M32-R4-5:** Replace Darwin sub-pages without retaining old file backing.
+- [ ] **M32-R4-6:** Validate backing continuity before mremap.
+- [ ] **M32-R4-7:** Make Darwin population failure paths consistent.
+- [ ] **M32-R4-8:** Honor `CLONE_CHILD_SETTID` independently of CLEARTID.
+- [ ] **M32-R4-9:** Abort shadow writeback on baseline read errors.
+- [ ] **M32-R4-10:** Fix mixed direct/shadow shared-mapping coherence.
+- [ ] **M32-R4-11:** Centralize FPR cache indexing locally.
+- [ ] **M32-R4-12:** Remove unreachable kill fallback and unused macro.
+
+---
+
+## 4. `ppc32rt` (`f083489`) — 13 Round-4 Findings (`0 / 13` Resolved)
+
+Found **13 actionable issues** at `f083489`, including data corruption, incorrect syscall results, and a fork deadlock.
+
+Used seven shell inspection commands. No Markdown documents, builds, tests, Docker, or QEMU were read or run. History confirms the Round-3 operand snapshot, signal synchronization, and exec-mask changes are present; the VM and fork fixes remain incomplete. Findings below are static code-path conclusions, not runtime reproductions.
+
+**P32-R4-1 — Successful `readv` returns zero**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/syscalls.c:198`
+- **Evidence & Root Cause:** `sys_vec()` accumulates transferred bytes in `total`, then subtracts those bytes while walking destinations for SMC invalidation. Line 216 returns the depleted `total`. An ordinary successful `readv` therefore reports zero despite modifying its buffers. Earlier error returns after partial progress also bypass this invalidation pass.
+- **Concrete Fix:** Preserve the transferred count separately. Invalidate each completed destination range as transfers finish, and return the preserved count on success or subsequent failure. Add regressions for successful and partially successful `readv`.
+
+**P32-R4-2 — Growing a staging object copies the wrong file bytes**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:356`
+- **Evidence & Root Cause:** When an existing group grows, `vm_file_shared_acquire()` calls `stage_fill(..., file_offset, old, need - old)` at line 500. The destination incorporates `stage_off`, but `pread()` uses only `file_off + done`. The extension receives bytes from the beginning of the mapped file range instead of `file_offset + old`.
+- **Concrete Fix:** Include `stage_off` in the source offset, or explicitly pass `file_offset + old` with a clearly documented helper contract. Test two same-offset aliases with different host-rounded lengths and distinct file-page patterns.
+
+**P32-R4-3 — Overlapping shared mappings do not share storage**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:472`
+- **Evidence & Root Cause:** Staging reuse requires identical `(dev, ino, file_offset)`. Overlapping mappings starting at different offsets receive different backing objects. Host-aligned mappings bypass staging altogether through `shared_direct` in `src/rt32/ppc32_vm.c:430`. Stores therefore fail to propagate between overlapping staged aliases or between staged and direct aliases.
+- **Concrete Fix:** Track shared storage by inode and covered file pages, with consistent backing for every overlapping alias. Integrate ordinary file I/O with that storage. Extend the existing identical-offset alias test to overlapping offsets and direct/staged combinations.
+
+**P32-R4-4 — Refresh writeback overwrites newer file contents**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:479`
+- **Evidence & Root Cause:** The HEAD follow-up detects changed size/mtime, then drains the entire existing staging extent before refilling it. `stage_drain_locked()` writes every byte without dirty tracking. A file write made after staging can therefore be overwritten by stale staged bytes when another alias is mapped. Host-rounded padding is included in the drain.
+- **Concrete Fix:** Never resolve a detected file change by blindly writing the old snapshot back. Implement coherent file mutation handling and dirty-range ownership; exclude untouched padding. Test a file update followed by alias acquisition and verify both the file and aliases retain the update.
+
+**P32-R4-5 — Partial unmap discards a live staging group**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/ppc32_vm_regions.c:785`
+- **Evidence & Root Cause:** GC recognizes a reference only when the VMA’s current `offset` exactly equals the staging group’s original offset. Front trimming changes that offset at line 362. GC then closes and forgets the group even though the remaining mapping still references its host backing. Later aliases receive another object, and subsequent stores through the survivor lose their writeback association.
+- **Concrete Fix:** Store a stable backing-object identity and object-relative offset in each VMA fragment. Preserve that identity through splitting, coalescing, and remapping; reclaim only after the last reference disappears. Test front-unmap followed by alias creation and writeback.
+
+**P32-R4-6 — Automatic placement bypasses the new shared-tail guard**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/ppc32_vm_regions.c:700`
+- **Evidence & Root Cause:** HEAD adds `ppc32_vm_a2_host_page_busy()` checks to fixed and hint placement, but `vm_find_free_gap_aligned_locked()` checks only guest VMAs. For a private allocation, its alignment is 4 KiB, so its scan can choose the unpublished tail of a live 16 KiB shared host page. The A2 private path then zeroes or populates bytes in that shared backing.
+- **Concrete Fix:** Make every placement path account for occupied host backing extents. Apply the same rule to cursor placement and fallback gap scans. Test automatic private allocation after a fixed, one-guest-page shared mapping on A2.
+
+**P32-R4-7 — EOF trapping misses empty files and mappings entirely beyond EOF**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:258`
+- **Evidence & Root Cause:** `vm_file_trap_beyond_eof()` returns for an empty file and also when rounded EOF precedes `map_offset`. Both cases require trapping the entire mapping. Additionally, `vm_mmap2_locked()` invokes this helper only for shared mappings, leaving A2 private file mappings populated with accessible zeroes beyond EOF.
+- **Concrete Fix:** Treat zero length as a valid EOF. Clamp the first trap offset to `max(map_offset, rounded_eof)` and mark the resulting mapped suffix. Apply EOF handling to private file mappings as well. Cover empty files, wholly beyond-EOF offsets, and partial final pages.
+
+**P32-R4-8 — Fork and truncate acquire locks in opposite orders**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/proc.c:122`
+- **Evidence & Root Cause:** Fork acquires TLB then inode locks. Conversely, `vm_file_on_truncate_fd()` holds the inode lock while `file_apply_truncate()` calls `vm32_tlb_invalidate_range()` and `vm32_mark_eof_trap()`. A fork thread holding TLB and a truncate thread holding inode can wait permanently for each other. The truncate syscall does not acquire the outer VM lock to serialize these paths.
+- **Concrete Fix:** Establish one lock order across fork, truncate, and file mutation paths. Serialize mutation through the VM layer and avoid inode-to-TLB nesting that conflicts with fork. Add a bounded concurrent fork/truncate regression using the translator’s syscall paths.
+
+**P32-R4-9 — Truncate writes through inaccessible guest mappings**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:801`
+- **Evidence & Root Cause:** After host `ftruncate()` succeeds, `file_apply_truncate()` unconditionally `memset()`s the resized guest span. A read-only private mapping can fault on that write; a direct mapping beyond the newly shortened EOF can fault with SIGBUS. The inode lock remains held across this access, while host-fault recovery releases only LL/SC and VM locks.
+- **Concrete Fix:** Separate direct kernel-backed mappings from staged mappings. Let the kernel handle direct mapping truncation; update staged storage through a safe backing access path. Do not perform fault-prone guest accesses while holding an unrecoverable lock. Test truncation with read-only and beyond-EOF mappings.
+
+**P32-R4-10 — File tracking loses aliases and depends on reusable fd numbers**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:105`
+- **Evidence & Root Cause:** `file_register()` overwrites the existing record when the same fd creates another mapping, losing the earlier mapping’s range. Truncate matching additionally requires the original fd number at line 863, so truncating through a duplicate or reopened descriptor misses mappings of the same inode. `vm_file_hook_write()` matches only the fd number, allowing descriptor reuse to affect stale records.
+- **Concrete Fix:** Track every mapping independently using stable backing identity and retained descriptor ownership. Match file mutations by inode identity rather than descriptor number. Test multiple mappings from one fd, mutation through `dup`, and close/reuse.
+
+**P32-R4-11 — Syscall memory access bypasses guest sub-page permissions**
+
+- **Severity:** High
+- **Category:** DEFECT
+- **Location:** `src/os/syscalls.c:118`
+- **Evidence & Root Cause:** Read/write and vectored I/O validate only numerical address bounds before passing guest pointers to host syscalls. Likewise, `ppc32_copyin/out()` in `src/os/convert.c:123` use unchecked `memcpy`. On A2, an accessible neighboring sub-page can make the host page writable while the target guest page is read-only or unmapped. These accesses then succeed despite guest permissions.
+- **Concrete Fix:** Consolidate syscall access through repo-local, permission-aware copy helpers. Use stable checked buffers or suitable mapping synchronization for blocking I/O, preserving partial-transfer semantics. Cover inaccessible sub-pages sharing an accessible host page.
+
+**P32-R4-12 — Safe copyout does not invalidate peer reservations**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/ppc32_vm_regions.c:679`
+- **Evidence & Root Cause:** `ppc32_vm_copyout_safe()` writes with `memcpy` without updating reservation epochs or synchronizing with `vm32_sc_attempt()`. Syscall entry invalidates only the calling context’s reservation. Another guest thread can retain a reservation across a syscall copyout that writes the same value, allowing its compare-exchange to succeed incorrectly.
+- **Concrete Fix:** Route copyout through a common guest-write mechanism that serializes against SC and invalidates every affected reservation granule. Apply it to signal/thread copyouts and syscall I/O destinations. Test a peer reservation followed by same-value copyout.
+
+**P32-R4-13 — Unused broadcast truncate API remains exposed**
+
+- **Severity:** Low
+- **Category:** YAGNI
+- **Location:** `src/vm/vm_file.c:829`
+- **Evidence & Root Cause:** Repository references to `vm_file_on_truncate()` consist only of its definition and header declaration. Its implementation applies one file size to every registered mapping regardless of file identity, while the actual syscall uses the fd-specific variant.
+- **Concrete Fix:** Remove the unused broadcast function and declaration. Keep one identity-aware mutation interface.
+
+The source scan found no files exceeding 900 lines and no matches for prohibited string functions, `atoi`, or `.c` includes. Textual `x18`/`w18` matches were comments; encoded register usage and full C11 compliance were not exhaustively verified. No separate DRY or CLEAN finding is asserted.
+
+- [ ] **P32-R4-1:** Preserve `readv` results and invalidate completed transfers.
+- [ ] **P32-R4-2:** Correct staging-extension source offsets.
+- [ ] **P32-R4-3:** Unify backing for overlapping shared aliases.
+- [ ] **P32-R4-4:** Prevent stale staging writeback from overwriting file updates.
+- [ ] **P32-R4-5:** Preserve backing identity across VMA splits.
+- [ ] **P32-R4-6:** Guard shared host-page tails during automatic placement.
+- [ ] **P32-R4-7:** Correct empty-file and beyond-EOF trapping.
+- [ ] **P32-R4-8:** Remove the fork/truncate lock-order inversion.
+- [ ] **P32-R4-9:** Make truncate updates safe for inaccessible mappings.
+- [ ] **P32-R4-10:** Track all aliases independently of fd numbers.
+- [ ] **P32-R4-11:** Enforce guest permissions for syscall memory access.
+- [ ] **P32-R4-12:** Invalidate peer reservations on copyout.
+- [ ] **P32-R4-13:** Remove the unused broadcast truncate API.
+
+---
+
+## 5. `sparc32rt` (`f7d73db`) — 16 Round-4 Findings (`0 / 16` Resolved)
+
+Found **16 actionable issues** at `f7d73db`. The Round-3 and follow-up fixes are present, but thread retirement, signal routing, descriptor tracking, and VM publication still have incomplete paths.
+
+Used **seven shell inspection commands**, including the requested history commands. No Markdown files, builds, tests, Docker, or QEMU were read or run. Findings below are static conclusions; commit-message test claims were not independently verified.
+
+**S32-R4-1 — Clone startup storage can be freed before the parent finishes using it**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/threads.c:777`
+- **Evidence & Root Cause:** The child signals `st->ready`, unlocks `st->lock` at lines 616–620, and immediately begins guest execution. A fast exit reaches `thr_thread_finish()`, which frees `st` at line 604. The parent can subsequently lock, read, unlock, or destroy synchronization objects in that freed allocation at lines 777–784. Signaling readiness does not transfer lifetime ownership safely.
+- **Concrete Fix:** Separate the startup rendezvous from child-owned execution storage, or add an ownership handshake/reference count that keeps both the allocation and synchronization objects alive until both participants finish. Add a repeated immediate-child-exit regression.
+
+**S32-R4-2 — Retired threads can modify the replacement executable’s memory**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/threads.c:489`
+- **Evidence & Root Cause:** After roughly two seconds, retirement removes remaining siblings from `thr_live` without stopping their host calls. A sibling blocked in `sys_read()` can later return and execute `l2a_store()` into the reused guest address space (`src/os/syscalls_min.c:221`). Its eventual retirement also calls `thr_thread_finish()`, which clears the old `st->clear_tid_va` at lines 588–590. Sticky retirement marks protect subsequent instruction execution, but neither copyout nor cleanup. Clone admission is also not closed during the retirement snapshot.
+- **Concrete Fix:** Serialize exec and clone admission; interrupt and acknowledge sibling shutdown before replacing the address space. Add an address-space generation check before syscall copyout and suppress old-image clear-TID writes. Do not treat deregistration as completed retirement.
+
+**S32-R4-3 — VM writers release DBT quiescence before retiring stale translations**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/rt32/vm_mmap.c:298`
+- **Evidence & Root Cause:** `mprotect`, `munmap`, and mapping replacement release `vm_lock` before calling `vm_invalidate_jit()`. `vm_lock_release()` also releases `g_dbt_lock`. A DBT thread can enter between these operations and execute code compiled from the old mapping. The epoch bump during quiescence does not solve this: `dbt_lookup_locked()` at `src/dbt/dbt.c:258` refreshes the epoch of an otherwise valid block without recompiling it.
+- **Concrete Fix:** Retire affected blocks and chaining entries while DBT admission remains closed. Introduce a lock-held invalidation helper and publish the mapping/protection change and cache invalidation as one transaction.
+
+**S32-R4-4 — Guest signal numbers are passed directly to incompatible host ABIs**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/syscalls_sig.c:93`
+- **Evidence & Root Cause:** `sig_host_sync()` passes the SPARC signal number directly to host `sigaction()`. `threads_kill.c` similarly passes it to `kill`/`tgkill`, and `sparc32_thr_host_handler()` queues the host number unchanged. SPARC numbering differs from AArch64 Linux and Darwin—for example, the repository’s guest tests identify SIGUSR1 as 30. The special-case exclusion of signal 7 as SIGBUS also uses the wrong SPARC number. Self-generated tests can conceal this by using the same incorrect number in both installation and sending.
+- **Concrete Fix:** Implement explicit SPARC↔host signal conversion at every host boundary, including delivery, installation, masks, and wait-status translation. Keep pending queues and guest frames exclusively in SPARC numbering.
+
+**S32-R4-5 — Blocked default-action signals act immediately**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/threads_kill.c:164`
+- **Evidence & Root Cause:** Guest mask updates only change `ctx->sig_mask` (`src/os/syscalls_time.c:46`). Default dispositions are mirrored as host `SIG_DFL`, and the default `tgkill` path immediately invokes the host kernel without checking the guest mask. Blocking guest SIGTERM and then sending it therefore terminates the host process instead of leaving it pending. Process-directed `kill()` has the same problem.
+- **Concrete Fix:** Queue maskable default-action signals and apply their actions only when guest delivery permits. Integrate host reception with guest masks; keep genuinely unmaskable signals separate. Add blocked-default, pending-query, and unblock regressions.
+
+**S32-R4-6 — Wakeup “echo” deduplication loses or duplicates real signals**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/interp/interp_signal.c:547`
+- **Evidence & Root Cause:** Thread delivery consumes any same-number process-pending bit as an assumed wakeup echo. Process delivery likewise discards a claimed bit whenever another thread has that signal pending. An independent process-directed signal is therefore lost when it coincides with a thread-directed signal. Conversely, the target can consume its thread bit before the sender executes the host wakeup at `threads_kill.c:187`; the later host handler creates a fresh process bit that can deliver again.
+- **Concrete Fix:** Use a distinct internal wakeup mechanism that never enters guest pending queues. Maintain process-directed and thread-directed events independently; remove same-number echo inference.
+
+**S32-R4-7 — `tgkill` accepts an unrelated thread-group ID**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/os/threads_kill.c:117`
+- **Evidence & Root Cause:** Local lookup checks only `tid`. A found target makes the signal-zero path return success without validating `tgid`. Caught and ignored dispositions also succeed locally for an incorrect `tgid`; caught delivery queues the bit before the host wakeup, whose failure is ignored.
+- **Concrete Fix:** Validate the requested thread group before local lookup or queue mutation. Preserve host errors where a host operation remains necessary. Cover wrong-group signal-zero, caught, and ignored cases.
+
+**S32-R4-8 — Darwin thread signals use thread IDs as process IDs**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/threads_kill.c:94`
+- **Evidence & Root Cause:** Darwin `thr_gettid()` derives an integer from `pthread_threadid_np()`. The non-Linux `thr_host_tgkill()` fallback calls `kill((pid_t)host_tid, sig)`. A Darwin thread ID is not a process ID: this can return `ESRCH` or address an unrelated process. Caught-signal wakeup errors are then ignored.
+- **Concrete Fix:** Retain a valid `pthread_t` alongside the guest-visible TID and use `pthread_kill()` for live local targets, with correct lifetime protection and signal-number translation. Never reinterpret a thread ID as a PID.
+
+**S32-R4-9 — Successful exec incorrectly clears blocked and pending signals**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/os/threads_exec.c:196`
+- **Evidence & Root Cause:** Exec clears `ctx->pending_signals` and `ctx->sig_mask`; it also clears the process-pending queue at line 165. Linux exec preserves the calling thread’s blocked mask and pending signals. Resetting caught dispositions and disabling the alternate stack do not authorize clearing these states.
+- **Concrete Fix:** Preserve the survivor’s mask and relevant pending queues across successful exec. Continue resetting caught dispositions and alternate-stack state. Add a guest that blocks and queues a signal, execs, and queries both states.
+
+**S32-R4-10 — FD bookkeeping races with host descriptor reuse**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/syscalls.c:290`
+- **Evidence & Root Cause:** Host `close(fd)` happens before acquiring the tracking lock in `sparc32_fd_note_close()`. Another thread can reopen the same descriptor and record it between those operations; the old closer then erases the new descriptor’s tracking. Open, dup, and flag updates similarly separate host operations from metadata commits. Fork’s FD-table lock consequently does not guarantee a consistent host-FD/table snapshot. The exec sweep also unlocks before its actual `close()`.
+- **Concrete Fix:** Serialize each descriptor lifecycle operation and its metadata update under one consistent protocol, including fork snapshots and exec sweeping. Account for translator-owned descriptor allocation and reuse in that protocol.
+
+**S32-R4-11 — Darwin anonymous `PROT_NONE` remaps retain old contents**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/backend_darwin.c:243`
+- **Evidence & Root Cause:** Fixed anonymous mappings use `mprotect()` rather than replacing their backing. For `PROT_NONE`, the function returns without zeroing the requested bytes, including an immediate return for a partial host page. A guest can write a pattern, replace the range with anonymous `MAP_FIXED|PROT_NONE`, then enable reading with `mprotect()`. The new anonymous mapping exposes the previous bytes.
+- **Concrete Fix:** Establish fresh zero-filled anonymous contents independently of requested permissions, preserving neighboring 4 KiB pages on 16 KiB hosts. Add a patterned-page → anonymous `PROT_NONE` remap → readable-page regression.
+
+**S32-R4-12 — Darwin copied file mappings expose zero-filled pages beyond EOF**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/backend_darwin.c:373`
+- **Evidence & Root Cause:** The unaligned private-file mapping path zeroes the entire mapping, copies until `pread()` reaches EOF, then returns success. `vm_mmap_publish()` grants the requested protection to every page. Interpreter and syscall accessors check those protections and access the backing directly, so pages wholly beyond EOF return zeros instead of producing a guest SIGBUS.
+- **Concrete Fix:** Track file-valid page extents separately from permissions and enforce them in interpreter, DBT, and syscall-access paths. Preserve zero-fill only for the valid final partial page; update validity on truncate/regrow.
+
+**S32-R4-13 — Mapping success ignores failure to record the VMA**
+
+- **Severity:** High
+- **Category:** DEFECT
+- **Location:** `src/rt32/vm_mmap.c:199`
+- **Evidence & Root Cause:** `vm_mmap2_locked()` installs host backing and publishes page permissions, then discards `vm_record_region_ext_locked()`’s result and returns the address. Region-table exhaustion or insertion failure can therefore leave accessible pages absent from the authoritative VMA records. Gap selection, overlap checks, backing retention, and later remapping then operate on incomplete state. The move path repeats this unchecked recording at line 557.
+- **Concrete Fix:** Reserve all required region entries and backing resources before destructive mapping operations. Propagate failures and commit host mappings, page tables, and VMA metadata together; provide rollback where preparation cannot guarantee success.
+
+**S32-R4-14 — Descriptors above 8191 silently escape close-on-exec handling**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `src/os/threads_fd.c:45`
+- **Evidence & Root Cause:** Every tracking operation silently ignores descriptors at or above `THR_FD_TRACK_MAX`, while guest descriptor allocation is not constrained to that range. A successful high-numbered `F_DUPFD` followed by `F_SETFD(FD_CLOEXEC)` remains open after emulated exec because no real host exec performs the kernel sweep.
+- **Concrete Fix:** Grow the tracking structure to cover accepted descriptors, or enforce an explicit guest descriptor limit consistently. Never return successful descriptor allocation while silently omitting required lifecycle tracking.
+
+**S32-R4-15 — Checked big-endian guest word access is duplicated across syscall units**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `src/os/threads_fd.c:180`
+- **Evidence & Root Cause:** `fd_st`, `thr_st`, `sig_st_be32`, and `l2a_st_be32` independently implement the same stack-buffer → `put_be32()` → `l2a_store()` sequence. Similar checked loads exist in the signal and exec units. These copies all depend on the same permission, copyout, and invalidation behavior.
+- **Concrete Fix:** Add checked BE32 load/store helpers to the existing repo-local `os/l2a_access.h` and replace equivalent copies. Keep raw loader/stack initialization helpers separate where their contracts differ.
+
+**S32-R4-16 — The retirement survivor global is write-only**
+
+- **Severity:** Low
+- **Category:** YAGNI
+- **Location:** `src/os/threads.c:78`
+- **Evidence & Root Cause:** `g_exec_survivor` is initialized, reset after fork, and assigned at retirement start. No source or test reads it. Retirement decisions now use `thr_retired_contains()`, so this atomic state no longer participates in the protocol.
+- **Concrete Fix:** Remove the global and its stores; update comments that imply it controls survivor selection.
+
+The CLEAN inspection found no oversized `.c`/`.h`/`.S` files, prohibited string-call matches, `.c` includes, or production assembly references to `x18` in the searched paths. The Makefile retains the prescribed warning flags. This was not a compiler-based compliance verification, and the bounded audit does not certify the unreported ISA/FPU paths.
+
+- [ ] **S32-R4-1:** Fix clone startup-object ownership.
+- [ ] **S32-R4-2:** Complete sibling shutdown before exec replacement.
+- [ ] **S32-R4-3:** Invalidate translations before reopening DBT admission.
+- [ ] **S32-R4-4:** Translate signal numbers at host boundaries.
+- [ ] **S32-R4-5:** Honor guest masks for default-action signals.
+- [ ] **S32-R4-6:** Separate internal wakeups from guest signal queues.
+- [ ] **S32-R4-7:** Validate `tgkill` thread-group IDs.
+- [ ] **S32-R4-8:** Use pthread handles for Darwin thread signals.
+- [ ] **S32-R4-9:** Preserve masks and pending signals across exec.
+- [ ] **S32-R4-10:** Make FD operations and bookkeeping atomic.
+- [ ] **S32-R4-11:** Zero anonymous Darwin remaps regardless of initial protection.
+- [ ] **S32-R4-12:** Enforce EOF faults for copied file mappings.
+- [ ] **S32-R4-13:** Make VMA registration failures transactional.
+- [ ] **S32-R4-14:** Track every accepted guest descriptor.
+- [ ] **S32-R4-15:** Unify checked BE32 syscall access helpers locally.
+- [ ] **S32-R4-16:** Remove write-only retirement state.
+
+---
+
+## 6. `rvrt` (`b1b08af`) — 9 Round-4 Findings (`0 / 9` Resolved)
+
+Found **nine actionable issues** at `b1b08af`. The Round-3 snapshot fields, VMA growth, and hygiene prerequisite are present, but several correctness gaps remain.
+
+Used **seven shell inspection calls**. Read no Markdown documents and ran no builds, tests, containers, or QEMU. Findings below are static conclusions; proposed regressions were not executed. Coverage included focused traces and broader source searches, not an exhaustive concurrency audit.
+
+**RV-R4-1 — FP stores can write canonicalized operand bits**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/darwin_dbt_emit.c:200`
+- **Evidence & Root Cause:** `emit_load_unboxed_s()` (`src/dbt_emit_fp.c:184`) replaces an improperly boxed single operand with canonical NaN in the cache while leaving the architectural register unchanged in memory. It records a valid, clean single cache entry. `emit_inline_store()` subsequently trusts that entry: FSW copies its canonicalized low bits; FSD synthesizes a boxed single from it. For example, single arithmetic reading an unboxed `f1`, followed by `fsd f1,0(a0)` in the same block, stores different bits from architectural `f1`.
+- **Concrete Fix:** Distinguish cached arithmetic operands from architectural register bits. For clean single operand caches, load raw store data from CPU state; only reconstruct boxed values when the cache represents an actual single-precision register write. Add FSW/FSD regressions after reading an improperly boxed operand without modifying it.
+
+**RV-R4-2 — Inline self-loops lose sticky FP exceptions**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/darwin_dbt_emit.c:505`
+- **Evidence & Root Cause:** JAL and conditional self-loop backedges jump to `loop_top_idx` before `emit_term_pc()` flushes FPSR. That label precedes the block’s first FP operation (`src/darwin_dbt.c:274`). Its emitted `emit_clear_fpsr()` instruction therefore clears FPSR again on every iteration. Exceptions raised only in earlier iterations disappear. Difftest mode sets the loop budget to one, avoiding this backedge and masking the failure.
+- **Concrete Fix:** Flush accumulated FPSR into guest `fcsr` before each taken inline backedge, or disable FP self-loop optimization until entry and backedge flag handling are correct. Test an ordinary DBT loop whose first iteration raises an exception and whose final iteration does not.
+
+**RV-R4-3 — Subpage protection removes neighboring mappings’ permissions**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm64.c:400`
+- **Evidence & Root Cause:** `protect_enclosing()` applies one mapping’s protection to its entire enclosing host page. On a 16 KiB host, map a 4 KiB RW subpage, then map its adjacent 4 KiB subpage read-only. The second operation makes both host subpages read-only. `rv_vm64_copyin()` accepts the first VMA as writable and reaches `memcpy()` at line 686, which faults. File mapping at line 554 and protection restoration at line 131 have the same neighbor-permission problem. The new regression exercises RO→RW replacement, not mixed surviving permissions.
+- **Concrete Fix:** Compute host protection from all guest subpages sharing each host page, enforcing finer restrictions in software. Alternatively keep anonymous large-page arena backing RW and enforce guest permissions entirely through checked access paths. Add mixed RW/RO/PROT_NONE neighbor tests in both mapping orders.
+
+**RV-R4-4 — Failed file replacement destroys existing VMA metadata**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/vm/vm64.c:513`
+- **Evidence & Root Cause:** `vma_remove_overlap()` runs before the fallible `rt_host_map_file()` or pread-based replacement. A closed positive FD passes the initial check; `file_valid_bytes()` suppresses its `fstat()` failure; mapping then fails after the original VMA has been removed. Original page states remain, but protection and inode associations are lost. On large-page hosts, the implementation additionally zeroes old contents before a possible pread failure.
+- **Concrete Fix:** Stage and validate replacement backing before committing VMA removal and page states. Preserve the previous mapping on recoverable failures, including descriptor errors and interrupted/failed reads. Add failure-injection checks for preserved bytes, permissions, states, and inode associations.
+
+**RV-R4-5 — New nonzero-offset regression fails on 4 KiB hosts**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `test/u5a_vm_provider.c:476`
+- **Evidence & Root Cause:** The test requests page-aligned GVA `868352` with file offset `8000`. On the 4 KiB path, `head = 3904` and `map_gva = 864448` (`src/vm/vm64.c:505`), which is not page-aligned. The backend passes that address to `MAP_FIXED`, so the operation fails rather than satisfying the test’s required success. The pread path accepts the same input, creating backend divergence.
+- **Concrete Fix:** Define and enforce a consistent alignment contract before any mutation. If arbitrary file offsets remain supported, use staged copying when GVA and file-offset alignment are incompatible. Otherwise reject them consistently and change this regression to a valid aligned nonzero offset, with a separate rejection test.
+
+**RV-R4-6 — Failed protection widening still reaches `memset()`**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/vm/vm64.c:126`
+- **Evidence & Root Cause:** `zero_guest_range()` attempts to make read-only backing writable, but a failed `protect_enclosing()` merely leaves `widened == 0`. It then unconditionally writes through the original protection at line 129. The helper returns `void`, so truncate/regrow callers cannot propagate the failure and may continue publishing new page states.
+- **Concrete Fix:** Return a status from the zeroing helper and stop before touching memory when widening fails. Propagate failure through the discard operation and avoid publishing successful state transitions for failed work. Add a protection-failure regression.
+
+**RV-R4-7 — Generic signed-byte emission uses an unsigned load**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/dbt/emit_mem.c:65`
+- **Evidence & Root Cause:** Width-one loads always select `RV_DBT_W_LDRB_BASE`, ignoring `is_signed`. Thus signed byte `0x80` becomes `0x80`, not `0xffffffffffffff80`. The big-endian width-one branch repeats the error. `test/u5b_dbt_mem.c:215` explicitly expects the incorrect unsigned opcode for a signed request. This emitter is separate from the Darwin inline-load implementation.
+- **Concrete Fix:** Select the existing `RV_DBT_W_LDRSB_BASE` for signed byte loads in both branches. Correct the test expectation and add semantic checks for `0x7f`, `0x80`, and `0xff`.
+
+**RV-R4-8 — Generic 16-byte accesses transfer only eight bytes**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `src/dbt/emit_mem.c:71`
+- **Evidence & Root Cause:** The public emitter accepts width 16 and records that width in site metadata, but emits one `LDR X` or `STR X`. Big-endian cases likewise transfer and reverse only eight bytes. `test_emit_shapes()` includes width 16 but checks emitted shape rather than a complete 16-byte transfer. Inspected call sites are tests, so this is a latent emitter-contract defect rather than evidence of current RV64GC execution corruption.
+- **Concrete Fix:** Reject width 16 until the API can describe a register pair or vector operand and emit the complete transfer. Update acceptance tests accordingly; implement full-width access only when an actual consumer requires it.
+
+**RV-R4-9 — Slow-path cache reload sequences are duplicated**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `src/darwin_dbt_emit.c:172`
+- **Evidence & Root Cause:** Inline load and store slow paths separately emit the same GPR reload loop, FPR reload loop, precision selection, and TLB-tag poisoning sequence; the second copy starts at line 244. These sequences encode shared register-cache invariants that must change together.
+- **Concrete Fix:** Extract one repo-local emitter helper for restoring live register caches after a helper call and invalidating the retained TLB tag. Keep load-specific snapshot restoration at its call site.
+
+The inspected source trees had no files exceeding 900 lines, prohibited string-function calls, or textual `.c` includes. The `x18` search found comments and a RISC-V guest fixture, not an AArch64 violation. No sufficiently supported standalone YAGNI or CLEAN finding emerged.
+
+- [ ] **RV-R4-1:** Preserve architectural FP bits in FSW/FSD after operand unboxing.
+- [ ] **RV-R4-2:** Preserve sticky FP flags across inline self-loop backedges.
+- [ ] **RV-R4-3:** Preserve neighboring subpage permissions on large-page hosts.
+- [ ] **RV-R4-4:** Make failed file replacement preserve existing mapping state.
+- [ ] **RV-R4-5:** Resolve nonzero-offset alignment divergence and its regression.
+- [ ] **RV-R4-6:** Propagate zeroing protection failures before writing.
+- [ ] **RV-R4-7:** Emit sign-extending signed-byte loads.
+- [ ] **RV-R4-8:** Reject or fully implement 16-byte memory emission.
+- [ ] **RV-R4-9:** Unify slow-path register-cache reload emission.
+
+---
+
+## 7. `loongarch64rt` (`1907d96`) — 18 Round-4 Findings (`0 / 18` Resolved)
+
+Found **18 actionable issues** at HEAD `1907d96`. The Round-3 and post-fable changes are present, but several fixes remain incomplete.
+
+Used seven shell inspection invocations. Read no Markdown documents; ran no project builds, tests, containers, or QEMU. `git status --short` was clean. `include/` and `tools/` are absent. The source line-count scan found no `.c`, `.h`, or `.S` files over 900 lines. Findings below are static conclusions, not runtime reproductions.
+
+**LA64-R4-1 — Masked FCSR writes corrupt unrelated fields**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/dbt/emit_fp_mem.c:43`
+- **Evidence & Root Cause:** For field 1, the emitter clears the old enable bits in `x11`, then overwrites all of `x11` with `x10 & 31`; rounding, cause, and sticky fields disappear. For field 2, lines 47–50 extract the two exception fields and recombine them in reversed positions. The interpreter correctly performs `(old & ~mask) | (input & mask)` at `src/interp/fp.c:658`.
+- **Concrete Fix:** Emit that masked merge directly for each selector. Add interpreter/DBT comparisons with distinct cause/sticky patterns and nonzero rounding bits.
+
+**LA64-R4-2 — FP-to-integer checks precede rounding and permit undefined casts**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/interp/fp.c:224`
+- **Evidence & Root Cause:** `fp_ftint_wd()` accepts `2147483647.75`, then nearest rounding produces `2147483648.0`; casting that to `int32_t` is undefined. The lower-bound literals in `fp_ftint_w()`, `fp_ftint_l()`, and `fp_ftint_ld()` also round to the minimum representable integer, so their strict comparison incorrectly rejects that valid endpoint.
+- **Concrete Fix:** Handle NaNs explicitly, round first, validate the rounded value using exactly representable bounds, then cast. Preserve the required invalid/inexact flags. Cover both endpoints and fractional overflow under every rounding mode.
+
+**LA64-R4-3 — Staged `MAP_SHARED` mappings are independent private copies**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:332`
+- **Evidence & Root Cause:** The fallback populates private arena storage with `pread`. Stores become visible to aliases only through explicit `staged_propagate()`, and that scans only process-local records. Two aliases therefore disagree immediately after a store; forked processes retain separate copies. `vmfile_write_hook()` updates metadata without refreshing staged bytes, so later whole-range writeback can overwrite newer file contents.
+- **Concrete Fix:** Give mappings of the same inode/file page genuinely shared backing, including across fork, or implement coherent mediated accesses with dirty tracking. Explicit `msync` copying alone cannot provide `MAP_SHARED` semantics.
+
+**LA64-R4-4 — Middle unmap silently loses the surviving tail record**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:523`
+- **Evidence & Root Cause:** Unmapping the middle page of a three-page mapping takes the `else` branch and shortens the existing record to the head. No tail record is created, although the tail remains mapped. Subsequent sync, truncate, protection bookkeeping, and inode reclamation no longer account for it.
+- **Concrete Fix:** Reserve a second record before mutation, split head and tail, adjust the tail’s GVA/HVA/file offset, and acquire its inode reference. Handle record exhaustion before changing mappings.
+
+**LA64-R4-5 — Protection changes suppress dirty writeback for unrelated pages**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:356`
+- **Evidence & Root Cause:** `vmfile_note_protect()` assigns the new protection to every overlapping *whole record*. Protecting one page read-only therefore marks writable siblings read-only in this table. `staged_writeback()` then skips the entire record at line 410. Even a full-range writable-to-read-only transition can leave dirty bytes that still require writeback.
+- **Concrete Fix:** Split records at protection boundaries and update them only after successful protection changes. Track dirt independently of current permissions; removing write permission must not discard pending modifications.
+
+**LA64-R4-6 — Truncate discard compares file offsets with guest addresses**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:684`
+- **Evidence & Root Cause:** `cut` is an aligned file size, but `start = max(maps[i].gva, cut)` treats it as a guest address and ignores `file_off`. For a private mapping at GVA `0x40000`, file offset zero, shrinking to 4096 selects the entire mapping, discarding dirty bytes in the first page even though that page survives.
+- **Concrete Fix:** Intersect the removed file-offset interval with each mapping’s file interval, then translate that intersection back to GVA/HVA. Preserve surviving private pages and partial EOF pages.
+
+**LA64-R4-7 — Child reference acquisition races with parent reclamation**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:78`
+- **Evidence & Root Cause:** Inherited references are acquired only when the child reaches `vmfile_fork_child_reset()`. The parent can return from `fork`, unmap its final record, and clear or reuse the shared row first. The child then either skips its missing row or increments a replacement row. The new test waits for the child before the parent unmaps, excluding this ordering.
+- **Concrete Fix:** Reserve inherited references before `fork` under family-table synchronization, roll them back on failure, and transfer ownership to the child without a second increment. Add a parent-first-unmap regression.
+
+**LA64-R4-8 — Shared inode rows contain process-local descriptor numbers**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:152`
+- **Evidence & Root Cause:** `itable` is shared across processes, but `dupfd` belongs to the registering process’s descriptor table. A row created after fork is visible to peers that do not possess that descriptor. Their writeback or reclamation can use or close an unrelated descriptor with the same number. Atomic reference counting does not fix descriptor ownership.
+- **Concrete Fix:** Keep retained descriptors in process-local inode-handle tables. Share only stable identity and synchronization metadata; explicitly transfer descriptors when a peer needs access.
+
+**LA64-R4-9 — `MS_INVALIDATE` discards dirty staged data**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:596`
+- **Evidence & Root Cause:** Any flags containing bit 2 take the `pread` branch instead of writeback. Thus `MS_SYNC | MS_INVALIDATE` overwrites dirty staged bytes with old file contents and propagates those old bytes to aliases.
+- **Concrete Fix:** Validate flags before mutation. Complete required dirty writeback before invalidation, and refresh only where coherence rules permit. Test combined flags on a forced staged mapping.
+
+**LA64-R4-10 — Guest `msync` bypasses Darwin flag and page-size translation**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/os/syscalls.c:509`
+- **Evidence & Root Cause:** After `vmfile_msync()`, the handler calls libc `msync()` directly with Linux flags. The Darwin translation already exists in `rt_host_msync()`. It also submits the guest-address-derived pointer directly: a valid 4 KiB guest boundary need not be a valid 16 KiB host boundary. Writeback can complete before the syscall reports a host validation error.
+- **Concrete Fix:** Validate guest arguments first and dispatch by backing type. Staged anonymous storage should complete through its file-writeback path; direct overlays should use translated flags and valid host spans.
+
+**LA64-R4-11 — File installation and removal occur outside VM quiescence**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:245`
+- **Evidence & Root Cause:** `vm64_map()` commits and resumes peers before `map_bytes_in_place()` performs `pread` and publishes its record. The direct-overlay path likewise installs the host overlay after `vm64_map()` returns. Conversely, `sys_munmap_range()` calls `vmfile_unmap()`—including backing repair—before `vm64_unmap()` obtains quiescence. Peers can access partially installed or replaced bytes through still-valid translations.
+- **Concrete Fix:** Make backing changes, population, record changes, page-state publication, and TLB/LL invalidation one transaction. Add internal mapping primitives that operate under an already-held mutation gate.
+
+**LA64-R4-12 — `SA_RESETHAND` redirects execution to address zero**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/sigframe.c:243`
+- **Evidence & Root Cause:** `act` points into `sf_actions`. Delivery sets `sf_actions[sig].handler = LA64_SIG_DFL`, then line 251 reads `act->handler` into `ctx->pc`. The first delivery therefore uses the reset disposition instead of the registered handler.
+- **Concrete Fix:** Snapshot the action before modifying the shared disposition. Redirect using the saved handler and reset only the installed action.
+
+**LA64-R4-13 — Signal delivery loses pending events and uses unsafe async updates**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/sigframe.c:240`
+- **Evidence & Root Cause:** Polling removes one selected pending source, but `sf_deliver_locked()` subsequently clears the signal from both thread and process queues. If both contain that signal, one event disappears. Separately, `la64_host_signal_note()` performs ordinary read-modify-write operations on `sf_proc_pending` while polling clears it; these are neither atomic nor protected from asynchronous interruption.
+- **Concrete Fix:** Remove only the selected queue entry. Use an async-signal-safe publication mechanism and synchronized consumption, including metadata ordering. Test simultaneous process/thread pending signals and arrivals during polling.
+
+**LA64-R4-14 — Failed clone leaves signal records referring to freed contexts**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `src/os/clone.c:588`
+- **Evidence & Root Cause:** `la64_signal_clone_inherit()` allocates child signal state before parent-TID copyout, child-TID validation, and `pthread_create`. Failure paths at lines 588, 602, and 613 free the child without calling `la64_signal_thread_exit()`. The fixed signal table retains stale entries and can exhaust capacity across failures using distinct allocations.
+- **Concrete Fix:** Add signal-state cleanup to every post-inheritance failure path, preferably through one cleanup helper, or defer publication until clone setup can commit.
+
+**LA64-R4-15 — New regression fixture reads past its stack buffer**
+
+- **Severity:** Medium
+- **Category:** CLEAN
+- **Location:** `tests/test_u0_soft_tlb.c:796`
+- **Evidence & Root Cause:** `probe` has 16 bytes, but `write(fd, probe, 100)` requests 100 bytes. The test reads beyond the object and writes unrelated stack contents into its fixture. It violates the no-undefined-behavior requirement and can trigger compiler diagnostics.
+- **Concrete Fix:** Use an initialized 100-byte fixture buffer, or create the required file size separately and write only `sizeof probe`.
+
+**LA64-R4-16 — Target backend selection is disconnected from test recipes**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `Makefile:65`
+- **Evidence & Root Cause:** `U0_TEST_SRCS` and `RC_TEST_SRCS` hard-code Linux backend files and `safe_syscall_a64.S`. Although lines 108–113 compute `U0_TARGET_BACKEND`, neither source list uses it. Native Darwin checks consequently do not exercise the selected Darwin backend.
+- **Concrete Fix:** Build both source lists from common sources plus the target-selected backend. Account for Make’s immediate `:=` expansion by defining the selector first or using deferred expansion.
+
+**LA64-R4-17 — FP memory instruction classification is duplicated**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `src/dbt/dbt_mem.c:161`
+- **Evidence & Root Cause:** `mem_miss_fp()` and `la64_emit_fp_mem()` at `src/dbt/emit_fp_mem.c:386` independently encode the same opcode acceptance, width, store/load, and indexed-mode decisions. A change to one can make generated accesses disagree with their retry decoder.
+- **Concrete Fix:** Introduce one repo-local DBT classification helper returning those fields. Keep the independent interpreter/oracle validation separate.
+
+**LA64-R4-18 — Obsolete Linux source-list variable remains unused**
+
+- **Severity:** Low
+- **Category:** YAGNI
+- **Location:** `Makefile:63`
+- **Evidence & Root Cause:** `U0_LINUX_SRCS` has no consumers. `U0_LINUX_BACKEND` separately lists the same C files plus assembly, leaving two apparent definitions of the Linux backend source set.
+- **Concrete Fix:** Delete the unused variable and retain one authoritative backend source list.
+
+- [ ] **LA64-R4-1:** Correct masked FCSR emission.
+- [ ] **LA64-R4-2:** Validate rounded FP conversion results before casting.
+- [ ] **LA64-R4-3:** Provide coherent shared-file backing.
+- [ ] **LA64-R4-4:** Preserve both survivors of middle unmaps.
+- [ ] **LA64-R4-5:** Separate protection boundaries from dirty tracking.
+- [ ] **LA64-R4-6:** Translate truncate offsets into mapping coordinates.
+- [ ] **LA64-R4-7:** Reserve inherited references before fork.
+- [ ] **LA64-R4-8:** Keep retained descriptors process-local.
+- [ ] **LA64-R4-9:** Preserve dirty data during invalidation.
+- [ ] **LA64-R4-10:** Correct guest-to-host `msync` handling.
+- [ ] **LA64-R4-11:** Keep complete backing mutations under quiescence.
+- [ ] **LA64-R4-12:** Snapshot handlers before `SA_RESETHAND`.
+- [ ] **LA64-R4-13:** Fix pending-source consumption and async publication.
+- [ ] **LA64-R4-14:** Clean up signal state after failed clone.
+- [ ] **LA64-R4-15:** Fix the fixture’s out-of-bounds write source.
+- [ ] **LA64-R4-16:** Wire target backend selection into tests.
+- [ ] **LA64-R4-17:** Unify DBT FP-memory classification.
+- [ ] **LA64-R4-18:** Remove the unused Linux source-list variable.
+
+---
+
+## 8. `ppc64rt` (`56bec31`) — 8 Round-4 Findings (`0 / 8` Resolved)
+
+Found **8 actionable issues** at `56bec31`. The Round-3 and follow-up commits are present; the `munmap` preflight now precedes table mutation, but exec inheritance and remap error handling still have gaps.
+
+Used seven shell inspection calls. No Markdown documents, builds, tests, containers, or QEMU were read or run. Findings are static, not runtime-confirmed. `include/` and `tools/` are absent.
+
+**P64-R4-1 — Single-precision arithmetic rounds operands prematurely**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/interp/fp.c:202`
+- **Evidence & Root Cause:** PO59 arithmetic reaches `fp_arith_exec()`, which casts both FPR operands to `float` before calculating. This discards input precision before the instruction’s result rounding. For `fadds` with operands `1 + 2^-24` and `-1`, nearest-even input conversion makes the first operand `1`, producing zero instead of the representable result `2^-24`. Operand conversions also contaminate the collected exception flags.
+- **Concrete Fix:** Implement the instruction’s operand precision and final binary32 rounding explicitly. Avoid premature operand conversion and account for double-rounding cases. Add oracle regressions for cancellation, rounding boundaries, and FPSCR flags.
+
+**P64-R4-2 — Integer conversions omit FPSCR updates**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/interp/fp.c:424`
+- **Evidence & Root Cause:** The `fctiwz` and `fctidz` branches select integer results for fractional, NaN, and out-of-range inputs but never record conversion exceptions. Their record forms then copy the unchanged FPSCR summary into CR1. For example, converting a NaN leaves `VXCVI` unset; fractional conversion leaves inexact state unchanged.
+- **Concrete Fix:** Implement conversion-specific invalid and inexact handling, including applicable signaling-NaN flags and FPSCR summary updates, before updating CR1. Test fractional, boundary, infinity, and NaN inputs.
+
+**P64-R4-3 — Growing file mappings silently accepts refill failures**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file_mremap.c:101`
+- **Evidence & Root Cause:** `vm_file_fill_tail()` retries interrupted `pread()` calls but ignores other read errors, accepts short reads without completing them, and discards `ppc64_vm_write_raw()` failure. It still returns success after marking the page CLEAN or SHARED. Because `syscall_mm_mremap()` initially stages a zero-filled extension, a failed refill can produce a successful remap exposing zeros instead of file bytes.
+- **Concrete Fix:** Complete reads until the requested span or actual EOF, propagate read and raw-write failures, and let the existing remap rollback restore state. Handle unavailable backing descriptors explicitly. Add injected read/write-failure regressions.
+
+**P64-R4-4 — Worker exec inherits the wrong pending-signal set**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/run/sigdeliver.c:120`
+- **Evidence & Root Cause:** `run_sig_exec_snapshot()` obtains the current task’s mask through `ppc64_syscall_sigmask_get()`, but copies pending signals directly from `run_sig_pending`, the main-task storage. Worker pending signals live in `s_cur_task->sig_pending`, selected by `syscall_p4_sigpending_ptr()` at `src/os/syscalls_p4.c:115`. A worker exec therefore loses its own pending signals and can inherit another task’s pending signals.
+- **Concrete Fix:** Snapshot the executing task’s pending set through the task-aware accessor. If process-directed pending signals are represented separately, combine only those with the caller’s thread-directed set. Test exec from a worker with distinct blocked pending signals on worker and main task.
+
+**P64-R4-5 — Exec converts default dispositions into explicit ignore**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/run/sigdeliver.c:112`
+- **Evidence & Root Cause:** The snapshot uses `run_sig_is_ignored()`, which includes default dispositions for signals 17, 18, 23, and 28. Restore installs every resulting bit as `handler = 1`, meaning explicit `SIG_IGN`. Consequently, a default disposition becomes observably different after exec when queried through `rt_sigaction`.
+- **Concrete Fix:** Serialize only explicitly installed `SIG_IGN` dispositions (`handler == 1`). Leave default dispositions default. Test disposition queries before and after exec, covering both `SIG_DFL` and explicit `SIG_IGN`.
+
+**P64-R4-6 — Internal exec variables reach the guest before removal**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/run/core.c:551`
+- **Evidence & Root Cause:** `run_build()` constructs the guest stack before invoking `run_sig_exec_restore()` at line 576. `run_build_stack()` copies host `environ` into guest memory at `src/run/load.c:479`. The later `unsetenv()` calls remove only host entries; the guest already holds copies of `PPC64RT_EXEC_SIGMASK`, `PPC64RT_EXEC_SIGIGN`, and `PPC64RT_EXEC_SIGPEND`.
+- **Concrete Fix:** Capture and remove the handoff variables before building the guest environment, then apply the captured state after signal initialization. Test that inheritance works while the guest environment contains none of these internal entries.
+
+**P64-R4-7 — Expanded exec environment exceeds cleanup’s bound**
+
+- **Severity:** Low
+- **Category:** DEFECT
+- **Location:** `src/os/proc.c:443`
+- **Evidence & Root Cause:** `proc_envp_inject_sig()` can grow a valid 256-entry environment to 259 entries. After host exec fails, `proc_free_strvec()` frees only indices `0..PROC_MAX_ARGS` inclusive, then frees the vector. Entries 257 and 258 leak on this path. Repeated failed exec calls repeat the leak.
+- **Concrete Fix:** Carry the owned element count with each vector, or free validated host-owned vectors through their guaranteed NULL terminator. Make cleanup independent of the guest-input cap. Add a failed-exec regression with a maximum-length environment.
+
+**P64-R4-8 — File staging duplicates logic and error policy**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `src/os/syscalls_mm_map.c:42`
+- **Evidence & Root Cause:** `mm_stage_file()` and `ppc64_vm_file_fill()` at `src/vm/vm_file.c:767` independently implement allocation, bounded `pread`, EINTR retry, offset checks, short-read termination, and zero-filling. Their error handling already differs: the former preserves `EBADF`, while the latter converts every read error to `EIO`. The new remap-tail reader introduces a third, less complete variant.
+- **Concrete Fix:** Introduce one repository-local staged file-read helper with explicit short-read, EOF, offset, and error semantics. Reuse it in mapping and remap population while retaining their separate publication and rollback responsibilities.
+
+The CLEAN scan found no source files above 900 lines—the largest was 890—and no prohibited string-function calls or `.c` includes in the searched trees. Literal `x18` matches were comments; that scan does not establish correctness of encoded JIT register operands. No sufficiently supported YAGNI finding emerged from this bounded inspection.
+
+- [ ] **P64-R4-1:** Correct single-precision operand and result rounding.
+- [ ] **P64-R4-2:** Record integer-conversion FPSCR exceptions.
+- [ ] **P64-R4-3:** Propagate file-remap refill failures.
+- [ ] **P64-R4-4:** Preserve the executing task’s pending signals.
+- [ ] **P64-R4-5:** Preserve the distinction between default and ignored dispositions.
+- [ ] **P64-R4-6:** Remove internal handoff variables before guest-stack construction.
+- [ ] **P64-R4-7:** Free every injected environment entry after failed exec.
+- [ ] **P64-R4-8:** Unify staged file reads in a repository-local helper.
+
+---
+
+## 9. `mips64rt` (`f7c6924`) — 10 Round-4 Findings (`0 / 10` Resolved)
+
+Found **10 actionable issues** at `f7c6924`. The Round-3 staged-copyout changes, single-call vectored I/O, and post-fable CAS changes are present, but edge cases remain.
+
+Used exactly **seven shell inspection commands**, including the requested `git log -n 5 --oneline`, `git show HEAD~1 --stat`, and `git show HEAD`. No Markdown documents, builds, tests, Docker, or QEMU were run. Findings below are static conclusions, not runtime reproductions.
+
+**M64-R4-1 — File writes can leave stale translated code**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:530`
+- **Evidence & Root Cause:** `vm_inode_apply_write_locked()` passes file offsets `off` and `wend` to `vm_inode_invalidate_maps()` at line 582. That function compares them against guest virtual addresses `maps[i].va`. For a file mapped at guest `0x100000`, a write to file offset zero fails the overlap check. Fallback bytes can be refreshed while the corresponding DBT translation survives; native mappings also miss invalidation.
+- **Concrete Fix:** Intersect the write interval with each mapping’s `[file_offset, file_offset + len)` interval, translate that intersection into guest VA, and invalidate it. Add coverage for executable aliases at different VAs and nonzero file offsets.
+
+**M64-R4-2 — Shared fallback stores past EOF extend the backing file**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm_file.c:654`
+- **Evidence & Root Cause:** `mips_vm_file_shared_sync()` clips stores to the mapping but not to `in->size`. It issues `pwrite()` for the entire intersection. On a fallback shared mapping of a one-byte file, a guest store at offset two extends the file to three bytes. The zero-filled tail of the final mapped page must not become file content merely through a mapped store. The function also ignores short writes and errors before marking the range clean and refreshing aliases.
+- **Concrete Fix:** Limit backing-file writes to bytes below EOF. Preserve final-page tail bytes without extending the file. Handle short writes and failures before publishing clean/coherent state. Cover partial-page EOF and failed writeback.
+
+**M64-R4-3 — File refresh helpers violate the 16 KiB host-page strategy**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/vm/vm64.c:377`
+- **Evidence & Root Cause:** `mips_vm_inode_refresh_span()` derives host writability from guest permissions and calls `mprotect(p, 4096, ...)` on a guest-page address. `mips_vm_inode_zero_span()` does the same at line 349. On a 16 KiB host, a guest page at host-page offset `0x1000` is not a valid protection boundary: these helpers return without refreshing or zeroing it. On an aligned first subpage, restoring guest permissions can instead alter protection for neighboring subpages, defeating the RW host cover. Callers subsequently advance reconciliation sequence numbers.
+- **Concrete Fix:** Make both helpers obey the existing large-host-page cover policy. Keep guest subpage permissions in software; use host-aligned protection changes only where required and propagate failures. Cover refresh and truncation on all four subpages, including mixed guest permissions.
+
+**M64-R4-4 — File-tracking exhaustion silently loses backing metadata**
+
+- **Severity:** High
+- **Category:** DEFECT
+- **Location:** `src/vm/vm_file.c:371`
+- **Evidence & Root Cause:** `vm_inode_split_at()` silently skips splitting when the 128-entry map table is full. Its `fcntl()` duplication can also fail, yet the new record is committed with `fd_dup == -1`. The middle-unmap path at lines 473–484 discards the right-hand record when full and only sets `wide`. That flag broadens DBT invalidation; it cannot restore missing EOF, coherence, or remap metadata. Mapping registration similarly returns silently when inode allocation fails.
+- **Concrete Fix:** Reserve metadata capacity and duplicate descriptors before committing VM changes. Return failures through the map/split/remap interfaces and preserve existing records on failure. Reclaim empty inode slots or grow the repo-local tables. Add capacity and descriptor-exhaustion cases.
+
+**M64-R4-5 — Round-3 absorbed-operand correction is asymmetric**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/interp/fp.c:678`
+- **Evidence & Root Cause:** The correction detects only `qd == a`, where the second operand disappears. With `a = 2^-126`, `b = 1.0f`, and ADD.S, binary64 `qd` equals `b`; the condition fails. Consequently `q == r == 1`, Inexact is omitted, and rounding toward positive infinity incorrectly returns `0x3f800000` instead of `0x3f800001`. The new regression table always puts the larger finite operand first.
+- **Concrete Fix:** Detect absorption of either effective operand, preserving the smaller operand’s residual sign after subtraction. Extend tests to both operand orders, both signs, ADD/SUB, and all four rounding modes.
+
+**M64-R4-6 — Paired-single arithmetic ignores guest rounding mode**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/interp/fp_ps.c:103`
+- **Evidence & Root Cause:** `fp_ps_lane()` receives neither FCSR nor a rounding mode. ADD.PS, SUB.PS, and MUL.PS return the host-rounded result directly. For example, `1.0f + 2^-24` under guest rounding toward positive infinity must select the next float, but this path returns the host nearest-even result. Its direct `long double` reference also retains the absorbed-operand problem fixed separately for scalar operations.
+- **Concrete Fix:** Share a repo-local single-precision arithmetic implementation that accepts the guest rounding mode and returns result bits plus exceptions. Use it for scalar and paired lanes, preserving whole-destination trap suppression. Test each lane under every mode.
+
+**M64-R4-7 — Quiet comparisons fail to raise Invalid for signaling NaNs**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/interp/fp.c:791`
+- **Evidence & Root Cause:** Comparison handling raises Invalid only when the predicate’s signaling bit, `cond & 8`, is set. It never calls `fp_issn_s()` or `fp_issn_d()`. Thus a quiet predicate such as C.EQ.S with a legacy signaling-NaN operand produces an unordered result without Invalid or an enabled exception trap. The DBT explicitly falls back to this interpreter path for unordered operands.
+- **Concrete Fix:** Raise Invalid when either operand is signaling NaN, or when a signaling predicate receives any NaN. Preserve FCC on an enabled trap. Cover quiet/signaling predicates against both NaN classes in S and D formats.
+
+**M64-R4-8 — `sigaltstack` returns a mixture of old and new state**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/os/sigact.c:429`
+- **Evidence & Root Cause:** `reported` is computed from the original stack at lines 385–388. The function then overwrites `ctx->sigalt_sp` and `ctx->sigalt_size`, and serializes those updated fields into `oss`. Calling `sigaltstack(&new_stack, &old_stack)` therefore returns the new address and size with the old status flags. Disabling an installed stack similarly loses its previous address and size.
+- **Concrete Fix:** Snapshot the complete old stack before processing `ss`, and serialize that snapshot into `oss`. Cover replacement, disabling, and aliased input/output buffers for N64 and N32.
+
+**M64-R4-9 — Two syscall copyout implementations duplicate the commit protocol**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `src/os/syscalls_sync.c:206`
+- **Evidence & Root Cause:** `l2a_commit_guest_write()` duplicates the lock, copy, reservation invalidation, COW clearing, code retirement, and shared-file synchronization sequence in `mips_sc_copyout()` (`src/os/syscalls.c:156`). They already differ in range validation and explicit `ctx->llbit` clearing. Future corrections must reach both paths.
+- **Concrete Fix:** Route scalar/vector commits through `mips_sc_copyout()`, retaining partial-byte accounting in `l2a_vec_copyout()`. Alternatively, factor one internal commit primitive with explicit validation requirements. Keep the helper repository-local.
+
+**M64-R4-10 — Superseded signal-mask and deferred-copyout scaffolding remains**
+
+- **Severity:** Low
+- **Category:** YAGNI
+- **Location:** `src/os/syscalls_sync.c:120`
+- **Evidence & Root Cause:** `l2a_sigmask` and `mips_sc_rt_sigprocmask()` remain despite dispatch selecting `mips_l4a_rt_sigprocmask()` at `src/os/syscall_min.c:700`; repository references show no caller of the old implementation. Separately, all remaining `guest_range()` calls use read mode, leaving its write branch, `g_sync_*` queue, and dispatcher flush obsolete after HEAD’s copyout migration.
+- **Concrete Fix:** Remove the unused signal-mask implementation and declaration. Remove the deferred write queue and flush call; make `guest_range()` explicitly read-only and update its declarations.
+
+The CLEAN inspection found no over-900-line `.c`, `.h`, or `.S` files, prohibited string functions, source-file includes, or literal `x18` assembly use. `Makefile:22` contains the required warning flags. This is not compiler validation or a complete audit of generated register encodings. The requested `include/` and `tools/` directories do not exist at this HEAD.
+
+- [ ] **M64-R4-1:** Translate file offsets to guest addresses before DBT invalidation.
+- [ ] **M64-R4-2:** Bound shared writeback by EOF and handle write failures.
+- [ ] **M64-R4-3:** Make refresh/zero helpers respect 16 KiB host-page coverage.
+- [ ] **M64-R4-4:** Preserve backing metadata on capacity or descriptor exhaustion.
+- [ ] **M64-R4-5:** Correct absorbed operands in both operand orders.
+- [ ] **M64-R4-6:** Honor FCSR rounding in paired-single arithmetic.
+- [ ] **M64-R4-7:** Raise Invalid for signaling NaNs in quiet comparisons.
+- [ ] **M64-R4-8:** Return a complete old alternate-stack snapshot.
+- [ ] **M64-R4-9:** Unify syscall copyout commit logic.
+- [ ] **M64-R4-10:** Remove superseded mask and deferred-copyout scaffolding.
+
+---
+
+## 10. `sparc64rt` (`5232650`) — 11 Round-4 Findings (`0 / 11` Resolved)
+
+Found **11 actionable issues** at HEAD `5232650`. The Round-3 fixes improve registry growth, worker registration, and cache invalidation, but leave important failure paths incomplete.
+
+Used **seven shell inspection commands**, including `git log -n 5 --oneline`, `git show HEAD~1 --stat`, and `git show HEAD`. No Markdown files, builds, tests, Docker, or QEMU were read or run. `tools/` does not exist in this checkout. Findings below are static traces, not runtime reproductions.
+
+**S64-R4-1 — Negative 32-bit integer-to-float conversions use the wrong magnitude**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/interp/fp_conv.c:191`
+- **Evidence & Root Cause:** `cv_itos()` computes negative magnitude as `UINT64_C(0) - (uint64_t)(uint32_t)v`. For `v == -1`, this produces `0xffffffff00000001`, not `1`. Both FITOS and FITOD then convert that enormous magnitude with a negative sign. The DBT uses signed AArch64 conversion instructions, so this also creates interpreter/DBT divergence.
+- **Concrete Fix:** Sign-extend before unsigned negation: `UINT64_C(0) - (uint64_t)(int64_t)v`, or negate after widening to `int64_t`. Add FITOS/FITOD vectors for `-1`, `INT32_MIN`, and negative values around single-precision rounding boundaries.
+
+**S64-R4-2 — Directed rounding increments exactly representable integers**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/interp/fp_conv.c:168`
+- **Evidence & Root Cause:** `cv_int_bits()` sets `up = neg == 0U` for upward rounding and `up = neg != 0U` for downward rounding, regardless of discarded bits. Thus converting positive integer `1` under upward rounding returns the next representable float above `1`, while reporting NX clear. The helper serves FITOS, FITOD, FXTOS, and FXTOD.
+- **Concrete Fix:** Require inexactness for directed increments: `up = (*nx != 0U) && …`. Test exact positive and negative integers under all four rounding modes, checking result bits and FSR flags.
+
+**S64-R4-3 — Failed relocated mremap leaves the source moved and skips the shared code epoch**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/guest_run_sysmem.c:697`
+- **Evidence & Root Cause:** The substrate publishes the relocation before `sysmem_file_fill_growth()`. On `-12`, cleanup removes only the growth tail; the original bytes remain at `dest`, and the source has already disappeared. The syscall returns `-ENOMEM`, leaving callers with an invalid original pointer. For FIXED relocation, replaced destination mappings are also lost. `vm64_stxn_abort()` only clears transaction state; unlike commit, it does not bump `vm64_code_epoch`, so sleeping threads can retain translations for mappings that changed.
+- **Concrete Fix:** Prepare and populate the entire candidate before publishing relocation, or retain enough backing and registry state to restore both source and replaced destination completely. Fault-inject growth-fill failure and verify mappings, contents, metadata, and cache visibility remain unchanged.
+
+**S64-R4-4 — Retained-fd failures silently turn file growth into anonymous zero-filled memory**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/guest_run_sysmem_file.c:207`
+- **Evidence & Root Cause:** `sysmem_file_note_map()` marks an entry live and returns success even when descriptor duplication fails. Split paths likewise accept failed duplicates. `sysmem_file_fill_overlap()` explicitly returns success for `slot->fd < 0` at `src/os/sysmem_file_fill.c:184`, leaving zero-filled growth pages and bypassing EOF/BUS classification. Descriptor exhaustion therefore changes observable mapping semantics.
+- **Concrete Fix:** Acquire required descriptors before publishing mapping changes and propagate acquisition failures. Prefer a repository-local reference-counted backing-description object so splitting ranges does not require additional host descriptors. Test descriptor exhaustion during initial registration and splitting.
+
+**S64-R4-5 — munmap allocation failure silently discards metadata for a surviving mapping**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/guest_run_sysmem.c:410`
+- **Evidence & Root Cause:** `sparc64_sysmem_munmap()` ignores the registry reservation result. When a middle excision subsequently cannot claim a tail slot, `sysmem_file_drop_map()` trims the head and continues at line 341 without tracking the still-mapped tail. Later truncation cannot update that tail’s EOF faults; later growth cannot recover its file backing. This contradicts the Round-3 claim that live tracking is never evicted.
+- **Concrete Fix:** Return `-ENOMEM` before mutation when required split metadata cannot be reserved, or provide a representation that preserves both survivors without allocation. Add a forced-allocation-failure case for middle-page unmapping.
+
+**S64-R4-6 — Truncation can restore permissions revoked by mprotect**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/guest_run_sysmem_file.c:488`
+- **Evidence & Root Cause:** File registration records `slot->prot`, but `sparc64_sysmem_mprotect()` changes only the address-space pages and caches. Truncate shrink passes the stale `slot->prot` to `sparc64_space_map_bus()`; subsequent growth passes it to `sparc64_space_replace()` at line 511. A mapping originally writable, then made read-only or inaccessible, can regain its original permissions after shrink/growth.
+- **Concrete Fix:** Preserve current per-page permissions when changing backing/BUS state, or split and update registry permissions transactionally on every successful `mprotect`. Test whole-range and partial-range permission changes followed by truncate shrink and regrowth.
+
+**S64-R4-7 — Failed execve closes descriptors, including newly retained mapping descriptors**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/proc.c:492`
+- **Evidence & Root Cause:** `proc_close_cloexec()` runs before host `execve()` or guest image loading can fail. Its process-wide scan closes every CLOEXEC descriptor numbered three or higher. A failed exec therefore destroys guest descriptors that should survive failure. HEAD’s new `F_DUPFD_CLOEXEC` mapping descriptors are also swept up, while existing registry entries retain their numeric fd values. Subsequent descriptor reuse can make those entries reference unrelated files.
+- **Concrete Fix:** Apply guest CLOEXEC closure only at successful guest-image commit, using explicit guest descriptor ownership. Let host `execve()` perform its own atomic CLOEXEC handling. Keep translator-owned retained descriptors outside the guest close sweep. Test failed exec followed by descriptor use and file-backed mremap.
+
+**S64-R4-8 — Signal masks, pending signals, and alternate stacks remain process-global**
+
+- **Severity:** High
+- **Category:** BUG
+- **Location:** `src/os/sync_sig.c:74`
+- **Evidence & Root Cause:** `sync_blocked`, `sync_pending`, and alternate-stack fields are single static variables. The thread structure contains no corresponding per-thread state, and engine lock handoff does not save or restore it. Consequently, one guest thread’s mask or alternate-stack change affects siblings; pending delivery can consume another thread’s state. Serializing execution with the big lock does not provide per-thread semantics.
+- **Concrete Fix:** Store thread-specific signal state in the guest thread record and resolve it through the active context. Keep shared dispositions separate. Implement clone inheritance and alternate-stack reset rules explicitly. Add two-thread tests with different masks and alternate stacks.
+
+**S64-R4-9 — Retried relative futex waits restart the full timeout**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `src/os/threads_darwin.c:238`
+- **Evidence & Root Cause:** After backend `-EINTR`, the Darwin loop updates `expected_seq` and retries using the original relative `ts`. The backend computes a new deadline from the current time on every invocation. Repeated interruptions can therefore extend a finite WAIT indefinitely. The Linux retry loop in `src/os/threads.c:456` also resubmits the unchanged relative timeout.
+- **Concrete Fix:** Compute a monotonic deadline once for relative WAIT and pass the remaining duration on internal retries. Distinguish internal preemption from guest-visible signal interruption. Add a timed-wait case with repeated internal wakeups and an unchanged futex word.
+
+**S64-R4-10 — Round-3 registry tests omit the syscall transaction paths they claim to cover**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `Makefile:155`
+- **Evidence & Root Cause:** `check-r3` links the registry, population, memory, and VM files, but excludes `guest_run_sysmem.c`. Its tests exercise registry helpers directly and use counting stubs for invalidation. They cannot exercise mmap/mremap/munmap transaction ordering, mprotect metadata maintenance, or the failing relocation cleanup in S64-R4-3. Successful helper tests therefore leave the consequential integration paths unchecked.
+- **Concrete Fix:** Add focused tests that invoke the actual syscall shells, with injectable allocation, descriptor, and fill failures. Assert address-space and registry state before and after failure, plus epoch behavior. Retain the existing helper tests.
+
+**S64-R4-11 — Floating-point exception commit logic is duplicated**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `src/interp/fp_conv.c:82`
+- **Evidence & Root Cause:** `cv_commit()` duplicates the FSR current-exception update, accrued-exception update, TEM check, and trap construction in `sd_commit()` at `src/interp/fp_sd.c:71`. Both implement the same architectural operation, so future exception corrections require synchronized edits.
+- **Concrete Fix:** Introduce one repository-local FP exception-commit helper in an internal header/source pair. Use it from both paths and keep result-publication ordering explicit.
+
+The source-length inspection found no `.c`, `.h`, or `.S` file above 900 lines; the largest was `src/os/threads.c` at 897. The prohibited-call scan found `strcpy`/`strcat` in the libc string test, including intentional coverage of those functions. No confirmed YAGNI finding emerged from the bounded inspection. These checks do not establish complete C11 compliance or prove that encoded JIT instructions avoid `x18`.
+
+- [ ] **S64-R4-1:** Correct negative 32-bit conversion magnitudes.
+- [ ] **S64-R4-2:** Gate directed-rounding increments on inexactness.
+- [ ] **S64-R4-3:** Make failed mremap relocation fully transactional.
+- [ ] **S64-R4-4:** Handle retained-descriptor acquisition failures.
+- [ ] **S64-R4-5:** Preserve surviving mapping metadata on allocation failure.
+- [ ] **S64-R4-6:** Preserve current permissions across truncate transitions.
+- [ ] **S64-R4-7:** Defer CLOEXEC closure until successful exec commit.
+- [ ] **S64-R4-8:** Make signal masks, pending state, and alternate stacks thread-specific.
+- [ ] **S64-R4-9:** Preserve futex deadlines across retries.
+- [ ] **S64-R4-10:** Test actual syscall transaction and failure paths.
+- [ ] **S64-R4-11:** Unify FP exception commit logic locally.
+
+---
+
+## 11. `rt-series` (`5e6cbc0`) — 7 Round-4 Findings (`0 / 7` Resolved)
+
+Found **7 actionable issues** at `5e6cbc0`: **6 Medium, 1 Low**. Findings concern this repository’s harness and fixtures; there is no tracked `src/` translator implementation here.
+
+The Round-3 changes add strict warning flags, separate TestFloat engine runs, require foreign upstream adapters, and restrict `hl` rerouting to automatically selected wrappers. The follow-up LL/SC guard and cleanup verification still have gaps.
+
+**RTS-R4-1 — LL/SC capability guard enables unsupported probe implementations**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `tests/p3_llsc.h:26`
+- **Evidence & Root Cause:** `P3_HAVE_LLSC` accepts every `__arm__` and `__riscv` target. However, `llsc_pair()` implements ARM only when `__ARM_ARCH >= 6` (line 69), and RISC-V only with `__riscv_atomic` (line 80). Other configurations reach the fallback at line 131, which always sets `stored = 0`. The no-signal control therefore fails all 32 attempts, and `t_llsc_reservation()` reports a translator failure despite executing no LL/SC instructions. This contradicts the follow-up’s claimed exact architecture guard.
+- **Concrete Fix:** Make `P3_HAVE_LLSC` match the implementation predicates exactly, including ARM version, RISC-V atomic support, and consistent PowerPC/LoongArch aliases. Make an enabled-but-unimplemented branch a preprocessing error rather than a silent fallback.
+
+**RTS-R4-2 — Extracted LL/SC header does not invalidate guest binaries**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `tools/build_uniform_guests.sh:112`
+- **Evidence & Root Cause:** `already_built()` checks only the modification times of `p3_torture.c` and `smoke_tcg.c`. Since `b4f5131`, the reservation implementation lives in `tests/p3_llsc.h`. Changing that header alone leaves every existing P3 guest classified as up to date, allowing qualification to exercise obsolete probe code.
+- **Concrete Fix:** Add `tests/p3_llsc.h` to the P3 dependency check. Also invalidate artifacts when the build recipe or compilation flags change, using a dependency/build stamp or equivalent explicit tracking.
+
+**RTS-R4-3 — Container cleanup verification treats inspection failure as success**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `tools/build_uniform_guests.sh:67`
+- **Evidence & Root Cause:** Both cleanup and verification suppress `docker ps` failures with `|| true` (lines 47 and 67). Verification interprets empty output as no remaining containers. Failed `docker inspect` calls are likewise converted to empty names, which cannot match the ownership suffix. Consequently, `on_uniform_exit()` can preserve exit status zero even when container removal could not be verified.
+- **Concrete Fix:** Track the exact container names or IDs created by this invocation. Propagate listing failures and distinguish a confirmed absent container from an inspection failure. Bound cleanup and inspection commands with timeouts.
+
+**RTS-R4-4 — Sub-page permission fixture never checks write protection**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `tests/tcg/smoke_tcg.c:270`
+- **Evidence & Root Cause:** `t_test_mmap()` requests RW/RX/RO/NONE pages, but checks only the RW page and a read fault on NONE. It never accesses RX or RO to verify readable contents or rejected writes, yet reports `test-mmap sub-page permissions`. A backend that incorrectly leaves both RX and RO writable passes this fixture.
+- **Concrete Fix:** Initialize all pages before protection changes. Use explicit volatile accesses to verify reads from RX/RO and write faults on each, checking fault addresses. Recheck the neighboring RW page after each protection transition to detect widened host-page permissions.
+
+**RTS-R4-5 — Grind compilation and generators can run without a time limit**
+
+- **Severity:** Medium
+- **Category:** DEFECT
+- **Location:** `tools/run_grind.sh:361`
+- **Evidence & Root Cause:** Guest execution is bounded, but GCC torture compilation is not. The same omission affects builtin compilation at line 537, Csmith generation/compilation at lines 752–753, and Yarpgen generation/compilation at lines 767, 783, and 794. A stalled generator or compiler prevents the suite from reaching its bounded execution and summary paths.
+- **Concrete Fix:** Apply explicit `timeout --kill-after=30s` budgets to each generator and compiler invocation. Report timeout separately from an unsupported-source compilation skip, and clean up temporary artifacts on interruption.
+
+**RTS-R4-6 — Remote benchmark parser returns success for invalid results**
+
+- **Severity:** Medium
+- **Category:** BUG
+- **Location:** `tools/remote_bench_common.sh:141`
+- **Evidence & Root Cause:** `parse_and_print()` extracts fields without validating record counts or workload status. Missing fields become `-`; a missing summary becomes `FAIL`. Its final `printf` still returns success. Thus an executable that exits zero with empty or malformed output can produce a failed-looking result row while `remote_linux_inner.sh` and `remote_bench.sh` complete successfully. The local harness has substantially stricter validation at `tools/bench_harness.sh:388`.
+- **Concrete Fix:** Move benchmark record validation into a shared repo-local helper. Require exactly one valid PASS record for each workload and one valid ALL_PASS summary. Have remote callers propagate validation failure as a nonzero exit status.
+
+**RTS-R4-7 — Signal-safe fault-address encoding is duplicated**
+
+- **Severity:** Low
+- **Category:** DRY
+- **Location:** `tests/p3_torture.c:90`
+- **Evidence & Root Cause:** The three-word, 22-bit signal-address bridge, width assertion, store routine, and load routine are duplicated in `tests/tcg/smoke_tcg.c:84`. Only the names differ. Changes to this portability-sensitive representation must currently be synchronized manually.
+- **Concrete Fix:** Introduce one repo-local test header containing the bridge type, assertion, and static inline encode/decode helpers. Keep a separate bridge instance in each fixture.
+
+Seven shell inspection invocations were used, including the requested history commands, source-filtered commit diffs, numbered source reads, searches, and line counts. No builds, tests, containers, or QEMU were run; no files changed. The requested unrestricted `git show HEAD` exposed Markdown diffs; those were not used as finding evidence.
+
+All inspected C/header files are below 900 lines; the largest is `tests/p3_torture.c` at 750. The targeted scan found no prohibited string calls, `.c` inclusions, or explicit `x18`/`w18` operands. No additional CLEAN or YAGNI finding was sufficiently established. These static checks do not qualify sibling translator semantics.
+
+- [ ] **RTS-R4-1:** Match LL/SC capability guards to implemented probes.
+- [ ] **RTS-R4-2:** Rebuild uniform guests when included headers or recipes change.
+- [ ] **RTS-R4-3:** Fail cleanup verification when container state cannot be established.
+- [ ] **RTS-R4-4:** Test RX/RO write rejection and adjacent-page isolation.
+- [ ] **RTS-R4-5:** Bound grind generators and compiler invocations.
+- [ ] **RTS-R4-6:** Validate remote benchmark records and propagate failure.
+- [ ] **RTS-R4-7:** Unify the signal-safe fault-address bridge.
+
+---
+
+## Part II — Round-3 Audit Archive (85 Items Resolved & Verified by `fable`)
 
 ### 0.1 Round 3 Audit Matrix (`85 / 85` Resolved & Verified by `fable`)
 
@@ -1014,7 +2301,7 @@ The inspected C/H files satisfy the 900-line limit; the largest is `tests/p3_tor
 
 ---
 
-## Part II — Round-2 Audit Archive (145 Items Resolved & Verified by `fable`)
+## Part III — Round-2 Audit Archive (145 Items Resolved & Verified by `fable`)
 
 > [!NOTE]
 > All 145 Round-2 `gpt-6-astra` findings and 9 Round-2 cross-cutting clusters below were remediated across all 11 repositories, independently reviewed by `fable` (`claude-fable-5-1`, transcripts in `lode/reviews/2026-11-02-defects-r2-*-fable.md`), and followed up via `muse exec` commits (`a76285b`, `4a759c6`, `a86a161`, `2c2a62e`, `b40924b`, `dab0b91`, `00ea803`, `205054f`, `45af6bf`, `001f2b1`, `37a9af0`).
@@ -2066,7 +3353,7 @@ The 900-line C/header ceiling is satisfied. The 1,059-line catalogue shell scrip
 
 ---
 
-## Part III — Round-1 Audit Archive (187 Items Addressed in Round-1 Commits)
+## Part IV — Round-1 Audit Archive (187 Items Addressed in Round-1 Commits)
 
 > [!NOTE]
 > The 187 items below record the Round-1 `gpt-6-astra` audit and the Round-1 commits (`a5f53b4`, `8db8727`, `366ca9b`, `abe6b0b`, `dad95da`, `8e207fb`, `026e87d`, `bd3e73f`, `32d5c9e`, `3ead4f9`, `96e1fe6`). Where Round-2 static inspection found that a Round-1 fix was incomplete or introduced a follow-up edge case, the corresponding open item is tracked in **Part I (Round 2)** above (`§0.1` and `§1..§11`).
