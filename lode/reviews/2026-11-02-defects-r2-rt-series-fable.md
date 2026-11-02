@@ -1,0 +1,73 @@
+# Post-Remediation Review — `rt-series`
+
+| Field | Value |
+|---|---|
+| Repository | `rt-series` (`/Users/angerman/Projects/zw3rk/rt-series`) |
+| Commit reviewed | `6d065583dd9ea11ab6d2471a85a01cf280cc96df` (`tests,tools: resolve Round-2 audit findings RTS-R2-1..RTS-R2-17`) |
+| Audit input | `lode/reviews/2026-11-02-defects-r2-rt-series-astra.md` (18 findings) |
+| Reviewer | `claude-fable-5-1` |
+| Date | 2026-11-02 |
+| **Overall Verdict** | **NEEDS_FOLLOWUP** |
+
+Method: 8 batched inspections (audit report, `git show --stat`, full `git show HEAD` diff, hygiene greps, `bash -n` on all 7 changed scripts, host `cc -std=c11 -Werror=vla -pedantic -Wall -Wextra -Werror -fsyntax-only` on both changed fixtures, `sizeof(sig_atomic_t)` probe, caller and output-format cross-checks). No translators, containers, or test suites were executed. The `hl` CLI and sibling `parity_suite.sh` emitters were not opened.
+
+Summary: 14 of 18 findings are genuinely fixed. RTS-R2-6 is only partially fixed, RTS-R2-18 was not touched, and the RTS-R2-16 centralization silently drops the `hl --rvrt-native` / `--<rt>` selector flags that `remote_bench.sh` previously passed.
+
+---
+
+## Section 1: Per-Finding Verification Table
+
+| ID | Title | Status | Technical Notes |
+|---|---|---|---|
+| RTS-R2-1 | Qualification accepts unrelated tests as software-tier evidence | **VERIFIED** | `check_parity_categories` now runs `awk -F '\t'` over `PARITY_ROW` rows, filters `$2 == repo && $7 == "PASS"`, maps only the exact case column (`$5`) through a one-to-one `map_cat()`, and requires every `(abi, engine, category)` tuple from `required_repo_abis()` × `{interp, dbt}` × 7 categories. `hello`, `p1_isa`, `p3-` etc. no longer qualify T1–T3; `p3-torture` maps only to `p3-torture`. Caveat: the 7-column layout (`status` at `$7`, engine at `$6`, abi at `$3`) was not cross-checked against `parity_row` in `tools/parity_contract.sh`; a layout mismatch would fail loudly (every tuple missing), not silently pass. |
+| RTS-R2-2 | Grind credits host execution to foreign architectures | **VERIFIED** | `--arch all` now iterates `ALL_RT_REPOS` through `run_arch_job`; native execution requires explicit `--arch host`. `run_libc_ltp_suite` and `run_lmbench_suite` skip when `CURRENT_ARCH != host` and no wrapper is resolved, and otherwise prefix every binary with `$_wrap`. lmbench `PATH` discovery is host-only. All PASS/FAIL/SKIP lines carry the `[arch/suite]` label, so native diagnostics are separable. |
+| RTS-R2-3 | Grind chooses executable format before resolving backend | **VERIFIED** | `BACKEND` is resolved and validated (`linux|hl|darwin`) before any artifact discovery. `find_backend_rt_bin` requires `file` to report `Mach-O 64-bit` for darwin and `ELF 64-bit` for linux/hl; `hl` prepends `find_hl_launcher`. Minor: when `file(1)` is absent every arch silently resolves to no wrapper and skips (tolerated by default `GRIND_ALLOW_SKIP` policy). |
+| RTS-R2-4 | Weekly differential checks never compare results | **VERIFIED** | New `run_differential_binary` requires distinct reference (`GRIND_QEMU` or `GRIND_INTERP`) and `GRIND_DBT` wrappers, runs both, and `cmp -s` the merged stdout+stderr; mismatch, or either wrapper exiting non-zero, is `grind_fail`. Note: merging stderr means translator diagnostics that differ between engines would produce a spurious mismatch (fails loud, acceptable). |
+| RTS-R2-5 | Yarpgen compilation passes unmatched source globs | **VERIFIED** | Source lists are built with `[ -f ]` per glob hit; C files go to `$_cc`, C++ files to `$_cxx` (derived `gcc`→`g++`). Generation or compilation failure after prerequisites are present is now `grind_fail`, not SKIP. Edge: a corpus with *both* `.c` and `.cpp` compiles only the C set; yarpgen does not emit mixed corpora, so this is theoretical. |
+| RTS-R2-6 | Signal remediation does not test interrupted reservations or register restoration | **INCOMPLETE** | Fixed: `fp_handler` now sets `FE_TOWARDZERO` and raises `FE_OVERFLOW\|FE_DIVBYZERO`, and `t_sig_frame_fpr` already checks `fegetround()`/`fetestexcept()` afterward (lines 425–433), so FP-env restoration is now a real test. `probe_llsc_broken_by_signal` holds a genuine `ldxr`/`ldrex`/`lr.w` reservation across `raise()` and asserts the matching SC fails. **Not fixed**: (a) the `#else` branch is a no-op for MIPS (`ll`/`sc`), PowerPC (`lwarx`/`stwcx.`), and LoongArch (`ll.w`/`sc.w`), i.e. 5 of the 10 translators (`mips32rt`, `mips64rt`, `ppc32rt`, `ppc64rt`, `loongarch64rt`) are LL/SC ISAs that receive no reservation probe; (b) GPR liveness in `t_sig_frame_gpr` still relies on ordinary C locals across a call, which the audit explicitly called insufficient; the comment still advertises "live GPR preservation" rather than the narrowed guarantee. |
+| RTS-R2-7 | SPARC smoke binary bypasses freshness checks | **VERIFIED** | Fast builder rebuilds both `bench-sparc32` and `bench-sparc32-smoke` in one container when either is stale (`set -eu`, temp-then-`mv`). `run_one_target` selects the smoke binary only when `! need_bench_rebuild` holds, otherwise falls back to `bench-sparc32 --smoke`. |
+| RTS-R2-8 | EXIT trap references expired local | **VERIFIED** | The function-local `trap … "$cname"` is gone. A single script-level `cleanup_bench_containers` is installed once; it matches containers by `-$$` suffix via `docker inspect`, so no deferred local expansion remains. `bash -n` clean. See Section 3 for trap exit-status and INT/TERM continuation notes. |
+| RTS-R2-9 | Linux load check selects unsupported sysctl key | **VERIFIED** | `/proc/loadavg` is tried first, `sysctl -n vm.loadavg` only as fallback, each with `\|\| true`; the value is validated against `^[0-9]+(\.[0-9]+)?$` and a non-numeric result is a hard error instead of a `pipefail` abort. |
+| RTS-R2-10 | Catalogue ignores failed summary counters | **VERIFIED** | `check_parity_no_skip` now fails on empty/missing log, validates exact `PARITY_SUMMARY repo= pass= fail= gap= skip=` syntax, requires `repo` match, `pass > 0`, `fail == 0`, `gap == 0`, and treats `skip > 0` as failure unless `CATALOGUE_ALLOW_SKIP=1`. The third argument distinguishes the `parity_suite.sh` path (summary mandatory) from the `make check` fallback (summary validated only if present). Smoke mode no longer accepts an empty log. |
+| RTS-R2-11 | Benchmark success does not require complete workload records | **VERIFIED** | `check_bench_output` requires exactly one anchored `^BENCH <wl> us=N ops_sec=N crc=0x[0-9a-f]{8} PASS$` for each of the 5 workloads and exactly one `^BENCH total_us=N ALL_PASS$`; duplicates, truncation, or `?` timing now fail. `tests/bench_suite.c:121-126,555-557` emit matching formats. |
+| RTS-R2-12 | Concurrent catalogue runs overwrite evidence | **VERIFIED** | `run_host_gate` allocates `mktemp -d /tmp/rt-cat-$CMD.XXXXXX`, passes `$_gate_dir/$r.log` into `run_repo_gate` (now a required 4th arg), preserves the directory on failure, and removes it on success. `run_host_smoke` delegates to `run_host_gate`, so there are no stale callers; no `/tmp/cat-` references remain. |
+| RTS-R2-13 | Container cleanup incomplete on timeout/interruption | **VERIFIED** (with caveat) | Every fast-path and runtime container is followed by `cleanup_bench_containers`, which `docker rm -f`s owned containers and then errors if any `-$$` container still appears in `docker ps`. The `EXIT INT TERM` trap covers interruption. Caveat in Section 3: a `return 1` from the EXIT trap does not change the script's exit status, so a lingering container after an otherwise-green run is logged but not failed. |
+| RTS-R2-14 | Golden-update failures can return success | **VERIFIED** | `parity_check_golden` returns 2 for empty args or unreadable actual, propagates `mkdir -p` failure, copies to `${golden}.tmp.$$`, and only `mv`s on success, cleaning the temp on any failure. |
+| RTS-R2-15 | Fault handlers use ordinary static address objects | **VERIFIED** (minor note) | `g_segv_addr` / `g_got_addr` replaced by three `volatile sig_atomic_t` 22-bit chunks (66 bits ≥ 64); masks on store and load are correct on both 32- and 64-bit targets, and the fault is synchronous so non-atomic three-word store is sound before `siglongjmp`. Host probe confirms `sizeof(sig_atomic_t) == 4`. The comment's claim "POSIX guarantees sig_atomic_t >= 32-bit" is false (C11 only guarantees ±127); see Section 3 for a `_Static_assert` suggestion. |
+| RTS-R2-16 | Translator invocation policy duplicated | **VERIFIED** (behavior change flagged) | `rt_format_cmd_prefix`, `rt_run_bounded_translator`, `rt_run_bounded_hl`, and `ALL_RT_REPOS` now live in `tools/remote_bench_common.sh`, sourced by all four runners; the four divergent `case` ladders are deleted. **Behavior change**: `remote_bench.sh` previously invoked `hl --rvrt-native -- <lrt> …` for `rvrt` and `hl --<rt> <lrt> …` for others; the unified helper emits `hl --env … <lrt> …` with no selector flag (the `bench_harness.sh` convention). I could not confirm from `hyper-linux` docs that `hl` auto-dispatches identically without `--rvrt-native`; see Section 3. |
+| RTS-R2-17 | Fault signal code recorded but never checked | **VERIFIED** | All three `t_mprotect_munmap` probes and all three `smoke_tcg.c` probes reset `signo`/`code`/`addr`, then assert `signo ∈ {SIGSEGV, SIGBUS}`, `si_code > 0`, and `si_addr` on the expected page. The check is weaker than the audit's first option (no `SEGV_ACCERR` vs `SEGV_MAPERR` discrimination), but `g_segv_code` is no longer write-only and the advertised coverage now matches. |
+| RTS-R2-18 | HEAD declares complete remediation despite incomplete fixes | **INCOMPLETE** | Not in the commit's scope and `DEFECTS.md` is untouched in HEAD. The earlier over-claim is gone (ledger now reads `0 / 145` open, `rt-series 0 / 18`), so the ledger no longer asserts false closure. But none of RTS-R2-1..17 are ticked, and no record distinguishes implemented changes from executed checks and remaining gaps, which is what the finding asked for. |
+
+Totals: 15 VERIFIED (3 with caveats), 2 INCOMPLETE (RTS-R2-6, RTS-R2-18), 0 REGRESSION at the finding level. One behavioral change under RTS-R2-16 is tracked in Section 3.
+
+---
+
+## Section 2: Cross-Cutting & Hygiene Verification
+
+| Check | Result |
+|---|---|
+| `#include "*.c"` unity includes | None found across `*.c`/`*.h`/`*.S`. |
+| First-party C/H/S files ≤ 900 lines | Largest is `tests/p3_torture.c` at 760 lines (was 658). All others under 700. |
+| Curated C11 flags | `Makefile:9` sets `-std=c11 -Wall -Wextra -Werror=vla -pedantic`. Host syntax check of both changed fixtures with the full set plus `-Werror -fsyntax-only` passes. Note the Makefile `CFLAGS` does not include `-Werror` itself; this is pre-existing, not introduced here. |
+| Banned constructs | No `sprintf`, `strcpy`, `strcat`, `_Generic`, `<threads.h>`, Annex K, or VLA usage. The new inline `__asm__ volatile` blocks are GNU extensions guarded by arch macros, acceptable under the "minimal assembly" invariant. |
+| `x18` reserved | No `x18`/`w18` references in any `.c`/`.h`/`.S`. The new AArch64 asm uses only compiler-allocated `%w0`/`%1`/`%2` operands with `"=&r"` early-clobber on the SC status, which is correct. |
+| No cross-repo shared library extraction | Confirmed. The only consolidation is intra-repo shell tooling (`tools/remote_bench_common.sh`), which is what the audit requested; no C code moved across repositories. |
+| Shell syntax | `bash -n` clean for all 7 changed scripts. `shellcheck` is not installed on this host, so SC-level lint was not run. |
+| Resource hygiene in changed code | All new temp files (`/tmp/grind_*`, `/tmp/rt-cat-*`, `*.tmp.$$`) are removed on every return path that was inspected. New per-arch names avoid collisions under `--arch all`. No fd leaks in the C changes. |
+| Sister-repo fixes in HEAD | None. `HEAD` touches only `rt-series` files. |
+
+---
+
+## Section 3: Remaining or Newly Introduced Consequential Findings
+
+1. **RTS-R2-6 partial (Medium)** — `tests/p3_torture.c:71-116`. `probe_llsc_broken_by_signal` covers AArch64, ARMv6+, and RISC-V only. MIPS, PowerPC, and LoongArch are LL/SC architectures served by five translators and fall into the no-op `#else`, so the reservation-invalidation guarantee is still untested where the DBT emitters must synthesize it. GPR liveness remains ordinary C locals. Add `ll`/`sc`, `lwarx`/`stwcx.`, and `ll.w`/`sc.w` branches, and either pin registers via asm or relabel the GPR case as value-level only.
+
+2. **`hl` selector flags dropped (Medium, unverified)** — `tools/remote_bench_common.sh:941-987` vs. old `tools/remote_bench.sh:51-64`. The unified `rt_run_bounded_hl` no longer passes `--rvrt-native --` for `rvrt` or `--<rt>` for other translators. If `hl` relies on those flags to select `HL_MEMORY_POLICY_RVRT` or the Class-A 4 GiB offset mode, the remote `hl` phase changes semantics or fails. Verify against the `hl` CLI; if the flags are required, add a per-repo `hl` selector to the helper rather than reverting the DRY fix.
+
+3. **EXIT trap cannot fail the run; INT/TERM do not terminate (Low)** — `tools/bench_harness.sh:112-134`. `cleanup_bench_containers` returns 1 on a lingering container, but a non-zero return from an `EXIT` trap does not alter the script's exit status, so a green run with a leaked container still exits 0. On `INT`/`TERM` the trap runs and the script resumes the next target instead of stopping. Make the trap record `BENCH_CLEANUP_FAILED=1` and `exit 1` explicitly, and re-raise or `exit 130` after cleanup on signals.
+
+4. **`sig_atomic_t` width assumption undocumented in code (Low)** — `tests/p3_torture.c:10-11`, `tests/tcg/smoke_tcg.c:226-227`. The 22-bit chunking is correct on every target in the series (`int`-sized `sig_atomic_t`), but the comment claims a POSIX ≥32-bit guarantee that does not exist. Replace the comment with `_Static_assert(SIG_ATOMIC_MAX >= 0x3fffff, "22-bit chunks need a wide sig_atomic_t");` so the assumption is compiler-checked under `-std=c11`.
+
+5. **RTS-R2-18 ledger (Low)** — `DEFECTS.md` still lists all 18 `rt-series` Round-2 items unchecked. Tick RTS-R2-1..5, 7..17 with the commit hash, mark R2-6 as partial with the gap above, and record that no suite was executed as part of this remediation.
+
+6. **`--arch all` with single-valued suite inputs (Informational)** — `tools/run_grind.sh:921-932`. `TESTFLOAT_VER`, `LMBENCH_DIR`, `LIBC_TEST_DIR`, and `GRIND_STRESS_NG` are single paths applied to all ten translators in an `all` run, so nine of ten jobs will FAIL on an arch-mismatched guest binary. This is loud rather than a false PASS, so it does not reopen RTS-R2-2, but `all` is only practical with per-arch skips.
