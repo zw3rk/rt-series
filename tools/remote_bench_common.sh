@@ -138,11 +138,37 @@ rt_run_bounded_hl() {
     esac
 }
 
+# Shared benchmark record validation: exactly one valid PASS record per
+# workload and exactly one anchored ALL_PASS summary, with no FAIL markers.
+# Usage: rt_validate_bench_output "<captured stdout>"; returns 0 iff valid.
+rt_validate_bench_output() {
+    _vbo_out="$1"
+    for _vbo_wl in coremark chacha20 vfp_simd calls_ibtc syscalls; do
+        _vbo_cnt="$(printf '%s\n' "$_vbo_out" | grep -cE "^BENCH $_vbo_wl us=[0-9]+ ops_sec=[0-9]+ crc=0x[0-9a-f]{8} PASS$" || true)"
+        if [ "$_vbo_cnt" -ne 1 ]; then
+            return 1
+        fi
+    done
+    _vbo_tot="$(printf '%s\n' "$_vbo_out" | grep -cE "^BENCH total_us=[0-9]+ ALL_PASS$" || true)"
+    if [ "$_vbo_tot" -ne 1 ]; then
+        return 1
+    fi
+    if printf '%s\n' "$_vbo_out" | grep -qE "FAIL|FAILED"; then
+        return 1
+    fi
+    return 0
+}
+
 parse_and_print() {
     target="$1"
     arch="$2"
     engine="$3"
     out="$4"
+    if ! rt_validate_bench_output "$out"; then
+        printf "RESULT\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+            "$target" "$arch" "$engine" "-" "-" "-" "-" "-" "-" "FAIL"
+        return 1
+    fi
     cm=$(printf '%s\n' "$out" | awk '/BENCH coremark/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
     cc=$(printf '%s\n' "$out" | awk '/BENCH chacha20/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
     vf=$(printf '%s\n' "$out" | awk '/BENCH vfp_simd/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')

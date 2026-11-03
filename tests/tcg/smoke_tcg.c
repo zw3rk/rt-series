@@ -37,6 +37,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include "../sig_fault_addr.h"
+
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
 #endif
@@ -81,29 +83,19 @@ static sigjmp_buf g_jmp;
 static volatile sig_atomic_t g_armed = 0;
 static volatile sig_atomic_t g_got_signo = 0;
 static volatile sig_atomic_t g_got_code = 0;
-/* C11 async-signal-safe 64-bit address bridge: three 22-bit chunks stored in
- * volatile sig_atomic_t objects (C11 only guarantees a [-127, +127] range,
- * so the 22-bit chunk width is enforced by _Static_assert below). */
-_Static_assert(SIG_ATOMIC_MAX >= 0x3fffff, "22-bit chunks need wide sig_atomic_t");
-static volatile sig_atomic_t g_got_addr_w0 = 0;
-static volatile sig_atomic_t g_got_addr_w1 = 0;
-static volatile sig_atomic_t g_got_addr_w2 = 0;
+/* Separate fault-address bridge instance for this fixture; the 22-bit
+ * encode/decode logic lives in tests/sig_fault_addr.h. */
+static struct sig_fault_addr_bridge g_got_bridge = { 0, 0, 0 };
 static volatile sig_atomic_t g_sig_count = 0;
 
 static void store_got_addr(uintptr_t addr)
 {
-    uint64_t u = (uint64_t)addr;
-    g_got_addr_w0 = (sig_atomic_t)(u & 0x3fffffULL);
-    g_got_addr_w1 = (sig_atomic_t)((u >> 22) & 0x3fffffULL);
-    g_got_addr_w2 = (sig_atomic_t)((u >> 44) & 0x3fffffULL);
+    sig_fault_addr_store(&g_got_bridge, addr);
 }
 
 static uintptr_t load_got_addr(void)
 {
-    uint64_t u0 = (uint64_t)(uint32_t)g_got_addr_w0 & 0x3fffffULL;
-    uint64_t u1 = (uint64_t)(uint32_t)g_got_addr_w1 & 0x3fffffULL;
-    uint64_t u2 = (uint64_t)(uint32_t)g_got_addr_w2 & 0x3fffffULL;
-    return (uintptr_t)(u0 | (u1 << 22) | (u2 << 44));
+    return sig_fault_addr_load(&g_got_bridge);
 }
 
 static void fault_handler(int signo, siginfo_t *info, void *ctx)
@@ -267,6 +259,18 @@ static void t_test_mmap(void)
         tcg_skip("test-mmap", "mmap unavailable");
         return;
     }
+    if (install(SIGSEGV, fault_handler) != 0 ||
+        install(SIGBUS, fault_handler) != 0) {
+        tcg_skip("test-mmap", "sigaction unavailable");
+        munmap(p, len);
+        return;
+    }
+    /* Initialize every sub-page while the whole range is still RW so later
+     * RX/RO reads have known expected contents. */
+    p[0] = 0x11;
+    p[ps] = 0x22;
+    p[ps * 2u] = 0x33;
+    p[ps * 3u] = 0x44;
     /* Adjacent sub-pages with distinct permissions (RW/RX/RO/NONE). */
     if (mprotect(p + ps, ps, PROT_READ | PROT_EXEC) != 0 ||
         mprotect(p + ps * 2u, ps, PROT_READ) != 0 ||
@@ -278,6 +282,93 @@ static void t_test_mmap(void)
     p[0] = 0x11;
     if (p[0] != 0x11) {
         tcg_fail("test-mmap", "RW sub-page mismatch");
+        munmap(p, len);
+        return;
+    }
+    /* RX page stays readable: an unexpected trap fails instead of looping
+     * on the faulting instruction. */
+    g_armed = 1;
+    g_got_signo = 0;
+    g_got_code = 0;
+    store_got_addr(0);
+    if (sigsetjmp(g_jmp, 1) == 0) {
+        volatile unsigned char c = *(volatile unsigned char *)(p + ps);
+        g_armed = 0;
+        if (c != 0x22) {
+            tcg_fail("test-mmap", "RX sub-page read mismatch");
+            munmap(p, len);
+            return;
+        }
+    } else {
+        g_armed = 0;
+        tcg_fail("test-mmap", "RX sub-page read trapped");
+        munmap(p, len);
+        return;
+    }
+    /* RO page stays readable. */
+    g_armed = 1;
+    g_got_signo = 0;
+    g_got_code = 0;
+    store_got_addr(0);
+    if (sigsetjmp(g_jmp, 1) == 0) {
+        volatile unsigned char c = *(volatile unsigned char *)(p + ps * 2u);
+        g_armed = 0;
+        if (c != 0x33) {
+            tcg_fail("test-mmap", "RO sub-page read mismatch");
+            munmap(p, len);
+            return;
+        }
+    } else {
+        g_armed = 0;
+        tcg_fail("test-mmap", "RO sub-page read trapped");
+        munmap(p, len);
+        return;
+    }
+    /* RX write must fault with the fault address inside the RX page. */
+    g_armed = 1;
+    g_got_signo = 0;
+    g_got_code = 0;
+    store_got_addr(0);
+    if (sigsetjmp(g_jmp, 1) == 0) {
+        *(volatile unsigned char *)(p + ps) = 0xAA;
+        g_armed = 0;
+        tcg_fail("test-mmap", "RX sub-page write did not trap");
+        munmap(p, len);
+        return;
+    }
+    g_armed = 0;
+    if ((g_got_signo != SIGSEGV && g_got_signo != SIGBUS) || g_got_code <= 0 ||
+        load_got_addr() / ps != (uintptr_t)(p + ps) / ps) {
+        tcg_fail("test-mmap", "RX sub-page fault metadata mismatch");
+        munmap(p, len);
+        return;
+    }
+    if (p[0] != 0x11) {
+        tcg_fail("test-mmap", "RW corrupted after RX write fault");
+        munmap(p, len);
+        return;
+    }
+    /* RO write must fault with the fault address inside the RO page. */
+    g_armed = 1;
+    g_got_signo = 0;
+    g_got_code = 0;
+    store_got_addr(0);
+    if (sigsetjmp(g_jmp, 1) == 0) {
+        *(volatile unsigned char *)(p + ps * 2u) = 0xBB;
+        g_armed = 0;
+        tcg_fail("test-mmap", "RO sub-page write did not trap");
+        munmap(p, len);
+        return;
+    }
+    g_armed = 0;
+    if ((g_got_signo != SIGSEGV && g_got_signo != SIGBUS) || g_got_code <= 0 ||
+        load_got_addr() / ps != (uintptr_t)(p + ps * 2u) / ps) {
+        tcg_fail("test-mmap", "RO sub-page fault metadata mismatch");
+        munmap(p, len);
+        return;
+    }
+    if (p[0] != 0x11) {
+        tcg_fail("test-mmap", "RW corrupted after RO write fault");
         munmap(p, len);
         return;
     }
@@ -297,6 +388,11 @@ static void t_test_mmap(void)
     if ((g_got_signo != SIGSEGV && g_got_signo != SIGBUS) || g_got_code <= 0 ||
         load_got_addr() / ps != (uintptr_t)(p + ps * 3u) / ps) {
         tcg_fail("test-mmap", "NONE sub-page fault metadata mismatch");
+        munmap(p, len);
+        return;
+    }
+    if (p[0] != 0x11) {
+        tcg_fail("test-mmap", "RW corrupted after NONE fault");
         munmap(p, len);
         return;
     }

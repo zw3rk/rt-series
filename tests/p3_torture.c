@@ -44,6 +44,7 @@
 #include <unistd.h>
 
 #include "p3_llsc.h"
+#include "sig_fault_addr.h"
 
 /* MAP_ANONYMOUS is MAP_ANON on macOS/BSD when strict feature macros hide it. */
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
@@ -87,31 +88,21 @@ static sigjmp_buf g_segv_jmp;
 static volatile sig_atomic_t g_segv_armed = 0;
 static volatile sig_atomic_t g_segv_signo = 0;
 static volatile sig_atomic_t g_segv_code = 0;
-/* C11 async-signal-safe 64-bit address bridge: three 22-bit chunks stored in
- * volatile sig_atomic_t objects (C11 only guarantees a [-127, +127] range,
- * so the 22-bit chunk width is enforced by _Static_assert below). */
-_Static_assert(SIG_ATOMIC_MAX >= 0x3fffff, "22-bit chunks need wide sig_atomic_t");
-static volatile sig_atomic_t g_segv_addr_w0 = 0;
-static volatile sig_atomic_t g_segv_addr_w1 = 0;
-static volatile sig_atomic_t g_segv_addr_w2 = 0;
+/* Separate fault-address bridge instance for this fixture; the 22-bit
+ * encode/decode logic lives in tests/sig_fault_addr.h. */
+static struct sig_fault_addr_bridge g_segv_bridge = { 0, 0, 0 };
 
 static _Atomic int g_cas_cell = 0;
 static _Atomic long g_race_sum = 0;
 
 static void store_segv_addr(uintptr_t addr)
 {
-    uint64_t u = (uint64_t)addr;
-    g_segv_addr_w0 = (sig_atomic_t)(u & 0x3fffffULL);
-    g_segv_addr_w1 = (sig_atomic_t)((u >> 22) & 0x3fffffULL);
-    g_segv_addr_w2 = (sig_atomic_t)((u >> 44) & 0x3fffffULL);
+    sig_fault_addr_store(&g_segv_bridge, addr);
 }
 
 static uintptr_t load_segv_addr(void)
 {
-    uint64_t u0 = (uint64_t)(uint32_t)g_segv_addr_w0 & 0x3fffffULL;
-    uint64_t u1 = (uint64_t)(uint32_t)g_segv_addr_w1 & 0x3fffffULL;
-    uint64_t u2 = (uint64_t)(uint32_t)g_segv_addr_w2 & 0x3fffffULL;
-    return (uintptr_t)(u0 | (u1 << 22) | (u2 << 44));
+    return sig_fault_addr_load(&g_segv_bridge);
 }
 
 static void usr1_handler(int signo, siginfo_t *info, void *ctx)

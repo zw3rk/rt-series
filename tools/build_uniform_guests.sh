@@ -25,8 +25,18 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUT_DIR="$ROOT_DIR/_build/uniform"
 P3_SRC="$ROOT_DIR/tests/p3_torture.c"
 TCG_SRC="$ROOT_DIR/tests/tcg/smoke_tcg.c"
+P3_LLSC_H="$ROOT_DIR/tests/p3_llsc.h"
+SIG_FAULT_H="$ROOT_DIR/tests/sig_fault_addr.h"
+BUILD_RECIPE="$SCRIPT_DIR/build_uniform_guests.sh"
 FORCE="${FORCE:-${FORCE_REBUILD:-0}}"
 ABI_FILTER="${1:-all}"
+OWNED_FILE="/tmp/rt-uniform-owned-$$.list"
+: > "$OWNED_FILE" 2>/dev/null || true
+
+# Record an exact container name owned by this invocation.
+track_owned_container() {
+    printf '%s\n' "$1" >> "$OWNED_FILE" 2>/dev/null || true
+}
 
 if [ ! -f "$P3_SRC" ]; then
     echo "GAP: $P3_SRC missing" >&2
@@ -37,19 +47,38 @@ if [ ! -f "$TCG_SRC" ]; then
     exit 1
 fi
 
-# Remove only containers owned by this script invocation (name suffix "-$$").
-# Removal errors propagate: the caller turns them into a nonzero result.
+# Remove only containers owned by this script invocation (exact names in
+# OWNED_FILE plus the "-$$" suffix sweep). Every docker invocation is
+# bounded; listing/inspection failures propagate as nonzero results.
 cleanup_owned_containers() {
     if ! command -v docker >/dev/null 2>&1; then
         return 0
     fi
     _rm_rc=0
-    _left="$(docker ps -aq --filter "name=rt-u-" 2>/dev/null || true)"
+    if [ -f "$OWNED_FILE" ]; then
+        while IFS= read -r _owned; do
+            [ -n "$_owned" ] || continue
+            if timeout --kill-after=30s 30s docker inspect "$_owned" >/dev/null 2>&1; then
+                if ! timeout --kill-after=30s 30s docker rm -f "$_owned" >/dev/null 2>&1; then
+                    echo "FAIL: could not remove owned container: $_owned" >&2
+                    _rm_rc=1
+                fi
+            fi
+        done < "$OWNED_FILE"
+    fi
+    if ! _left="$(timeout --kill-after=30s 30s docker ps -aq --filter "name=rt-u-" 2>/dev/null)"; then
+        echo "FAIL: docker ps failed during owned-container cleanup" >&2
+        return 1
+    fi
     for _cid in $_left; do
-        _cname="$(docker inspect --format '{{.Name}}' "$_cid" 2>/dev/null || true)"
+        if ! _cname="$(timeout --kill-after=30s 30s docker inspect --format '{{.Name}}' "$_cid" 2>/dev/null)"; then
+            echo "FAIL: docker inspect failed for $_cid during cleanup" >&2
+            _rm_rc=1
+            continue
+        fi
         case "$_cname" in
             *"-$$")
-                if ! docker rm -f "$_cid" >/dev/null 2>&1; then
+                if ! timeout --kill-after=30s 30s docker rm -f "$_cid" >/dev/null 2>&1; then
                     echo "FAIL: could not remove owned container: ${_cname:-$_cid}" >&2
                     _rm_rc=1
                 fi
@@ -59,14 +88,30 @@ cleanup_owned_containers() {
     return $_rm_rc
 }
 
-# Fail when any container owned by this invocation is still present.
+# Fail when any container owned by this invocation is still present, and
+# fail when container state cannot be established (docker ps/inspect error).
 verify_no_lingering_containers() {
     if ! command -v docker >/dev/null 2>&1; then
         return 0
     fi
-    _left="$(docker ps -aq --filter "name=rt-u-" 2>/dev/null || true)"
+    if [ -f "$OWNED_FILE" ]; then
+        while IFS= read -r _owned; do
+            [ -n "$_owned" ] || continue
+            if timeout --kill-after=30s 30s docker inspect "$_owned" >/dev/null 2>&1; then
+                echo "FAIL: lingering owned container: $_owned" >&2
+                return 1
+            fi
+        done < "$OWNED_FILE"
+    fi
+    if ! _left="$(timeout --kill-after=30s 30s docker ps -aq --filter "name=rt-u-" 2>/dev/null)"; then
+        echo "FAIL: docker ps failed during lingering-container verification" >&2
+        return 1
+    fi
     for _cid in $_left; do
-        _cname="$(docker inspect --format '{{.Name}}' "$_cid" 2>/dev/null || true)"
+        if ! _cname="$(timeout --kill-after=30s 30s docker inspect --format '{{.Name}}' "$_cid" 2>/dev/null)"; then
+            echo "FAIL: docker inspect failed for $_cid during verification" >&2
+            return 1
+        fi
         case "$_cname" in
             *"-$$")
                 echo "FAIL: lingering owned container: ${_cname:-$_cid}" >&2
@@ -78,13 +123,15 @@ verify_no_lingering_containers() {
 }
 
 # EXIT trap: preserve the script's own status, then require owned-container
-# removal and a clean lingering-container check to hold as well.
+# removal and a clean lingering-container check to hold as well. A docker
+# ps failure or any remaining owned container fails the gate.
 on_uniform_exit() {
     _exit_rc=$?
     trap '' EXIT INT TERM
     _trap_rc=0
     cleanup_owned_containers || _trap_rc=1
     verify_no_lingering_containers || _trap_rc=1
+    rm -f "$OWNED_FILE" 2>/dev/null || true
     if [ "$_trap_rc" -ne 0 ]; then
         exit 1
     fi
@@ -114,8 +161,16 @@ already_built() {
     [ "$FORCE" != "1" ] \
         && [ -x "$OUT_DIR/$_abi/p3_torture" ] \
         && [ -x "$OUT_DIR/$_abi/smoke_tcg" ] \
+        && [ -f "$P3_LLSC_H" ] \
+        && [ -f "$SIG_FAULT_H" ] \
         && ! [ "$P3_SRC" -nt "$OUT_DIR/$_abi/p3_torture" ] \
-        && ! [ "$TCG_SRC" -nt "$OUT_DIR/$_abi/smoke_tcg" ]
+        && ! [ "$TCG_SRC" -nt "$OUT_DIR/$_abi/smoke_tcg" ] \
+        && ! [ "$P3_LLSC_H" -nt "$OUT_DIR/$_abi/p3_torture" ] \
+        && ! [ "$P3_LLSC_H" -nt "$OUT_DIR/$_abi/smoke_tcg" ] \
+        && ! [ "$SIG_FAULT_H" -nt "$OUT_DIR/$_abi/p3_torture" ] \
+        && ! [ "$SIG_FAULT_H" -nt "$OUT_DIR/$_abi/smoke_tcg" ] \
+        && ! [ "$BUILD_RECIPE" -nt "$OUT_DIR/$_abi/p3_torture" ] \
+        && ! [ "$BUILD_RECIPE" -nt "$OUT_DIR/$_abi/smoke_tcg" ]
 }
 
 want_abi() {
@@ -134,6 +189,7 @@ build_trixie_abi() {
     if already_built "$_abi"; then echo "SKIP [$_abi]: present and up-to-date"; return 0; fi
     mkdir -p "$OUT_DIR/$_abi"
     _cname="rt-u-${_abi}-$$"
+    track_owned_container "$_cname"
     echo "== Building uniform guests for $_abi (container=$_cname) =="
     timeout --kill-after=30s 180s docker run --rm --name "$_cname" \
         --platform linux/arm64 \
@@ -160,6 +216,7 @@ build_image_abi() {
     if already_built "$_abi"; then echo "SKIP [$_abi]: present and up-to-date"; return 0; fi
     mkdir -p "$OUT_DIR/$_abi"
     _cname="rt-u-${_abi}-$$"
+    track_owned_container "$_cname"
     echo "== Building uniform guests for $_abi (image=$_img, container=$_cname) =="
     timeout --kill-after=30s 180s docker run --rm --name "$_cname" \
         --platform linux/arm64 \
@@ -178,6 +235,7 @@ build_riscv32() {
     if already_built riscv32; then echo "SKIP [riscv32]: present and up-to-date"; return 0; fi
     mkdir -p "$OUT_DIR/riscv32"
     _cname="rt-u-riscv32-$$"
+    track_owned_container "$_cname"
     echo "== Building uniform guests for riscv32 (container=$_cname) =="
     timeout --kill-after=30s 180s docker run --rm --name "$_cname" \
         --platform linux/amd64 \

@@ -358,8 +358,9 @@ run_gcc_torture_suite() {
         _base="$(basename "$src" .c)"
         for opt in O0 O2; do
             _bin="/tmp/grind_torture_${CURRENT_ARCH}_${_base}_${opt}_$$"
-            if ! "$_cc" -ffp-contract=off "-$opt" "$src" -o "$_bin" -lm >/dev/null 2>&1; then
-                grind_skip "gcc-torture" "$_base -$opt did not compile (target-specific, skipped)"
+            if timeout --kill-after=30s 120s "$_cc" -ffp-contract=off "-$opt" "$src" -o "$_bin" -lm >/dev/null 2>&1; then :; else _cc_rc=$?
+                rm -f "$_bin"
+                if [ "$_cc_rc" -eq 124 ]; then grind_fail "gcc-torture" "$_base -$opt compilation timed out"; else grind_skip "gcc-torture" "$_base -$opt did not compile (target-specific, skipped)"; fi
                 continue
             fi
             _have_ref=0
@@ -534,9 +535,9 @@ int main(void) {
     return 0;
 }
 EOF
-    if ! "$_cc" -std=c11 -O1 "$_src" -o "$_bin" -lm >/dev/null 2>&1; then
-        grind_skip "compiler-rt" "builtin probe did not compile with $_cc"
-        rm -f "$_src"
+    if timeout --kill-after=30s 120s "$_cc" -std=c11 -O1 "$_src" -o "$_bin" -lm >/dev/null 2>&1; then :; else _br_cc_rc=$?
+        rm -f "$_src" "$_bin"
+        if [ "$_br_cc_rc" -eq 124 ]; then grind_fail "compiler-rt" "builtin probe compilation timed out with $_cc"; else grind_skip "compiler-rt" "builtin probe did not compile with $_cc"; fi
         return 0
     fi
     _wrap="${GRIND_INTERP:-${GRIND_DBT:-}}"
@@ -749,13 +750,13 @@ run_weekly_soak() {
         else
             _csrc="/tmp/grind_csmith_${CURRENT_ARCH}_$$.c"
             _cbin="/tmp/grind_csmith_${CURRENT_ARCH}_$$"
-            if ! csmith --seed "${CSMITH_SEED:-1}" > "$_csrc" 2>/dev/null || \
-               ! "$_cc" -ffp-contract=off -O1 -I"$_cinc" "$_csrc" -o "$_cbin" -lm >/dev/null 2>&1; then
-                grind_fail "csmith" "seed=${CSMITH_SEED:-1} generation or compilation failed with $_cc"
-            else
-                run_differential_binary "csmith" "seed=${CSMITH_SEED:-1}" "$_cbin" || true
+            if timeout --kill-after=30s 60s csmith --seed "${CSMITH_SEED:-1}" > "$_csrc" 2>/dev/null; then _cs_gen_rc=0; else _cs_gen_rc=$?; fi
+            if [ "$_cs_gen_rc" -eq 124 ]; then grind_fail "csmith" "seed=${CSMITH_SEED:-1} generation timed out"; rm -f "$_csrc" "$_cbin"
+            elif [ "$_cs_gen_rc" -ne 0 ]; then grind_fail "csmith" "seed=${CSMITH_SEED:-1} generation failed with csmith"; rm -f "$_csrc" "$_cbin"
+            elif timeout --kill-after=30s 120s "$_cc" -ffp-contract=off -O1 -I"$_cinc" "$_csrc" -o "$_cbin" -lm >/dev/null 2>&1; then run_differential_binary "csmith" "seed=${CSMITH_SEED:-1}" "$_cbin" || true; rm -f "$_csrc" "$_cbin"
+            else _cs_cc_rc=$?; rm -f "$_csrc" "$_cbin"
+                if [ "$_cs_cc_rc" -eq 124 ]; then grind_fail "csmith" "seed=${CSMITH_SEED:-1} compilation timed out with $_cc"; else grind_fail "csmith" "seed=${CSMITH_SEED:-1} compilation failed with $_cc"; fi
             fi
-            rm -f "$_csrc" "$_cbin"
         fi
     else
         grind_skip "csmith" "csmith or cross-compiler ($_cc) not installed"
@@ -764,8 +765,9 @@ run_weekly_soak() {
     if command -v yarpgen >/dev/null 2>&1; then
         _ydir="/tmp/grind_yarpgen_${CURRENT_ARCH}_$$"
         mkdir -p "$_ydir"
-        if ! yarpgen --seed="${YARPGEN_SEED:-1}" -o "$_ydir" >/dev/null 2>&1; then
-            grind_fail "yarpgen" "yarpgen --seed=${YARPGEN_SEED:-1} failed"
+        if timeout --kill-after=30s 120s yarpgen --seed="${YARPGEN_SEED:-1}" -o "$_ydir" >/dev/null 2>&1; then _yg_rc=0; else _yg_rc=$?; fi
+        if [ "$_yg_rc" -eq 124 ]; then grind_fail "yarpgen" "yarpgen --seed=${YARPGEN_SEED:-1} timed out"; rm -rf "$_ydir"
+        elif [ "$_yg_rc" -ne 0 ]; then grind_fail "yarpgen" "yarpgen --seed=${YARPGEN_SEED:-1} failed"; rm -rf "$_ydir"
         else
             _yc_files=""
             _ycpp_files=""
@@ -780,10 +782,15 @@ run_weekly_soak() {
                     grind_skip "yarpgen" "C compiler '$_cc' for $CURRENT_ARCH not on PATH"
                 else
                     # shellcheck disable=SC2086
-                    if ! "$_cc" -ffp-contract=off -O1 $_yc_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
-                        grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} C compilation failed with $_cc"
-                    else
+                    if timeout --kill-after=30s 120s "$_cc" -ffp-contract=off -O1 $_yc_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
                         run_differential_binary "yarpgen" "seed=${YARPGEN_SEED:-1}" "$_ydir/yarp_bin" || true
+                    else
+                        _yg_cc_rc=$?
+                        if [ "$_yg_cc_rc" -eq 124 ]; then
+                            grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} C compilation timed out with $_cc"
+                        else
+                            grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} C compilation failed with $_cc"
+                        fi
                     fi
                 fi
             elif [ -n "$_ycpp_files" ]; then
@@ -791,17 +798,22 @@ run_weekly_soak() {
                     grind_skip "yarpgen" "C++ compiler '$_cxx' for $CURRENT_ARCH not on PATH"
                 else
                     # shellcheck disable=SC2086
-                    if ! "$_cxx" -ffp-contract=off -O1 $_ycpp_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
-                        grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} C++ compilation failed with $_cxx"
-                    else
+                    if timeout --kill-after=30s 120s "$_cxx" -ffp-contract=off -O1 $_ycpp_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
                         run_differential_binary "yarpgen" "seed=${YARPGEN_SEED:-1}" "$_ydir/yarp_bin" || true
+                    else
+                        _yg_cxx_rc=$?
+                        if [ "$_yg_cxx_rc" -eq 124 ]; then
+                            grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} C++ compilation timed out with $_cxx"
+                        else
+                            grind_fail "yarpgen" "seed=${YARPGEN_SEED:-1} C++ compilation failed with $_cxx"
+                        fi
                     fi
                 fi
             else
                 grind_fail "yarpgen" "yarpgen produced no .c or .cpp files in $_ydir"
             fi
+            rm -rf "$_ydir"
         fi
-        rm -rf "$_ydir"
     else
         grind_skip "yarpgen" "yarpgen not installed (fixed-seed soak not run)"
     fi

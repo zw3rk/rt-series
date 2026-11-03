@@ -24,9 +24,12 @@
 #include <stdint.h>
 
 #if !defined(P3_FORCE_NO_LLSC) && \
-    (defined(__aarch64__) || defined(__arm__) || defined(__riscv) || \
-     defined(__powerpc__) || defined(__powerpc64__) || defined(__mips__) || \
-     defined(__loongarch64))
+    (defined(__aarch64__) || \
+     (defined(__arm__) && defined(__ARM_ARCH) && __ARM_ARCH >= 6) || \
+     (defined(__riscv) && defined(__riscv_atomic)) || \
+     defined(__mips__) || \
+     defined(__powerpc__) || defined(__powerpc64__) || defined(__ppc__) || \
+     defined(__loongarch__) || defined(__loongarch64))
 #define P3_HAVE_LLSC 1
 #else
 #define P3_HAVE_LLSC 0
@@ -66,7 +69,7 @@ static int llsc_pair(int do_signal, uint32_t new_val, uint32_t *loaded_out, int 
                      : "r"(&g_llsc_cell), "r"(new_val)
                      : "memory");
     stored = (sc_status == 0);
-#elif defined(__arm__) && (__ARM_ARCH >= 6)
+#elif defined(__arm__) && defined(__ARM_ARCH) && __ARM_ARCH >= 6
     uint32_t sc_status = 0;
     __asm__ volatile("ldrex %0, [%1]" : "=r"(loaded) : "r"(&g_llsc_cell) : "memory");
     if (do_signal && raise(SIGURG) != 0) {
@@ -129,12 +132,7 @@ static int llsc_pair(int do_signal, uint32_t new_val, uint32_t *loaded_out, int 
                      : "memory");
     stored = (sc_word == 1U);
 #else
-    (void)new_val;
-    if (do_signal && raise(SIGURG) != 0) {
-        return -1;
-    }
-    loaded = g_llsc_cell;
-    stored = 0;
+#error "P3_HAVE_LLSC is set without an implemented LL/SC probe for this target"
 #endif
     *loaded_out = loaded;
     *stored_out = stored;

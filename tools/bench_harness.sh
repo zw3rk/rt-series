@@ -394,19 +394,8 @@ check_bench_output() {
         printf "%s\n" "$out"
         return 1
     fi
-    for wl in coremark chacha20 vfp_simd calls_ibtc syscalls; do
-        local cnt
-        cnt="$(printf "%s\n" "$out" | grep -cE "^BENCH $wl us=[0-9]+ ops_sec=[0-9]+ crc=0x[0-9a-f]{8} PASS$" || true)"
-        if [ "$cnt" -ne 1 ]; then
-            echo "FAIL [$label]: workload '$wl' expected 1 PASS record, got $cnt:"
-            printf "%s\n" "$out"
-            return 1
-        fi
-    done
-    local tot_cnt
-    tot_cnt="$(printf "%s\n" "$out" | grep -cE "^BENCH total_us=[0-9]+ ALL_PASS$" || true)"
-    if [ "$tot_cnt" -ne 1 ]; then
-        echo "FAIL [$label]: expected 1 anchored 'BENCH total_us=<N> ALL_PASS' summary, got $tot_cnt:"
+    if ! rt_validate_bench_output "$out"; then
+        echo "FAIL [$label]: expected 1 PASS record per workload + 1 ALL_PASS summary:"
         printf "%s\n" "$out"
         return 1
     fi
