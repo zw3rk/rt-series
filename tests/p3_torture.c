@@ -1,24 +1,16 @@
 /*
  * tests/p3_torture.c — P3 concurrency / memory / signal-frame torture suite.
- *
- * Portable Curated C11 guest test (Linux guests and host). Covers the
- * translator-specific edges from docs/CATALOGUE-TODO.md (P3):
- *   - signal frame GPR/FPR round-trip (ucontext si_signo/si_code exact,
- *     FP environment preserved across async signal delivery),
- *   - sigaltstack with SS_ONSTACK verification and nested delivery,
- *   - unaligned cross-page access straddling a 4 KiB boundary,
- *   - mprotect/munmap fault immediacy with si_addr page check,
- *   - atomic reservation broken by a signal handler and by a second thread.
+ * Note (RTS-R9-1): rt-series/tests/ hosts the shared cross-ISA P3 torture,
+ * ABI-invariant, and benchmark reference suites; ISA-specific P1/P2/P4
+ * suites live in each translator repository under tests/guest/.
  *
  * Build: cc -std=c11 -Wall -Wextra -Werror -Werror=vla -pedantic -O1 -pthread
  *        tests/p3_torture.c -o p3_torture
- * Run: ./p3_torture   (exit 0 iff fails == 0 and passes > 0)
  *
  * Copyright 2026 Moritz Angermann <moritz@zw3rk.com>, zw3rk pte. ltd.
  * SPDX-License-Identifier: Apache-2.0
  */
 #define _POSIX_C_SOURCE 200809L
-/* Re-expose XSI sigaltstack on strict -std=c11 glibc; ignored elsewhere. */
 #if defined(__linux__) && !defined(_DEFAULT_SOURCE) && !defined(_GNU_SOURCE)
 #define _DEFAULT_SOURCE 1
 #endif
@@ -37,51 +29,25 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include "p3_llsc.h"
 #include "sig_fault_addr.h"
-/* MAP_ANONYMOUS is MAP_ANON on macOS/BSD when strict feature macros hide it. */
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
 #endif
-static int g_pass = 0;
-static int g_fail = 0;
-static int g_skip = 0;
-static void report_pass(const char *name)
-{
-    g_pass++;
-    printf("PASS [p3]: %s\n", name);
-}
-static void report_fail(const char *name, const char *detail)
-{
-    g_fail++;
-    printf("FAIL [p3]: %s (%s)\n", name, detail);
-}
-static void report_skip(const char *name, const char *detail)
-{
-    g_skip++;
-    printf("SKIP [p3]: %s (%s)\n", name, detail);
-}
-static volatile sig_atomic_t g_usr1_count = 0;
-static volatile sig_atomic_t g_usr1_signo = 0;
-static volatile sig_atomic_t g_usr1_code = 0;
-static volatile sig_atomic_t g_usr1_has_ctx = 0;
-static volatile sig_atomic_t g_usr1_has_info = 0;
-static volatile sig_atomic_t g_usr1_info_signo = 0;
-static volatile sig_atomic_t g_usr1_raise_rc = -1;
-static volatile sig_atomic_t g_usr1_on_altstack = 0;
-static volatile sig_atomic_t g_usr1_clobber_sink = 0;
-static volatile sig_atomic_t g_usr2_count = 0;
-static volatile sig_atomic_t g_usr2_on_altstack = 0;
-static volatile sig_atomic_t g_usr2_saw_usr1_active = 0;
+static int g_pass = 0, g_fail = 0, g_skip = 0;
+static void report_pass(const char *name) { g_pass++; printf("PASS [p3]: %s\n", name); }
+static void report_fail(const char *name, const char *d) { g_fail++; printf("FAIL [p3]: %s (%s)\n", name, d); }
+static void report_skip(const char *name, const char *d) { g_skip++; printf("SKIP [p3]: %s (%s)\n", name, d); }
+static volatile sig_atomic_t g_usr1_count = 0, g_usr1_signo = 0, g_usr1_code = 0;
+static volatile sig_atomic_t g_usr1_has_ctx = 0, g_usr1_has_info = 0, g_usr1_info_signo = 0;
+static volatile sig_atomic_t g_usr1_raise_rc = -1, g_usr1_on_altstack = 0, g_usr1_clobber_sink = 0;
+static volatile sig_atomic_t g_usr2_count = 0, g_usr2_on_altstack = 0, g_usr2_saw_usr1_active = 0;
 static char g_nest_stack[65536];
-static volatile sig_atomic_t g_on_altstack = 0;
-static volatile sig_atomic_t g_nest_depth = 0;
-static volatile sig_atomic_t g_fp_handler_ran = 0;
+static volatile sig_atomic_t g_on_altstack = 0, g_nest_depth = 0, g_fp_handler_ran = 0;
 static sigjmp_buf g_segv_jmp;
-static volatile sig_atomic_t g_segv_armed = 0;
-static volatile sig_atomic_t g_segv_signo = 0;
-static volatile sig_atomic_t g_segv_code = 0;
+static volatile sig_atomic_t g_segv_armed = 0, g_segv_signo = 0, g_segv_code = 0;
 /* Fault-address bridge; encode/decode lives in tests/sig_fault_addr.h. */
 static struct sig_fault_addr_bridge g_segv_bridge = { 0, 0, 0 };
 static _Atomic int g_cas_cell = 0;
@@ -605,38 +571,41 @@ static void t_unaligned_cross_page(void)
             return;
         }
     }
-    g_segv_armed = 1;
-    g_segv_signo = 0;
-    g_segv_code = 0;
-    store_segv_addr(0);
-    if (sigsetjmp(g_segv_jmp, 1) == 0) {
-        static void *volatile torture_sink;
-        unsigned char *edge = base + (size_t)ps - 5;
-        uint64_t bad = 0xFEDCBA9876543210ULL;
-        torture_sink = (void *)edge;
-        memcpy(edge, &bad, sizeof(bad));
-        torture_sink = (void *)edge;
-        atomic_signal_fence(memory_order_seq_cst);
-        (void)torture_sink;
+    {
+        unsigned char pre_first[5];
+        memcpy(pre_first, base + (size_t)ps - 5, sizeof(pre_first));
+        g_segv_armed = 1;
+        g_segv_signo = 0;
+        g_segv_code = 0;
+        store_segv_addr(0);
+        if (sigsetjmp(g_segv_jmp, 1) == 0) {
+            volatile unsigned char *vedge =
+                (volatile unsigned char *)(base + (size_t)ps - 5);
+            for (size_t k = 8u; k > 0u; k--) {
+                vedge[k - 1u] = (unsigned char)(0xA0u + k);
+            }
+            atomic_signal_fence(memory_order_seq_cst);
+            g_segv_armed = 0;
+            report_fail("unaligned-cross-page", "RO cross-page store did not trap");
+            mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
+            munmap(base, two);
+            return;
+        }
         g_segv_armed = 0;
-        report_fail("unaligned-cross-page", "RO cross-page store did not trap");
-        mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
-        munmap(base, two);
-        return;
-    }
-    g_segv_armed = 0;
-    if (g_segv_signo != SIGSEGV && g_segv_signo != SIGBUS) {
-        report_fail("unaligned-cross-page", "wrong signal on RO cross-page store");
-        mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
-        munmap(base, two);
-        return;
-    }
-    if (load_segv_addr() < (uintptr_t)base ||
-        load_segv_addr() >= (uintptr_t)(base + two)) {
-        report_fail("unaligned-cross-page", "si_addr outside mapping on RO store");
-        mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
-        munmap(base, two);
-        return;
+        if (g_segv_signo != SIGSEGV && g_segv_signo != SIGBUS) {
+            report_fail("unaligned-cross-page", "wrong signal on RO cross-page store");
+            mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
+            munmap(base, two);
+            return;
+        }
+        if (load_segv_addr() < (uintptr_t)(base + (size_t)ps) ||
+            load_segv_addr() >= (uintptr_t)(base + two) ||
+            memcmp(base + (size_t)ps - 5, pre_first, sizeof(pre_first)) != 0) {
+            report_fail("unaligned-cross-page", "si_addr not on RO 2nd page or 1st page mutated");
+            mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
+            munmap(base, two);
+            return;
+        }
     }
     if (mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE) != 0) {
         report_fail("unaligned-cross-page", "mprotect RW restore failed");
@@ -872,6 +841,31 @@ static void t_smc_clear_cache(void)
     if (r2 != 99) { report_fail("smc-clear-cache", "rewritten call != 99"); munmap(p, sz); return; }
     munmap(p, sz); report_pass("smc-clear-cache RET 42->99 with icache clear");
 }
+static void t_vm_fork_cow(void)
+{
+    long ps = sysconf(_SC_PAGESIZE);
+    if (ps < 4096L || ((unsigned long)ps & ((unsigned long)ps - 1UL)) != 0UL) {
+        report_fail("vm-fork-cow", "AT_PAGESZ / _SC_PAGESIZE invalid"); return;
+    }
+    size_t two = (size_t)ps * 2u;
+    volatile uint8_t *p = (volatile uint8_t *)mmap(NULL, two, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (p == (volatile uint8_t *)MAP_FAILED) { report_skip("vm-fork-cow", "mmap failed"); return; }
+    p[0] = 0x42U; p[(size_t)ps] = 0x24U;
+    pid_t pid = fork();
+    if (pid < 0) { munmap((void *)p, two); report_skip("vm-fork-cow", "fork unavailable"); return; }
+    if (pid == 0) {
+        p[0] = 0x99U; p[(size_t)ps] = 0x88U;
+        _exit((p[0] == 0x99U && p[(size_t)ps] == 0x88U) ? 0 : 1);
+    }
+    int st = 0;
+    if (waitpid(pid, &st, 0) != pid || !WIFEXITED(st) || WEXITSTATUS(st) != 0 ||
+        p[0] != 0x42U || p[(size_t)ps] != 0x24U) {
+        munmap((void *)p, two); report_fail("vm-fork-cow", "COW isolation failed"); return;
+    }
+    munmap((void *)p, two);
+    report_pass("vm-fork-cow private-COW isolation + page size check");
+}
 
 int main(void)
 {
@@ -886,6 +880,7 @@ int main(void)
     t_mprotect_munmap();
     t_atomic_race();
     t_smc_clear_cache();
+    t_vm_fork_cow();
     printf("P3_TORTURE RESULT: pass=%d fail=%d skip=%d\n", g_pass, g_fail, g_skip);
     if (g_pass == 0) {
         printf("P3_TORTURE FAIL (0 passes)\n");

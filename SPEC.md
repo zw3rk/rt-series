@@ -362,18 +362,17 @@ All three Wave 3 translators share the Class-A `[G, G + 4 GiB)` architecture (`s
   - Success: **`PSR.icc.C = 0`**, `%o0 = (uint32_t)ret`. Error: **`PSR.icc.C = 1`**, **`%o0 = sparc_errno_from_host(-ret)`** (positive SPARC errno). Always advances `pc = npc; npc = npc + 4`.
   - `pipe (42)` returns `fd[0]` in `%o0`, `fd[1]` in `%o1`; `fork (2)` / `vfork (66)` / `clone (217)` returns `%o1 = 0` in parent and **`%o0 = parent_pid, %o1 = 1`** in child.
 - **Complete SPARC32 `rt_signal_frame32` Layout (`src/os/sigframe_sparc32.h`, verified in `tests/check_abi_invariants.c`)** `[F]`:
-  - Per Linux `arch/sparc/include/uapi/asm/ptrace.h` and `arch/sparc/kernel/signal_32.c`, `rt_signal_frame32` (**348 bytes** fixed structure before optional FPU/rwin tail) has exact offsets:
+  - Per Linux `arch/sparc/include/uapi/asm/ptrace.h` and `arch/sparc/kernel/signal_32.c`, `rt_signal_frame32` (**344 bytes** / `0x158` fixed structure before optional FPU/rwin tail) has exact offsets:
     - `0x000..0x05f`: **`struct sparc_stackf ss` (96 bytes)**: `uint32_t locals[8]` (32 B) + `uint32_t ins[6]` (24 B) + `uint32_t fp` (4 B) + `uint32_t callers_pc` (4 B) + `uint32_t structptr` (4 B) + `uint32_t xargs[6]` (24 B) + `uint32_t xxargs[1]` (4 B) `[F]`,
     - `0x060..0x0df`: `siginfo_t info` (128 B),
     - `0x0e0..0x12f`: `struct pt_regs32 regs` (80 B: `uint32_t psr, pc, npc, y, u_regs[16]`),
     - `0x130..0x137`: `uint32_t mask[2]` (8 B `sigset_t`),
     - `0x138..0x13b`: `uint32_t fpu_save` (4 B guest pointer to inline `sigfpu32` tail or `0`),
     - `0x13c..0x143`: `uint32_t insns[2]` (8 B: `set __NR_rt_sigreturn, %g1; ta 0x10`),
-    - `0x144..0x147`: `uint32_t extramask[1]` (4 B),
-    - `0x148..0x14b`: `uint32_t extra_size` (4 B),
-    - `0x14c..0x14f`: `uint32_t rwin_save` (4 B guest pointer to saved windows or `0`),
-    - `0x150..0x15b`: `sparc32_stack_t stack` (12 B: `{uint32_t ss_sp; int32_t ss_flags; uint32_t ss_size;}`),
-    - `0x15c..`: optional inline `sigfpu32` and `rwin_save` tails.
+    - `0x144..0x14f`: `sparc32_stack_t stack` (12 B: `{uint32_t ss_sp; int32_t ss_flags; uint32_t ss_size;}`),
+    - `0x150..0x153`: `uint32_t extra_size` (4 B),
+    - `0x154..0x157`: `uint32_t rwin_save` (4 B guest pointer to saved windows or `0`),
+    - `0x158..`: optional inline `sigfpu32` and `rwin_save` tails.
   - *(Note: Initial `_start` stack layout is distinct from `rt_signal_frame32`: at `_start`, `argc` sits at `%sp + 64` immediately after the 64-byte `rwindow_32` save area.)*
 
 ---
@@ -461,7 +460,7 @@ In each Class-B repository (`../loongarch64rt`, `../ppc64rt`, `../mips64rt`, `..
     - `uint64_t gp_regs[48]` (384 B; `gp_regs[PT_MSR]` records `MSR_VEC` `1ULL << 25` and `MSR_VSX` `1ULL << 23` indicating whether vector/VSX register state was active),
     - `uint64_t fp_regs[33]` (264 B: `f0..f31` = upper 64 bits of `vs0..vs31`, plus `fpscr`),
     - **`uint64_t v_regs`** (**always** set to the 16-byte-aligned guest address inside `vmx_reserve` whenever Altivec is supported — even before the first vector instruction executes — because user code may write `VRSAVE` (`SPR 256`) prior to any vector instruction, and Linux `setup_sigcontext` unconditionally populates `v_regs` and saves/restores `vrsave` at `v_regs + 33 * 16`!),
-    - **`uint64_t vmx_reserve[101]`** (`808 B` = `69 + 32` `uint64_t`s: holds 16-byte-aligned `elf_vrregset_t` (`32 × 16 B` `vr0..vr31` = `vs32..vs63` + `16 B` `vscr` + `4 B` `vrsave` + `12 B` pad = `544 B`) **immediately followed at `v_regs + 544` by `uint64_t vsr_low[32]` (`256 B`)** holding the lower 64-bit halves of `vs0..vs31` when `MSR_VSX` is set!).
+    - **`uint64_t vmx_reserve[101]`** (`808 B` = `68 + 32 + 1` `uint64_t`s: holds 16-byte-aligned `elf_vrregset_t` (`32 × 16 B` `vr0..vr31` = `vs32..vs63` + `16 B` `vscr` + `4 B` `vrsave` + `12 B` pad = `544 B`) **immediately followed at `v_regs + 544` by `uint64_t vsr_low[32]` (`256 B`)** holding the lower 64-bit halves of `vs0..vs31` when `MSR_VSX` is set, plus `8 B` alignment slack!).
 
 ---
 
@@ -472,8 +471,8 @@ In each Class-B repository (`../loongarch64rt`, `../ppc64rt`, `../mips64rt`, `..
 #### 5.3.1 Target Profile, ABIs & Profile-Specific `TASK_SIZE` / Address Layout
 - **Target CPUs**: Loongson 3A3000 (`mips64el` LSB) and Cavium Octeon III (`CN78XX`/`CN73XX`, `mips64` MSB).
 - **ELF Identification, `TASK_SIZE`, & Address Placement (`src/rt64/memory/space.c`, `src/rt64/linux/signal_core.c`)**:
-  - **N64 ABI**: `ELFCLASS64`, `e_machine == EM_MIPS (8)`, `(e_flags & EF_MIPS_ABI) == 0`, syscall base `5000`, `TASK_SIZE = 1ULL << 40` (`0x0000010000000000`, 40-bit `xuseg`). Profile placements below `1ULL << 40`: stack top `0x000000ffffff0000`, unhinted `mmap` base `0x0000005500000000`, `PT_INTERP` bias `0x0000007f00000000`, signal return trampoline page **`0x000000fffffe0000`** (replacing `rvrt`'s `>= 1 TiB` trampoline search!).
-  - **N32 ABI**: `ELFCLASS32`, `e_machine == EM_MIPS (8)`, `(e_flags & EF_MIPS_ABI2) == EF_MIPS_ABI2 (0x20)`, 64-bit GPRs/FPRs with **32-bit user pointers**, syscall base `6000`, **`TASK_SIZE = 0x7fff8000ULL` (2 GiB `useg`)** so every `mmap`/`brk`/stack address fits in a signed 32-bit pointer! Profile placements below `0x7fff8000`: stack top `0x7fff0000`, unhinted `mmap` base `0x3f000000`, `PT_INTERP` bias `0x3f800000`, signal return trampoline page **`0x7fff1000`**.
+  - **N64 ABI**: `ELFCLASS64`, `e_machine == EM_MIPS (8)`, `(e_flags & EF_MIPS_ABI) == 0`, syscall base `5000`, `TASK_SIZE = 1ULL << 40` (`0x0000010000000000`, 40-bit `xuseg`). Profile placements below `1ULL << 40`: stack top `0x000000ffffff0000`, unhinted `mmap` base `0x000000c000000000`, `PT_INTERP` bias `0x000000f000000000`, signal return trampoline page **`0x000000ffffff1000`** (replacing `rvrt`'s `>= 1 TiB` trampoline search!).
+  - **N32 ABI**: `ELFCLASS32`, `e_machine == EM_MIPS (8)`, `(e_flags & EF_MIPS_ABI2) == EF_MIPS_ABI2 (0x20)`, 64-bit GPRs/FPRs with **32-bit user pointers**, syscall base `6000`, **`TASK_SIZE = 0x7fff8000ULL` (2 GiB `useg`)** so every `mmap`/`brk`/stack address fits in a signed 32-bit pointer! Profile placements below `0x7fff8000`: stack top `0x7fff0000`, unhinted `mmap` base `0x60000000`, `PT_INTERP` bias `0x70000000`, signal return trampoline page **`0x7fff1000`**.
 
 #### 5.3.2 `mips64_ctx_t` Context, Canonical 32-Bit Sign-Extension & NaN Modes
 - **Canonical 32-Bit Sign-Extension Rule**: Every 32-bit MIPS64 operation (`ADDIU`, `ADDU`, `SUBU`, `SLL`, `SRL`, `SRA`, `LW`, `MULT`, `DIV`, `ROTR`, `EXT`, `INS`) writes `(uint64_t)(int64_t)(int32_t)res32` (`SXTW Xd, Wd` in A64 DBT).
