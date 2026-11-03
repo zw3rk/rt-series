@@ -209,17 +209,18 @@ typedef struct {
     uint32_t          mask[2];       /* 0x130..0x137 (8 B sigset_t) */
     uint32_t          fpu_save;      /* 0x138..0x13b (4 B ptr) */
     uint32_t          insns[2];      /* 0x13c..0x143 (8 B) */
-    uint32_t          extramask[1];  /* 0x144..0x147 (4 B) */
-    uint32_t          extra_size;    /* 0x148..0x14b (4 B) */
-    uint32_t          rwin_save;     /* 0x14c..0x14f (4 B ptr) */
-    sparc32_stack_t   stack;         /* 0x150..0x15b (12 B) */
+    sparc32_stack_t   stack;         /* 0x144..0x14f (12 B) */
+    uint32_t          extra_size;    /* 0x150..0x153 (4 B) */
+    uint32_t          rwin_save;     /* 0x154..0x157 (4 B ptr) */
 } sparc32_rt_signal_frame_t;
 
 _Static_assert(offsetof(sparc32_rt_signal_frame_t, regs) == 0xe0, "sparc32 regs at 0xe0");
 _Static_assert(offsetof(sparc32_rt_signal_frame_t, mask) == 0x130, "sparc32 mask at 0x130");
 _Static_assert(offsetof(sparc32_rt_signal_frame_t, fpu_save) == 0x138, "sparc32 fpu_save at 0x138");
-_Static_assert(offsetof(sparc32_rt_signal_frame_t, stack) == 0x150, "sparc32 stack at 0x150");
-_Static_assert(sizeof(sparc32_rt_signal_frame_t) == 348, "sparc32_rt_signal_frame_t is 348 B");
+_Static_assert(offsetof(sparc32_rt_signal_frame_t, stack) == 0x144, "sparc32 stack at 0x144");
+_Static_assert(offsetof(sparc32_rt_signal_frame_t, extra_size) == 0x150, "sparc32 extra_size at 0x150");
+_Static_assert(offsetof(sparc32_rt_signal_frame_t, rwin_save) == 0x154, "sparc32 rwin_save at 0x154");
+_Static_assert(sizeof(sparc32_rt_signal_frame_t) == 344, "sparc32_rt_signal_frame_t is 344 B");
 
 typedef struct {
     uint64_t locals[8];
