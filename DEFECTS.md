@@ -1,6 +1,6 @@
-# `rt-series` Master Defect, Curated-C11 & Subsystem Deep-Dive Checklist (Round 7 + Rounds 1–6 Archives)
+# `rt-series` Master Defect, Curated-C11 & Subsystem Deep-Dive Checklist (Round 8 + Rounds 1–7 Archives)
 
-**Audit Date:** 2026-11-03 (Rounds 4–7; Rounds 1–3 on 2026-11-02)  
+**Audit Date:** 2026-11-03 (Rounds 4–8; Rounds 1–3 on 2026-11-02)  
 **Process Specification:** [`docs/CONVERGENCE-AUDIT-PROCESS.md`](docs/CONVERGENCE-AUDIT-PROCESS.md) (Parabola Oscillation Model, Step-Size Annealing, and 6-Subsystem Deep-Dive Schedule)  
 **Static Auditor ("Hunting"):** `gpt-6-astra` (`codex exec -m gpt-6-astra --sandbox read-only`) across 11 concurrent read-only static audit lanes  
 **Remediation Engine ("Fixing"):** `muse` (`muse exec --yolo --parallel-tool-calls`)  
@@ -12,272 +12,424 @@
 
 ---
 
-## Part I — Round-7 Active Checklist: Subsystem Deep-Dive 1 of 6 (ISA Interpreter & CPU State/Trap Semantics, `0 / 277` Resolved)
+## Part I — Round-8 Active Checklist: Subsystem Deep-Dive 2 of 6 (AArch64 DBT / JIT Emitters, Code Cache, IBTC/RAS & Dispatcher, `0 / 55` Resolved)
 
-### 0.1 Round 7 Audit Matrix (`0 / 277` Resolved)
+### 0.1 Round 8 Audit Matrix (`0 / 55` Resolved)
+
+Following complete remediation, verification review (`claude-fable-5-1` / `claude-opus-4-6`), and `muse` post-review follow-up across Rounds 1–7 (`1,016` per-repo items + `49` clusters = `1,065` checkboxes resolved), Round 8 executed **Subsystem Deep-Dive 2 of 6: AArch64 DBT / JIT Emitters, Code Cache, IBTC/RAS, Soft-TLB Inline Sequence & Dispatcher (`src/dbt/*`, `src/*a64*`, `src/jit/*`, `src/*trampoline*`)** across all 11 repositories (`55` concrete behavioral findings, `0` `DRY`/`YAGNI`/`CLEAN` filler, and **`rvrt` converging to `0` defects across all 23 DBT/JIT files**).
+
+| # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R8 Total** | Raw Round-8 Static Audit Report |
+|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | `a32rt` | Class A | `2ccfe8b` | 2 | 1 | 0 | 3 | 0 | 0 | 0 | 0 | **0 / 3** | [`2026-11-03-defects-r8-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-a32rt-astra.md) |
+| 2 | `i686rt` | Class A | `fa49319` | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 0 | **0 / 2** | [`2026-11-03-defects-r8-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r8-i686rt-astra.md) |
+| 3 | `mips32rt` | Class A | `3aea198` | 3 | 2 | 2 | 7 | 0 | 0 | 0 | 0 | **0 / 7** | [`2026-11-03-defects-r8-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-mips32rt-astra.md) |
+| 4 | `ppc32rt` | Class A | `e8ecc7e` | 3 | 3 | 0 | 6 | 0 | 0 | 0 | 0 | **0 / 6** | [`2026-11-03-defects-r8-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-ppc32rt-astra.md) |
+| 5 | `sparc32rt` | Class A | `8b12acb` | 4 | 2 | 1 | 7 | 0 | 0 | 0 | 0 | **0 / 7** | [`2026-11-03-defects-r8-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-sparc32rt-astra.md) |
+| 6 | `rvrt` | Class B | `55ad5c0` | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **0 / 0** | [`2026-11-03-defects-r8-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r8-rvrt-astra.md) |
+| 7 | `loongarch64rt` | Class B | `8820bff` | 5 | 3 | 0 | 8 | 0 | 0 | 0 | 0 | **0 / 8** | [`2026-11-03-defects-r8-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-loongarch64rt-astra.md) |
+| 8 | `ppc64rt` | Class B | `ab44029` | 2 | 1 | 0 | 3 | 0 | 0 | 0 | 0 | **0 / 3** | [`2026-11-03-defects-r8-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-ppc64rt-astra.md) |
+| 9 | `mips64rt` | Class B | `fb9ff82` | 4 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | **0 / 4** | [`2026-11-03-defects-r8-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-mips64rt-astra.md) |
+| 10 | `sparc64rt` | Class B | `57fe404` | 4 | 2 | 0 | 6 | 0 | 0 | 0 | 0 | **0 / 6** | [`2026-11-03-defects-r8-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-sparc64rt-astra.md) |
+| 11 | `rt-series` | Harness | `5ae9fe7` | 3 | 6 | 0 | 4 | 5 | 0 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r8-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r8-rt-series-astra.md) |
+| | **Total (Round 8)** | | | **31** | **21** | **3** | **49** | **6** | **0** | **0** | **0** | **0 / 55** | |
+
+### 0.2 Round 8 Cross-Cutting DBT / JIT Defect Clusters (Cross-Runtime Check Index)
+
+- [ ] **X-R8-1 — High — Delay-Slot, Link-Register (`JAL`/`JALR`, `JMPL`, `BLX`) & IT-Block Fault/Trap PC Recovery in DBT**
+  - **Linked Items:** `A32-R8-2..3`, `M32-R8-3..4`, `M32-R8-6`, `S32-R8-3..4`, `M64-R8-1..4`, `P32-R8-1`
+  - **Summary:** Precise PC/`npc`/delay-slot/IT-block state on faults and traps inside DBT blocks: `a32rt` Regime-A2 Soft-TLB miss losing `ctx->itstate` (`A32-R8-3`) and `RAS` key using callee `is_thumb` instead of `LR[0]` (`A32-R8-2`), `mips32rt`/`mips64rt` `JALR rd==rs` link ordering and delay-slot trap PC (`M32-R8-3..4`, `M64-R8-1..4`), `sparc32rt` branch/call/fbranch delay-slot fault reporting CTI PC and losing taken target `npc` (`S32-R8-3..4`), and `ppc32rt` `bclr`/`bcctr` missing `& ~3` target masking (`P32-R8-1`).
+- [ ] **X-R8-2 — High — DBT Condition-Code, Shift-Mask, Carry/Overflow & FPU Status Register (`FPSCR`/`FSR`/`FCSR`) Parity with Interpreter Oracle**
+  - **Linked Items:** `M32-R8-1..2`, `M32-R8-7`, `P32-R8-2..6`, `S32-R8-1..2`, `S32-R8-5..6`, `LA64-R8-2..8`, `P64-R8-1..2`, `S64-R8-1..4`
+  - **Summary:** DBT emitter divergences from interpreter oracle semantics: `mips32rt` `TLTIU`/`TEQI` condition table entries (`M32-R8-1..2`), `ppc32rt` `frsp` missing `FCVT S0, D0` narrowing (`P32-R8-3`) and `FPSCR` `FPRF`/`FPCC`/`FR`/`VX*` updates (`P32-R8-2,4..6`), `sparc32rt` `FBO` mask `0x8` vs `0x7`, `TA` `SW_BIT`, logic-cc `C`/`V` clearing, and `FTT` clearing (`S32-R8-1..2,5..6`), `loongarch64rt` `REVB_2W`/`REVB_4H`/`REVB_2H`, `MULW.D.WU`, `FMOV.S` NaN-boxing, and `MOVGR2FRH.W` (`LA64-R8-2..8`), `ppc64rt` 6/7-bit shift amounts and `SUBFO` `OV` (`P64-R8-1..2`), and `sparc64rt` `Tcc` immediate `rs1`, `ADDXCC` `icc`, `WR %asi`, and `ALIGNADDRL` (`S64-R8-1..4`).
+- [ ] **X-R8-3 — High — SIMD / Vector Lane Moves (`SSE`, `LSX`) & Immediate Range Checks in DBT Emitters**
+  - **Linked Items:** `I686-R8-1`, `LA64-R8-1`, `LA64-R8-9`, `P64-R8-3`, `S64-R8-5`
+  - **Summary:** `i686rt` register-form `MOVHLPS`/`MOVLHPS` transposed lanes (`I686-R8-1`), `loongarch64rt` `LDPTR`/`STPTR` wide `si14<<2` offset overflowing `a64e_add_imm` (`LA64-R8-1`) and `VAND.V`/`VORN.V` passing `vk = 0` (`LA64-R8-9`), `ppc64rt` prefixed instruction at `PC % 64 == 60` not rejected in `fetch.c` (`P64-R8-3`), and `sparc64rt` `regasi` lost in `s64_jrt_mem` (`S64-R8-5`).
+- [ ] **X-R8-4 — Medium — I-Cache Coherence (`DC CVAU` on `ICACHE_TRAP_IALLU`), TSO Barriers, Multi-Threaded IBTC Epoch & Single-Step Chaining**
+  - **Linked Items:** `A32-R8-1`, `I686-R8-2`, `M32-R8-5`, `S32-R8-7`, `S64-R8-6`
+  - **Summary:** `a32rt` missing `DC CVAU` loop before trapped `IC IVAU` when `A32H_CAP_ICACHE_TRAP_IALLU` is set (`A32-R8-1`), `i686rt` `emit_branch.c` missing TSO barriers in `e->tso` mode (`I686-R8-2`), `mips32rt` inline IBTC probe checking `smc_version` (`M32-R8-5`), `sparc32rt` `thread_entry.S` loading `x25` `g_vm32_prot` base (`S32-R8-7`), and `sparc64rt` `dbt_step_one` disabling block chaining (`S64-R8-6`).
+- [ ] **X-R8-5 — Medium — `rt-series` Host-Contract & Unification Docs + Dual-Engine (`interp` vs `dbt`) & SMC Torture Coverage**
+  - **Linked Items:** `RTS-R8-1..9`
+  - **Summary:** Align `docs/HOST-CONTRACT.md` and `SPEC.md` with `sparc64rt` `AT_PAGESZ = 8192`, `A32H_CAP_FIXADE`/`A32H_CAP_SOFT_TLB_256M`, Regime A1/A2 `x20` dual meaning, epoch-gated IBTC invalidation, and Darwin `sys_icache_invalidate` (`RTS-R8-1..5`), add `--` separator in `remote_bench_common.sh` (`RTS-R8-6`), run both `interp` and `dbt` in `run_grind.sh` (`RTS-R8-7..8`), and add self-modifying code (`SMC` + cache flush) differential test to `tests/p3_torture.c` (`RTS-R8-9`).
+
+---
+
+## 1. `a32rt` (`2ccfe8b` / `4e62a9c`) — 3 Round-8 Findings (`0 / 3` Resolved)
+
+- [ ] **A32-R8-1 — BUG — HIGH — `src/vm/vm_jit_mem.c:84-92` — Missing `DC CVAU` loop on `A32H_CAP_ICACHE_TRAP_IALLU` path**: Clean D-cache lines (`dc cvau` + `dsb ish`) before the single trapped `ic ivau` so freshly emitted instructions in dirty D-cache lines are pushed to PoU before I-cache invalidation.
+- [ ] **A32-R8-2 — BUG — MEDIUM — `src/dbt/dbt_jit_run.c:392` — RAS return key uses callee `is_thumb` instead of caller `LR[0]`**: Compute `bool ret_thumb = (ctx->regs[14] & 1U) != 0U;` when building `ret_key = a32_make_key(lr_pc, ret_thumb)` so `BLX` interworking calls push the caller's return mode.
+- [ ] **A32-R8-3 — BUG — HIGH — `src/core/core_emit_mem.c:104-150` — Regime-A2 Soft-TLB fault exit loses `ctx->itstate` in Thumb IT blocks**: Store the pre-instruction `itstate` before returning `A32_EXIT_FAULT` on the Soft-TLB miss path (matching `UNDEF`/`BKPT`/`SVC` exits).
+
+---
+
+## 2. `i686rt` (`fa49319`) — 2 Round-8 Findings (`0 / 2` Resolved)
+
+- [ ] **I686-R8-1 — BUG — HIGH — `src/dbt/emit_sse.c:173-177` — Register-form `MOVHLPS`/`MOVLHPS` lane moves are transposed**: In `sse_emit_movlp_hp` (`modrm_mod == 3`), swap the `hi != 0U` (`MOVLHPS`: `sse_ins_d_elt(b, 0U, 1U, 1U, 0U)` vs `MOVHLPS`: `sse_ins_d_elt(b, 0U, 0U, 1U, 1U)`) arms so `MOVLHPS` (`0F 16` reg-reg) copies low-to-high (`d[1] <- s[0]`) and `MOVHLPS` (`0F 12` reg-reg) copies high-to-low (`d[0] <- s[1]`), matching `interp`.
+- [ ] **I686-R8-2 — DEFECT — MEDIUM — `src/dbt/emit_branch.c:326-530` — Branch-module guest memory accesses lack TSO barriers when `e->tso` is active**: Emit `dmb ishld` (`0xD50339BFU`) after guest loads and `dmb ish` (`0xD5033BBFU`) after guest stores in `emit_branch.c` (`CALL`, `RET`, indirect `JMP`) when `e->tso` is set.
+
+---
+
+## 3. `mips32rt` (`3aea198`) — 7 Round-8 Findings (`0 / 7` Resolved)
+
+- [ ] **M32-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:546` — `TLTIU` uses `A64_COND_GT` (`12U`) instead of `A64_COND_CC` (`3U`)**: Change `kCond[3]` (`TLTIU`) to `3U` (`A64_COND_CC`, unsigned `<`).
+- [ ] **M32-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:546` — `TEQI` uses `A64_COND_LE` (`13U`) instead of `A64_COND_EQ` (`0U`)**: Change `kCond[4]` (`TEQI`) to `0U` (`A64_COND_EQ`, `==`).
+- [ ] **M32-R8-3 — BUG — HIGH — `src/dbt/emit_fp.c:830` — FP trap exits inside delay slots commit the slot PC instead of the branch PC**: Thread `ind_slot` / branch PC into `dbt_emit_fp` (or decline trapping FP in delay slots) so enabled FCSR traps inside a delay slot commit `pc = branch`, `npc = delay_target` matching integer traps.
+- [ ] **M32-R8-4 — BUG — MEDIUM — `src/dbt/emit_int.c:668` — `JALR` with `rd == rs` defers link write past delay slot**: Write `link_rd` before executing the delay slot (preserving original target in `delay_target` and restoring `ctx->r[rs]` on fault exits if needed) so the delay slot observes `rd = pc + 8` and a slot write to `rd` wins.
+- [ ] **M32-R8-5 — BUG — MEDIUM — `src/dbt/trampoline_a64.S:67` — Inline IBTC probe does not validate `entry.smc_version`**: Check `entry.smc_version` (or global SMC epoch) in the inline IBTC probe so a concurrent thread's SMC invalidation cannot hit a stale IBTC entry.
+- [ ] **M32-R8-6 — BUG — LOW — `src/dbt/trace.c:77` — `has_delay_slot` misses `BLTZAL`/`BGEZAL`/`BLTZALL`/`BGEZALL` (`rt` `0x10..0x13`)**: Accept `rt <= 3U || (rt >= 0x10U && rt <= 0x13U)` in `has_delay_slot`.
+- [ ] **M32-R8-7 — BUG — LOW — `src/dbt/emit_fp.c:557` — Deferred FP batch skips intermediate enabled-exception traps if `CTC1` enables traps after block compilation**: Check runtime `FCSR` enable bits at `fp_batch_begin` (or flush/trap per op when any enable bit is set).
+
+---
+
+## 4. `ppc32rt` (`e8ecc7e`) — 6 Round-8 Findings (`0 / 6` Resolved)
+
+- [ ] **P32-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:527` — `bclr`/`bcctr` target not masked with `& ~3U`**: Mask `A64_TMP0` with `0xFFFFFFFCU` before `a64_emit_exit_branch_reg` in `ei_bcxr`.
+- [ ] **P32-R8-2 — BUG — MEDIUM — `src/dbt/emit_fp_class.c:42` — `fp_fprf` `C`-bit misclassifies `±Inf`, `-0.0`, and `QNaN`**: Set `C = isQNaN | isDenorm | (isZero & sign)` and clear `C` for `±Inf`, matching `fp_fprf64` in `src/interp/fp.h`.
+- [ ] **P32-R8-3 — BUG — HIGH — `src/dbt/emit_fp.c:555` — `frsp` (`in == 2U`) omits `FCVT S0, D0` before `FCVT D0, S0`**: Emit `FCVT S0, D0` (`0x1E624000`) before widening `FCVT D0, S0` (`0x1E22C000`).
+- [ ] **P32-R8-4 — BUG — HIGH — `src/dbt/emit_fp.c:382` — `fcmpu`/`fcmpo` never updates `FPSCR[FPCC]` (bits 15:12)**: Merge the 4-bit condition result `EI_R << 12` into `ctx->fpscr` under mask `0xF000U` (preserving `C` bit 16), matching the interpreter oracle.
+- [ ] **P32-R8-5 — BUG — MEDIUM — `src/dbt/emit_fp.c:198` — `FPSCR[FR]` (bit 18) never cleared or updated**: Clear `FPSCR_FR` (`0x40000U`) alongside `FI` per operation (or decline to interpreter when `FR` tracking is needed) so stale `FR` bits do not persist.
+- [ ] **P32-R8-6 — BUG — MEDIUM — `src/dbt/emit_fp.c:311` — Invalid-operation sub-bits (`VXISI`, `VXIMZ`, `VXZDZ`, `VXIDI`) folded into `VXSNAN`**: Classify invalid inputs (`Inf-Inf`, `0*Inf`, `0/0`, `Inf/Inf`) to set the architectural `VX*` sub-bit matching `fp_inv2` in `src/interp/fp.h`.
+
+---
+
+## 5. `sparc32rt` (`8b12acb`) — 7 Round-8 Findings (`0 / 7` Resolved)
+
+- [ ] **S32-R8-1 — BUG — HIGH — `src/dbt/emit_fpbranch.c:36` — `FBfcc` condition 15 (`FBO`) mask is `0x8` instead of `0x7`**: Change `fp_taken_mask[15]` from `0x8U` to `0x7U` (ordered: `fcc in {0,1,2}`).
+- [ ] **S32-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:405` — Taken `Ticc` `exit_arg` omits `SPARC32_TRAP_SW_BIT` (`0x100`)**: OR `0x100U` into `EKEEP` before storing `exit_arg` so `sparc32_trap_signo` delivers `SIGTRAP`/`SIGILL` instead of `SIGFPE`.
+- [ ] **S32-R8-3 — BUG — HIGH — `src/dbt/emit_cti.c:160` & `src/dbt/emit_fpbranch.c` — Delay-slot faults in `Bicc`/`CALL`/`FBfcc` report CTI `pc` instead of delay `npc`**: Set `ec->fault_pc = npc` before emitting the delay slot (matching `JMPL`).
+- [ ] **S32-R8-4 — BUG — HIGH — `src/dbt/emit_cti.c:214` & `src/dbt/dbt.c:307` — Taken CTI delay-slot fault commits `npc = dest + 4` instead of branch `target`**: Record the branch target via `a64_jmpl_record` before the taken-path delay slot so a fault inside the delay slot commits `npc = target`.
+- [ ] **S32-R8-5 — BUG — MEDIUM — `src/dbt/emit_int.c:238` — Logical `-cc` ops (`ANDcc`/`ORcc`/`XORcc`/`ANDNcc`/`ORNcc`/`XNORcc`) preserve stale host `C` and `V` in `psr.icc`**: Clear `C` and `V` in the committed `icc` nibble for logical `-cc` operations (`op3` `0x11..0x17`).
+- [ ] **S32-R8-6 — BUG — MEDIUM — `src/dbt/emit_fp.c:355` — Inline FP arithmetic and `FCMP` preserve stale `FSR.ftt` bits (bits 16:14)**: Clear bits 16:14 (`0xFFFF83E0U` / `0xFFFE3FE0U`) when committing `FSR` on successful inline FP operations.
+- [ ] **S32-R8-7 — BUG — LOW — `src/rt32/thread_entry.S:107` — `THREAD_CORE` omits loading `x25` (`g_vm32_prot` base)**: Load `g_vm32_prot` into `x25` in `THREAD_CORE` matching `trampoline_a64.S:40-49`.
+
+---
+
+## 6. `rvrt` (`55ad5c0`) — 0 Round-8 Findings (`0 / 0` Resolved — Subsystem Converged)
+
+All 23 files in `src/dbt/*`, `src/jit/*`, `src/darwin_dbt*`, `src/dbt_emit_fp.*`, `src/dbt_emit_m.c`, and `src/runtime/safe_syscall_a64.S` were audited line-by-line with **0 concrete behavioral bugs found** ([`2026-11-03-defects-r8-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r8-rvrt-astra.md)).
+
+---
+
+## 7. `loongarch64rt` (`8820bff`) — 8 Round-8 Findings (`0 / 8` Resolved)
+
+- [ ] **LA64-R8-1 — BUG — HIGH — `src/dbt/emit_ldst.c:106` — `LDPTR`/`STPTR` wide offset (`si14 << 2` outside `±4095`) overflows `a64e_add_imm` mid-sequence**: Check offset range (`off < -4095 || off > 4095`) before emitting any instructions in `la64_emit_ldst` and decline to interpreter when out of 12-bit range.
+- [ ] **LA64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:636` — `REVB.2W` emits `EXTR` (word swap) instead of `REV32 X`**: Emit `REV32 X` (`0xDAC00800U`) so bytes are reversed within each 32-bit word.
+- [ ] **LA64-R8-3 — BUG — HIGH — `src/dbt/emit_int.c:631` — `REVB.4H` emits `REV32 X` instead of `REV16 X`**: Emit `REV16 X` (`0xDAC00400U`) so bytes are swapped within each 16-bit halfword.
+- [ ] **LA64-R8-4 — BUG — HIGH — `src/dbt/emit_int.c:629` — `REVB.2H` omits 32-bit sign extension (`SXTW`)**: Emit `REV16 W` (`0x5AC00400U`) followed by `SXTW`.
+- [ ] **LA64-R8-5 — BUG — HIGH — `src/dbt/emit_int.c:486` — `MULW.D.WU` sign-extends `rj` (`SXTW`) instead of zero-extending**: Zero-extend `rj` (`MOV W, Wj`) before 64-bit `MUL`.
+- [ ] **LA64-R8-7 — BUG — MEDIUM — `src/dbt/emit_fp.c:253` — `FMOV.S` copies 64 bits without NaN-boxing upper 32 bits**: NaN-box `.S` moves (`ORR` upper 32 bits with `0xFFFFFFFF00000000ULL`) and tag the FPR cache slot accordingly.
+- [ ] **LA64-R8-8 — BUG — MEDIUM — `src/dbt/emit_fp.c:299` — `MOVGR2FRH.W` emits `UBFM #32, #63` (`LSR #32`) instead of `LSL #32` / `BFI`**: Deposit the low 32 bits of `rj` into bits `[63:32]` of the target FPR while preserving bits `[31:0]`.
+- [ ] **LA64-R8-9 — BUG — MEDIUM — `src/dbt/emit_fp.c:694` — Vector bitwise ops (`VAND.V`/`VOR.V`/`VXOR.V`/`VANDN.V`/`VORN.V`) pass `vk = 0` to `v_halves3`**: Pass the decoded `vk` register instead of `0`.
+
+---
+
+## 8. `ppc64rt` (`ab44029`) — 3 Round-8 Findings (`0 / 3` Resolved)
+
+- [ ] **P64-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:339` — Register shifts (`SLW`/`SRW`/`SRAW`/`SLD`/`SRD`/`SRAD`) mask shift amount to 5/6 bits instead of 6/7 bits**: Mask word shifts with `63` (zeroing or sign-filling when `n >= 32`) and doubleword shifts with `127` (zeroing or sign-filling when `n >= 64`), matching `src/interp/interp.h`.
+- [ ] **P64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:155` — `SUBFO` (`PPC64_OP_SUBF` with `OE=1`) omits `XER[OV,OV32,SO]` update**: Compute overflow for `SUBFO` (`RB - RA`, `s1 = RB ^ RA`, `s2 = RB ^ RT`) via `e_ov2()` alongside `ADDO`.
+- [ ] **P64-R8-3 — BUG — MEDIUM — `src/dbt/fetch.c:109` — `ppc64_dbt_fetch` does not reject 8-byte prefixed instructions crossing a 64-byte boundary (`(pc & 63) == 60`)**: Return `false` when `(w0 >> 26u) == 1u && (pc & UINT64_C(63)) == UINT64_C(60)` so `ppc64_step()` raises `PPC64_TRAP_INST_MISALIGNED`.
+
+---
+
+## 9. `mips64rt` (`fb9ff82`) — 4 Round-8 Findings (`0 / 4` Resolved)
+
+- [ ] **M64-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:391` — `JR`/`JALR` misaligned target faults before executing the delay slot and reports branch PC**: Execute the link and delay slot before checking target alignment, then fault at the misaligned target address matching `src/interp/interp.c:800`.
+- [ ] **M64-R8-2 — BUG — HIGH — `src/dbt/emit_alu.c:261` & `src/dbt/emit_int.c:524` — Trapping ALU/trap instructions in a delay slot do not set `in_delay_slot`**: Decline trapping instructions (`ADD`, `DADD`, `SUB`, `DSUB`, `ADDI`, `DADDI`, `TGE*`, `TLT*`, `TEQ*`, `TNE*`) when `slot != 0` so `interp_step` handles the delay-slot trap with `in_delay_slot = 1`.
+- [ ] **M64-R8-3 — BUG — HIGH — `src/dbt/emit_int.c:385` & `src/dbt/emit_fpmem.c:367` — Deferred `JAL` link write breaks `COP1`/`COP1X` delay slots**: Decline linking branches whose `COP1`/`COP1X` delay slot writes the link register (`$ra`) or performs a memory access that can fault/miss.
+- [ ] **M64-R8-4 — BUG — HIGH — `src/dbt/emit_int.c:394` & `src/dbt/mem_recover.c:202` — `JALR` with `rd == rs` overwrites `ctx->gpr[rs]` before a faulting delay-slot load/store**: Decline indirect linking branches (`JALR`) when `d->rd == d->rs` (or when the delay slot is a memory operation) so fault recovery never reads a link-clobbered `rs`.
+
+---
+
+## 10. `sparc64rt` (`57fe404`) — 6 Round-8 Findings (`0 / 6` Resolved)
+
+- [ ] **S64-R8-1 — BUG — HIGH — `src/dbt/emit_cond.c:469` — Immediate `Tcc` (`d->is_imm != 0`) ignores `rs1`**: Compute `(R[rs1] + d->imm) & 0x7FU` for immediate `Tcc` matching `exec_tcc` in `src/interp/interp.c:353`.
+- [ ] **S64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:242` — `ADDXCC`/`SUBXCC` (`ADDCcc`/`SUBCcc`) computes `icc` nibble from stale flags**: Route `with_carry && cc` (`ADDCcc`/`SUBCcc`) through `e_emit_alu_helper(ec, d)` so both `icc` and `xcc` are exact.
+- [ ] **S64-R8-3 — BUG — MEDIUM — `src/dbt/emit_int.c:438` — `WR %asi` omits `& 0xFFU` mask**: Mask `ES1` with `sb_ubfm(b, false, ES1, ES1, 0U, 7U)` before storing to `E_OFF_ASI`.
+- [ ] **S64-R8-4 — BUG — MEDIUM — `src/dbt/emit_int.c:453` — `ALIGNADDRL` (`opf == 0x1A`) decoded identically to `ALIGNADDR`**: Negate the low 3 bits (`(0 - sum) & 7`) when `d->opf == 0x1AU`.
+- [ ] **S64-R8-5 — BUG — HIGH — `src/dbt/emit_mem.h:92` — `s64_jrt_mem` leaves `d.regasi` uninitialized / loses `%asi`-relative flag**: Pack `d->regasi` into the helper descriptor and initialize `d.regasi` in `s64_jrt_mem` so `%asi`-relative loads/stores resolve `cpu->asi`.
+- [ ] **S64-R8-6 — BUG — HIGH — `src/dbt/dbt.c:604` — `dbt_step_one` passes `single_step = false` to `dbt_enter_block`**: Pass `true` so single-step execution uses `sparc64_dbt_enter_step` (zero epoch, no chaining).
+
+---
+
+## 11. `rt-series` (`5ae9fe7`) — 9 Round-8 Findings (`0 / 9` Resolved)
+
+- [ ] **RTS-R8-1 — DEFECT — MEDIUM — `docs/HOST-CONTRACT.md:36` — `AT_PAGESZ = 4096` statement omits `sparc64rt` (`8192`)**: Carve out `sparc64rt` (`AT_PAGESZ = 8192` with 8 KiB alignment and paired 4 KiB Soft-TLB entries) matching `SPEC.md` `D11` and `docs/UNIFICATION-PLAN.md`.
+- [ ] **RTS-R8-2 — DEFECT — MEDIUM — `docs/HOST-CONTRACT.md:102-114` — `A32H_CAP_FIXADE` (bit 10) and `A32H_CAP_SOFT_TLB_256M` (bit 11) missing from capability table**: Document bits 10 and 11 in `docs/HOST-CONTRACT.md` matching `include/a32host.h`.
+- [ ] **RTS-R8-3 — DEFECT — MEDIUM — `SPEC.md:22,83,273` — Class-A `x20` description states `x20 = xG` unconditionally without Regime-A2 (`x20 = &ctx->tlb[0]`)**: Clarify Regime A1 (`x20 = xG`) vs Regime A2 (`x20 = &ctx->tlb[0]`, `x23 = xG`) in `SPEC.md` matching `docs/UNIFICATION-PLAN.md`.
+- [ ] **RTS-R8-4 — DEFECT — MEDIUM — `SPEC.md:127` — IBTC direct linking rule omits epoch-gating and invalidation on `munmap`/`mprotect`/SMC**: Document epoch-gated IBTC/RAS lookup and mandatory invalidation on `munmap`/`mprotect`/SMC in `SPEC.md`.
+- [ ] **RTS-R8-5 — DEFECT — MEDIUM — `docs/UNIFICATION-PLAN.md:92,465` — Darwin `MAP_JIT` and `rt_host_jit_seal_rx` omit explicit I-cache invalidation (`sys_icache_invalidate` / `__builtin___clear_cache`)**: Document mandatory I-cache invalidation in `rt_host_jit_seal_rx` across both Linux and Darwin backends.
+- [ ] **RTS-R8-6 — BUG — HIGH — `tools/remote_bench_common.sh:35,71-77,128-137` — Missing `--` separator before guest binary path for Class-B translators**: Include `--` before the guest path in `remote_bench_common.sh`.
+- [ ] **RTS-R8-7 — BUG — HIGH — `tools/run_grind.sh:277,296,536,602,630,691` — Grind suites execute only a single engine (`interp` OR `dbt`) instead of both**: Run both `GRIND_INTERP` and `GRIND_DBT` when both are configured and fail if outputs/exit codes diverge.
+- [ ] **RTS-R8-8 — BUG — MEDIUM — `tools/run_grind.sh:341,383-385` — `gcc-torture` promotes first engine output when `GRIND_QEMU` is unset**: Require `GRIND_QEMU` (or report `SKIP`/`GAP` rather than `PASS` when no independent oracle is provided unless `GRIND_ALLOW_NO_ORACLE=1`).
+- [ ] **RTS-R8-9 — BUG — HIGH — `tests/p3_torture.c:877-888` — Missing self-modifying code (`SMC`) + cache-invalidation test in `p3_torture.c`**: Add a portable `t_smc_clear_cache` test row in `tests/p3_torture.c` that maps a RW page, writes a small function returning `42`, flips to `RX` + `__builtin___clear_cache`, executes it, flips back to `RW`, patches the return value to `99`, flips to `RX` + `__builtin___clear_cache`, and verifies the second call returns `99` (not stale cached `42`).
+
+---
+
+## Part II — Round-7 Archive: Subsystem Deep-Dive 1 of 6 (ISA Interpreter & CPU State/Trap Semantics, `277 / 277` Resolved — Verified by `claude-fable-5-1` & `claude-opus-4-6`)
+
+### 0.1 Round 7 Audit Matrix (`277 / 277` Resolved)
 
 Following complete remediation, `fable` (`claude-fable-5-1`) verification review, and `muse` post-review follow-up across Rounds 1–6 (`739` per-repo items + `43` clusters = `782` checkboxes resolved), Round 7 initiated **Regime II (Subsystem Deep-Dive 1 of 6: ISA Interpreter `src/interp/*` & CPU State/Trap Semantics)** across all 11 repositories (`277` concrete behavioral findings: `0 Critical`, `110 High`, `166 Medium`, `1 Low`; `0` `DRY`/`YAGNI`/`CLEAN` filler).
 
 | # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R7 Total** | Raw Round-7 `astra` Transcript |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | `a32rt` | Class A | `73c2603` | 14 | 18 | 0 | 31 | 1 | 0 | 0 | 0 | **0 / 32** | [`2026-11-03-defects-r7-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r7-a32rt-astra.md) |
-| 2 | `i686rt` | Class A | `254b3c0` | 30 | 25 | 0 | 50 | 5 | 0 | 0 | 0 | **0 / 55** | [`2026-11-03-defects-r7-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r7-i686rt-astra.md) |
-| 3 | `mips32rt` | Class A | `691d450` | 8 | 12 | 0 | 19 | 1 | 0 | 0 | 0 | **0 / 20** | [`2026-11-03-defects-r7-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r7-mips32rt-astra.md) |
-| 4 | `ppc32rt` | Class A | `278f4e8` | 11 | 14 | 0 | 20 | 5 | 0 | 0 | 0 | **0 / 25** | [`2026-11-03-defects-r7-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r7-ppc32rt-astra.md) |
-| 5 | `sparc32rt` | Class A | `a810f0c` | 10 | 13 | 0 | 22 | 1 | 0 | 0 | 0 | **0 / 23** | [`2026-11-03-defects-r7-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r7-sparc32rt-astra.md) |
-| 6 | `rvrt` | Class B | `2b6759c` | 2 | 3 | 0 | 5 | 0 | 0 | 0 | 0 | **0 / 5** | [`2026-11-03-defects-r7-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r7-rvrt-astra.md) |
-| 7 | `loongarch64rt` | Class B | `058a318` | 9 | 17 | 0 | 25 | 1 | 0 | 0 | 0 | **0 / 26** | [`2026-11-03-defects-r7-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r7-loongarch64rt-astra.md) |
-| 8 | `ppc64rt` | Class B | `bda02bd` | 7 | 23 | 0 | 27 | 3 | 0 | 0 | 0 | **0 / 30** | [`2026-11-03-defects-r7-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r7-ppc64rt-astra.md) |
-| 9 | `mips64rt` | Class B | `f29422b` | 8 | 10 | 0 | 16 | 2 | 0 | 0 | 0 | **0 / 18** | [`2026-11-03-defects-r7-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r7-mips64rt-astra.md) |
-| 10 | `sparc64rt` | Class B | `bab379d` | 10 | 25 | 0 | 35 | 0 | 0 | 0 | 0 | **0 / 35** | [`2026-11-03-defects-r7-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r7-sparc64rt-astra.md) |
-| 11 | `rt-series` | Harness | `a7b9bc6` | 1 | 6 | 1 | 2 | 6 | 0 | 0 | 0 | **0 / 8** | [`2026-11-03-defects-r7-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r7-rt-series-astra.md) |
-| | **Total (Round 7)** | | | **110** | **166** | **1** | **252** | **25** | **0** | **0** | **0** | **0 / 277** | |
+| 1 | `a32rt` | Class A | `73c2603` | 14 | 18 | 0 | 31 | 1 | 0 | 0 | 0 | **32 / 32** | [`2026-11-03-defects-r7-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r7-a32rt-astra.md) |
+| 2 | `i686rt` | Class A | `254b3c0` | 30 | 25 | 0 | 50 | 5 | 0 | 0 | 0 | **55 / 55** | [`2026-11-03-defects-r7-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r7-i686rt-astra.md) |
+| 3 | `mips32rt` | Class A | `691d450` | 8 | 12 | 0 | 19 | 1 | 0 | 0 | 0 | **20 / 20** | [`2026-11-03-defects-r7-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r7-mips32rt-astra.md) |
+| 4 | `ppc32rt` | Class A | `278f4e8` | 11 | 14 | 0 | 20 | 5 | 0 | 0 | 0 | **25 / 25** | [`2026-11-03-defects-r7-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r7-ppc32rt-astra.md) |
+| 5 | `sparc32rt` | Class A | `a810f0c` | 10 | 13 | 0 | 22 | 1 | 0 | 0 | 0 | **23 / 23** | [`2026-11-03-defects-r7-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r7-sparc32rt-astra.md) |
+| 6 | `rvrt` | Class B | `2b6759c` | 2 | 3 | 0 | 5 | 0 | 0 | 0 | 0 | **5 / 5** | [`2026-11-03-defects-r7-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r7-rvrt-astra.md) |
+| 7 | `loongarch64rt` | Class B | `058a318` | 9 | 17 | 0 | 25 | 1 | 0 | 0 | 0 | **26 / 26** | [`2026-11-03-defects-r7-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r7-loongarch64rt-astra.md) |
+| 8 | `ppc64rt` | Class B | `bda02bd` | 7 | 23 | 0 | 27 | 3 | 0 | 0 | 0 | **30 / 30** | [`2026-11-03-defects-r7-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r7-ppc64rt-astra.md) |
+| 9 | `mips64rt` | Class B | `f29422b` | 8 | 10 | 0 | 16 | 2 | 0 | 0 | 0 | **18 / 18** | [`2026-11-03-defects-r7-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r7-mips64rt-astra.md) |
+| 10 | `sparc64rt` | Class B | `bab379d` | 10 | 25 | 0 | 35 | 0 | 0 | 0 | 0 | **35 / 35** | [`2026-11-03-defects-r7-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r7-sparc64rt-astra.md) |
+| 11 | `rt-series` | Harness | `a7b9bc6` | 1 | 6 | 1 | 2 | 6 | 0 | 0 | 0 | **8 / 8** | [`2026-11-03-defects-r7-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r7-rt-series-astra.md) |
+| | **Total (Round 7)** | | | **110** | **166** | **1** | **252** | **25** | **0** | **0** | **0** | **277 / 277** | |
 
 ### 0.2 Round 7 Cross-Cutting ISA Interpreter Defect Clusters (Cross-Runtime Check Index)
 
-- [ ] **X-R7-1 — High — FPU Exception Flags, NaN Propagation/Quieting, Directed Rounding & Float-to-Int Range/Saturation Semantics**
+- [x] **X-R7-1 — High — FPU Exception Flags, NaN Propagation/Quieting, Directed Rounding & Float-to-Int Range/Saturation Semantics**
   - **Linked Items:** `A32-R7-29..31`, `I686-R7-32..51`, `M32-R7-13..20`, `P32-R7-18..23`, `S32-R7-17..23`, `RV-R7-2`, `RV-R7-4`, `LA64-R7-18..25`, `P64-R7-21..29`, `M64-R7-11..18`, `S64-R7-28..35`
   - **Summary:** Cross-ISA FPU corner cases uncovered by end-to-end `src/interp/*` inspection: float-to-int range checking before truncation (`P32-R7-20`, `S32-R7-21`, `S64-R7-32`), `FCSR`/`FSR`/`FPSCR` cause vs sticky flag handling and writable-field masks (`M32-R7-19`, `M64-R7-12..13`, `S32-R7-18`, `S64-R7-29`, `P64-R7-26..29`), sNaN quieting and `FMIN`/`FMAX`/`FMINA`/`FMAXA` NaN/tie selection (`M32-R7-16`, `LA64-R7-21..22`), `rvrt` inverted `FLT.S/D` & `FLE.S/D` A64 condition codes (`RV-R7-2`), and fused vs non-fused rounding (`A32-R7-29`, `LA64-R7-25`).
-- [ ] **X-R7-2 — High — Register Width Invariants, 32-Bit Sign/Zero Extension & Partial-Register Write Semantics**
+- [x] **X-R7-2 — High — Register Width Invariants, 32-Bit Sign/Zero Extension & Partial-Register Write Semantics**
   - **Linked Items:** `A32-R7-26..28`, `I686-R7-52`, `RV-R7-1`, `LA64-R7-1..8`, `P64-R7-1..9`, `M64-R7-1..6`, `S64-R7-1..9`
   - **Summary:** 32-bit sign-extension invariants on 64-bit guest architectures (`RV-R7-1` RV32 syscall return canonicalization, `M64-R7-1..6`, `LA64-R7-1..8`), `i686rt` `vm86` 16-bit `r16_set()` clobbering upper GPR halves (`I686-R7-52`), and `a32rt` NEON/VFP halfword lane moves (`A32-R7-26..28`).
-- [ ] **X-R7-3 — High — Branch Delay Slots, Annulment, IT Blocks & Control-Transfer Link/Target Ordering**
+- [x] **X-R7-3 — High — Branch Delay Slots, Annulment, IT Blocks & Control-Transfer Link/Target Ordering**
   - **Linked Items:** `A32-R7-1..9`, `I686-R7-18..25`, `M32-R7-1..6`, `P32-R7-1..8`, `S32-R7-1..8`, `LA64-R7-9..12`, `P64-R7-10..15`, `M64-R7-7..10`, `S64-R7-10..18`, `RTS-R7-5`
   - **Summary:** Delay-slot fault/link ordering and branch-likely/annul semantics across MIPS32, MIPS64, SPARC32, and SPARC64, Thumb-2 IT-block state progression in `a32rt`, PowerPC `BO`/`BI`/`CTR` conditional branch forms in `ppc32rt`/`ppc64rt`, and x86 control-transfer segment/limit checks in `i686rt`.
-- [ ] **X-R7-4 — High — Register Windows, Fault-Before-Commit Ordering & Atomic Reservation (`LL/SC`, `LR/SC`, `LWARX/STWCX.`, `CASA`) Semantics**
+- [x] **X-R7-4 — High — Register Windows, Fault-Before-Commit Ordering & Atomic Reservation (`LL/SC`, `LR/SC`, `LWARX/STWCX.`, `CASA`) Semantics**
   - **Linked Items:** `A32-R7-10..18`, `M32-R7-7..12`, `P32-R7-9..17`, `S32-R7-9..16`, `RV-R7-3`, `LA64-R7-13..17`, `P64-R7-16..20`, `S64-R7-19..27`
   - **Summary:** SPARC V8/V9 register-window `SAVE`/`RESTORE`/`FLUSHW` spill/fill fault ordering (`S32-R7-1..5`, `S64-R7-10..15`), PowerPC update-form `RA==0`/`RA==RT` validation and `LWARX`/`STWCX.` reservation rules (`P32-R7-25`, `P64-R7-16..20`), and RISC-V `C.FLWSP f0` decoding (`RV-R7-3`).
-- [ ] **X-R7-5 — High — SIMD / Vector Lane Ordering (`NEON`, `SSE/SSE2`, `SPE`, `VMX/VSX`, `LSX/LASX`, `VIS`) & Architectural Register Serialization**
+- [x] **X-R7-5 — High — SIMD / Vector Lane Ordering (`NEON`, `SSE/SSE2`, `SPE`, `VMX/VSX`, `LSX/LASX`, `VIS`) & Architectural Register Serialization**
   - **Linked Items:** `A32-R7-19..28`, `I686-R7-50..51`, `P32-R7-14..17`, `LA64-R7-18..21`, `P64-R7-24..30`, `S64-R7-30`
   - **Summary:** `i686rt` swapped `PSRLDQ`/`PSLLDQ` direction and `imm4|3` encoding bug (`I686-R7-50`), `ppc64rt` internal vs architectural `XER` bit serialization in `sigframe.c` (`P64-R7-30`), `sparc64rt` `FPRS` dirty-bit (`DL`/`DU`) tracking (`S64-R7-30`), and `a32rt` `VREV64.16`/`VMOV` lane handling (`A32-R7-26..28`).
-- [ ] **X-R7-6 — Medium — `rt-series` ISA Torture Suite, `lmbench` Runner Arguments & `ISA-TRAP-AND-ABI-MATRIX.md` Precision**
+- [x] **X-R7-6 — Medium — `rt-series` ISA Torture Suite, `lmbench` Runner Arguments & `ISA-TRAP-AND-ABI-MATRIX.md` Precision**
   - **Linked Items:** `RTS-R7-1..8`
   - **Summary:** `tests/p3_torture.c` nested alternate-stack signal test coverage (`RTS-R7-4`), `tools/run_grind.sh` per-tool `lmbench` arguments (`RTS-R7-7`), and SPARC32/MIPS64-N32 signal-frame & SPARC V8 annul documentation in `lode/ISA-TRAP-AND-ABI-MATRIX.md` (`RTS-R7-5..6`, `RTS-R7-8`).
 
 ---
 
-## 1. `a32rt` (`73c2603`) — 32 Round-7 Findings (`0 / 32` Resolved)
+## 1. `a32rt` (`73c2603`) — 32 Round-7 Findings (`32 / 32` Resolved)
 
 Static audit completed across every file in `src/interp/` and the related emitters, CPU state, exclusive-monitor, and trap paths. No builds, tests, or edits were performed.
 
-- [ ] **A32-R7-1 — BUG — HIGH**
+- [x] **A32-R7-1 — BUG — HIGH**
 
 - **Summary**: `UDF.W` executes a syscall instead of raising SIGILL.
 - **Locations**: [interp_thumb.c:762](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:762), [dbt_jit_run.c:492](/Users/angerman/Projects/zw3rk/a32rt/src/dbt/dbt_jit_run.c:492).
 - **Evidence & Root Cause**: `F7F0 A000`, encoding `UDF.W #0`, returns `A32_EXIT_SVC`. Both interpreter execution and the JIT’s UNDEF fallback subsequently dispatch the syscall selected by `r7`. An instruction intended to trap can therefore perform an external side effect.
 - **Remediation**: Decode this family as UNDEF, retain the faulting PC and IT state, and prevent syscall dispatch.
 
-- [ ] **A32-R7-2 — BUG — HIGH**
+- [x] **A32-R7-2 — BUG — HIGH**
 
 - **Summary**: Thumb decoder masks turn loads and byte stores into unrelated operations.
 - **Locations**: [interp_thumb.c:159](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:159), [interp_thumb.c:277](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:277), [interp_thumb.c:340](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:340).
 - **Evidence & Root Cause**: The broad `0x4xxx` branch captures literal loads before their decoder: `0x4800` doubles `r0` instead of loading `[Align(PC+4,4)]`. Incorrect memory-class masks also send `0x7008` (`STRB r0,[r1]`) to the SP-relative word-store fallback, writing four bytes at `sp+32`. Actual `0x9xxx` SP-relative transfers are excluded.
 - **Remediation**: Use disjoint architectural masks, explicit SP-relative decoding, and rejection of unmatched encodings.
 
-- [ ] **A32-R7-3 — BUG — HIGH**
+- [x] **A32-R7-3 — BUG — HIGH**
 
 - **Summary**: Nonword exclusives, doubleword exclusives, and SWP fall into arithmetic decoding.
 - **Locations**: [interp_a32.c:166](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:166), [interp_a32.c:504](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:504).
 - **Evidence & Root Cause**: LDREXB/H and STREXB/H use incorrect opcode comparisons. LDREXD/STREXD and SWP lack interpreter dispatch. For example, `E1D10F9F` (`LDREXB r0,[r1]`) reaches the broad multiply decoder and modifies arithmetic registers instead of loading memory. SWP likewise matches that fallback.
 - **Remediation**: Decode these families before generic data processing, correct their masks, and provide an eight-byte exclusive reservation implementation.
 
-- [ ] **A32-R7-4 — BUG — HIGH**
+- [x] **A32-R7-4 — BUG — HIGH**
 
 - **Summary**: JIT flag elimination destroys the APSR state required at a fault.
 - **Locations**: [interp_a32_ctl.c:605](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32_ctl.c:605), [interp_t32_mem.c:661](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_t32_mem.c:661), [signals.c:463](/Users/angerman/Projects/zw3rk/a32rt/src/signals.c:463).
 - **Evidence & Root Cause**: Backward liveness considers flag consumers and overwriters, but not intervening faultable instructions. In `ADDS; LDR [unmapped]; CMP`, the ADDS flag update can be removed because CMP overwrites it. The fault handler then captures stale host NZCV rather than the flags preceding LDR.
 - **Remediation**: Treat possible synchronous exits as flag-observation points, or retain sufficient metadata to reconstruct eliminated flags.
 
-- [ ] **A32-R7-5 — BUG — HIGH**
+- [x] **A32-R7-5 — BUG — HIGH**
 
 - **Summary**: Synchronous signal frames can contain stale floating-point registers and status.
 - **Locations**: [core_emit_alu.c:629](/Users/angerman/Projects/zw3rk/a32rt/src/core/core_emit_alu.c:629), [core_emit_mem.c:170](/Users/angerman/Projects/zw3rk/a32rt/src/core/core_emit_mem.c:170), [signals.c:448](/Users/angerman/Projects/zw3rk/a32rt/src/signals.c:448), [trampoline.S:219](/Users/angerman/Projects/zw3rk/a32rt/src/trampoline.S:219).
 - **Evidence & Root Cause**: Eligible self-loops retain modified guest FP registers in host SIMD registers and skip flushing before memory accesses. Fault recovery restores only GPRs and NZCV, then serializes stale `ctx->vfp_d`. Native FPSR exceptions are also merged only after signal-frame construction. Returning from the handler can discard completed FP work and exception flags.
 - **Remediation**: Materialize or reconstruct interrupted FP registers and FPSR before constructing the guest frame.
 
-- [ ] **A32-R7-6 — BUG — MEDIUM**
+- [x] **A32-R7-6 — BUG — MEDIUM**
 
 - **Summary**: Instructions requiring alignment accept misaligned addresses or deliver the wrong trap.
 - **Locations**: [core_emit_shared.c:508](/Users/angerman/Projects/zw3rk/a32rt/src/core/core_emit_shared.c:508), [core_emit_mem.c:197](/Users/angerman/Projects/zw3rk/a32rt/src/core/core_emit_mem.c:197), [interp_a32.c:491](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:491), [interp_vfp_core.c:166](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp_core.c:166).
 - **Evidence & Root Cause**: LDM/STM, LDRD/STRD, and VFP transfers use ordinary A64 accesses or `memcpy` without the required alignment checks. `LDRD` from `mapped_page+1` consequently succeeds. Interpreter word exclusives instead report UNDEF for misalignment. These differ from architectural alignment faults. [Arm alignment requirements](https://support.arm.com/documentation/100748/0624/Alignment-support-in-Arm-Compiler-for-Embedded-6/Aligned-and-unaligned-accesses).
 - **Remediation**: Enforce instruction-specific alignment and deliver the appropriate guest alignment fault before committing state.
 
-- [ ] **A32-R7-7 — BUG — HIGH**
+- [x] **A32-R7-7 — BUG — HIGH**
 
 - **Summary**: Software exclusive reservations can survive intervening writes and incorrectly succeed.
 - **Locations**: [interp_a32.c:29](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:29), [interp_a32.c:566](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:566), [vm32.c:439](/Users/angerman/Projects/zw3rk/a32rt/src/vm/vm32.c:439), [vm32.c:480](/Users/angerman/Projects/zw3rk/a32rt/src/vm/vm32.c:480).
 - **Evidence & Root Cause**: LDREX loads memory before recording the reservation epoch. Intervening writes can therefore occur before its snapshot. Additionally, raw STRD stores and native JIT stores bypass software reservation invalidation. A peer’s A→B→A writes can leave both the saved epoch and compared value unchanged, allowing STREX to succeed.
 - **Remediation**: Establish the load/reservation atomically and ensure every overlapping guest write participates in a coherent monitor protocol.
 
-- [ ] **A32-R7-8 — BUG — MEDIUM**
+- [x] **A32-R7-8 — BUG — MEDIUM**
 
 - **Summary**: STM permission probes introduce observable byte writes and torn words.
 - **Locations**: [core_emit_shared.c:550](/Users/angerman/Projects/zw3rk/a32rt/src/core/core_emit_shared.c:550).
 - **Evidence & Root Cause**: Validation reads and writes back endpoint bytes before executing STM. Suppose the last word is `0x11223344`: the probe reads `0x11`, a peer stores `0x55667788`, then the probe restores `0x11`. Another thread can observe `0x11667788`, a value produced by neither architectural word store.
 - **Remediation**: Validate permissions without modifying guest memory.
 
-- [ ] **A32-R7-9 — BUG — MEDIUM**
+- [x] **A32-R7-9 — BUG — MEDIUM**
 
 - **Summary**: Faulting native SWP overwrites its destination register before completing.
 - **Locations**: [interp_a32_dp.c:110](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32_dp.c:110), [signals.c:448](/Users/angerman/Projects/zw3rk/a32rt/src/signals.c:448).
 - **Evidence & Root Cause**: The SWP loop loads directly into guest `Rd` before STXR succeeds. In direct-memory mode, readable but read-only memory permits LDXR and faults on STXR. Signal recovery exposes the loaded value in `Rd`, although the faulting swap has not completed.
 - **Remediation**: Hold the loaded value in a temporary and assign `Rd` only after successful completion.
 
-- [ ] **A32-R7-10 — BUG — MEDIUM**
+- [x] **A32-R7-10 — BUG — MEDIUM**
 
 - **Summary**: TPIDRURW aliases TPIDRURO and corrupts the guest TLS pointer.
 - **Locations**: [core_emit_shared.c:481](/Users/angerman/Projects/zw3rk/a32rt/src/core/core_emit_shared.c:481), [interp_a32.c:848](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:848).
 - **Evidence & Root Cause**: Both CP15 reads return `ctx->tls_tp`; writing TPIDRURW overwrites that same field. Thus `MCR p15,0,r0,c13,c0,2` changes subsequent TPIDRURO reads and `__kuser_get_tls`. These are distinct architectural registers. [Arm register descriptions](https://documentation-service.arm.com/static/5e7b64757158f500bd5bd08e).
 - **Remediation**: Maintain separate per-thread TPIDRURW and TPIDRURO state, including lifecycle handling.
 
-- [ ] **A32-R7-11 — BUG — HIGH**
+- [x] **A32-R7-11 — BUG — HIGH**
 
 - **Summary**: Thumb ADD/SUB decodes the immediate-selector and subtraction bits backwards.
 - **Locations**: [interp_thumb.c:80](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:80).
 - **Evidence & Root Cause**: Bit 9 selects immediate operands and bit 10 selects subtraction in the implementation; the encoding assigns those roles oppositely. `0x1C88`, `ADDS r0,r1,#2`, executes `r1-r2`.
 - **Remediation**: Decode bit 10 as the immediate selector and bit 9 as ADD/SUB selection.
 
-- [ ] **A32-R7-12 — BUG — HIGH**
+- [x] **A32-R7-12 — BUG — HIGH**
 
 - **Summary**: Thumb instructions incorrectly update implicit flags inside IT blocks.
 - **Locations**: [interp_thumb.c:93](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:93), [interp_thumb.c:138](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:138), [interp_thumb.c:221](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:221).
 - **Evidence & Root Cause**: Several arithmetic, MOV, and logical paths update flags without checking `use_it`. With Z set, `ITT EQ; MOVEQ r0,#1; MOVEQ r1,#2` clears Z after the first MOV and skips the second. These encodings suppress their implicit flag writes inside IT.
 - **Remediation**: Apply each encoding’s `setflags = !InITBlock()` rule while preserving explicit comparison flag updates.
 
-- [ ] **A32-R7-13 — BUG — HIGH**
+- [x] **A32-R7-13 — BUG — HIGH**
 
 - **Summary**: Interpreter IT progression is incorrect across taken branches and undefined-instruction traps.
 - **Locations**: [interp_thumb.c:581](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:581), [interp_thumb.c:799](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:799), [interp.c:214](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp.c:214).
 - **Evidence & Root Cause**: Successful T32 instructions advance IT only when the resulting PC equals `pc+4`. A taken branch in the final IT slot leaves stale predication at its target. Conversely, UNDEF advances IT while the outer stepper restores the faulting PC, making retry use the next slot’s condition.
 - **Remediation**: Advance IT according to instruction completion, independently of branch destination; preserve pre-instruction IT for retryable traps.
 
-- [ ] **A32-R7-14 — BUG — HIGH**
+- [x] **A32-R7-14 — BUG — HIGH**
 
 - **Summary**: Signal frames do not expose or restore architectural CPSR.IT.
 - **Locations**: [signals.c:285](/Users/angerman/Projects/zw3rk/a32rt/src/signals.c:285), [signals.c:312](/Users/angerman/Projects/zw3rk/a32rt/src/signals.c:312), [signals.c:779](/Users/angerman/Projects/zw3rk/a32rt/src/signals.c:779).
 - **Evidence & Root Cause**: IT exists separately in `ctx->itstate`, but `arm_cpsr` receives plain `ctx->cpsr`. Sigreturn ignores user-supplied IT bits and reconstructs predication from a private trailer and PC-distance heuristic. A handler cannot reliably inspect, clear, or replace the interrupted IT state through its architectural context.
 - **Remediation**: Pack IT into CPSR when creating frames and restore it from validated `arm_cpsr`, following the architectural signal-context contract. [Linux ARM signal implementation](https://github.com/torvalds/linux/blob/master/arch/arm/kernel/signal.c).
 
-- [ ] **A32-R7-15 — BUG — HIGH**
+- [x] **A32-R7-15 — BUG — HIGH**
 
 - **Summary**: A32 BLX immediate never enters Thumb and drops the H displacement bit.
 - **Locations**: [interp_a32.c:318](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:318).
 - **Evidence & Root Cause**: The target is always `pc+8+(imm24<<2)`, then passed to an interworking helper with bit 0 clear. `FA000000` remains in ARM instead of entering Thumb; `FB000000` also loses the additional two-byte displacement.
 - **Remediation**: Include `H<<1` and explicitly select Thumb state for BLX immediate.
 
-- [ ] **A32-R7-16 — BUG — HIGH**
+- [x] **A32-R7-16 — BUG — HIGH**
 
 - **Summary**: A32 LDR into PC loses interworking and address writeback.
 - **Locations**: [interp_a32.c:813](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:813), [interp_a32.c:831](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:831).
 - **Evidence & Root Cause**: The PC-load branch uses non-interworking semantics and returns before writeback. `LDR pc,[sp],#4` with an odd saved return address neither enters Thumb nor increments SP.
 - **Remediation**: Complete permitted base writeback and apply architectural LoadWritePC interworking.
 
-- [ ] **A32-R7-17 — BUG — HIGH**
+- [x] **A32-R7-17 — BUG — HIGH**
 
 - **Summary**: Thumb ALU writes to PC incorrectly switch into ARM state.
 - **Locations**: [interp_thumb.c:261](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:261).
 - **Evidence & Root Cause**: MOV/ADD into PC explicitly clear CPSR.T when the result is even. Thumb `MOV pc,r0` and `ADD pc,r0` use non-interworking branch semantics and must retain Thumb state. An even destination consequently executes the target under the wrong decoder.
 - **Remediation**: Use Thumb BranchWritePC semantics without changing T.
 
-- [ ] **A32-R7-18 — BUG — MEDIUM**
+- [x] **A32-R7-18 — BUG — MEDIUM**
 
 - **Summary**: Several interpreter paths use the wrong architectural PC value.
 - **Locations**: [interp_thumb.c:239](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:239), [interp_vfp.c:306](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:306), [interp_a32.c:386](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:386), [interp_a32.c:826](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:826).
 - **Evidence & Root Cause**: Thumb ALU PC reads incorrectly align `pc+4`; at `0x1002`, `MOV r0,pc` returns `0x1004` instead of `0x1006`. Thumb VLDR literals instead use ARM’s `pc+8`. A32 BX/STR with PC read raw `ctx->regs[15]`, omitting the architectural pipeline offset.
 - **Remediation**: Centralize instruction-specific PC reads, distinguishing ALU, literal-address, branch-register, and stored-PC semantics.
 
-- [ ] **A32-R7-19 — BUG — MEDIUM**
+- [x] **A32-R7-19 — BUG — MEDIUM**
 
 - **Summary**: A32 logical flag-setting instructions clear V.
 - **Locations**: [interp_a32.c:252](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:252), [interp_a32.c:273](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:273).
 - **Evidence & Root Cause**: Logical operations retain the initial `ov=false` and pass it to `i_set_nzcv`. With V initially set, `MOVS r0,#0` clears V, although logical instructions must preserve it while updating NZ and shifter carry.
 - **Remediation**: Preserve existing V for logical operations and use arithmetic overflow only for arithmetic classes.
 
-- [ ] **A32-R7-20 — BUG — MEDIUM**
+- [x] **A32-R7-20 — BUG — MEDIUM**
 
 - **Summary**: Interpreter MRS/MSR decoding mishandles register and field selection.
 - **Locations**: [interp_a32.c:443](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:443), [interp_a32.c:451](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:451).
 - **Evidence & Root Cause**: The MRS mask retains destination-register bits, recognizing only `r0`; `MRS r1,cpsr` falls through. MSR unconditionally replaces both NZCVQ and GE, so an NZCVQ-only write also changes GE.
 - **Remediation**: Exclude Rd from MRS matching and update only the status fields selected by MSR.
 
-- [ ] **A32-R7-21 — BUG — MEDIUM**
+- [x] **A32-R7-21 — BUG — MEDIUM**
 
 - **Summary**: Thumb LDM loads its base register from the wrong list position.
 - **Locations**: [interp_thumb.c:441](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:441), [interp_thumb.c:451](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:451).
 - **Evidence & Root Cause**: When Rn appears in the list, its normal load is skipped and replaced with a load from the final word. For `LDMIA r0,{r0,r1}`, memory words X,Y produce `r0=Y,r1=Y` rather than X,Y.
 - **Remediation**: Retain the value from Rn’s actual list position and suppress writeback as required.
 
-- [ ] **A32-R7-22 — BUG — MEDIUM**
+- [x] **A32-R7-22 — BUG — MEDIUM**
 
 - **Summary**: Interpreter BKPT can be skipped and reports the following instruction’s PC.
 - **Locations**: [interp_thumb.c:48](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:48), [interp_a32.c:361](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:361), [interp.c:214](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp.c:214).
 - **Evidence & Root Cause**: Thumb IT condition checking gates BKPT, although BKPT is unconditional inside IT. Executed ARM and Thumb breakpoints advance PC before returning, and the outer stepper does not restore it for BKPT. Debuggers and SIGTRAP handlers consequently receive the wrong PC. [Arm BKPT specification](https://support.arm.com/documentation/ddi0597/2021-09/Base-Instructions/BKPT--Breakpoint-?lang=en).
 - **Remediation**: Handle BKPT outside IT condition suppression and retain its instruction PC and trap-appropriate IT state.
 
-- [ ] **A32-R7-23 — BUG — MEDIUM**
+- [x] **A32-R7-23 — BUG — MEDIUM**
 
 - **Summary**: Thumb NOP raises an undefined-instruction trap.
 - **Locations**: [interp_thumb.c:70](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_thumb.c:70).
 - **Evidence & Root Cause**: The explicit UNDEF branch includes `hw == 0xBF00`, the ordinary Thumb NOP encoding. Executing compiler padding or an intentional NOP under `--interp` therefore raises SIGILL.
 - **Remediation**: Decode NOP as successful completion and advance IT normally.
 
-- [ ] **A32-R7-24 — BUG — HIGH**
+- [x] **A32-R7-24 — BUG — HIGH**
 
 - **Summary**: Native NEON floating-point operations inherit scalar VFP controls.
 - **Locations**: [interp_neon_alu.c:396](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_neon_alu.c:396), [interp_neon_mem.c:616](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_neon_mem.c:616), [trampoline.S:64](/Users/angerman/Projects/zw3rk/a32rt/src/trampoline.S:64).
 - **Evidence & Root Cause**: Guest FPSCR controls populate host FPCR, and NEON lowering uses that unchanged environment. ARMv7 NEON requires standard round-to-nearest, flush-to-zero, and default-NaN behavior. With scalar rounding upward, NEON `1.0 + 2^-24` rounds upward instead of ties-to-even. [Arm FPU control rules](https://documentation-service.arm.com/static/5e8e11a2fd977155116a2d1a).
 - **Remediation**: Apply standard NEON FP controls around affected operations, restoring scalar controls afterward.
 
-- [ ] **A32-R7-25 — BUG — MEDIUM**
+- [x] **A32-R7-25 — BUG — MEDIUM**
 
 - **Summary**: Interpreter scalar FP arithmetic ignores FPSCR.FZ and FPSCR.DN.
 - **Locations**: [interp_vfp.c:26](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:26), [interp_vfp.c:591](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:591).
 - **Evidence & Root Cause**: The host FP wrapper sets rounding only. Operand/result processing never applies FZ or DN, and exception accumulation omits IDC. With FZ set, multiplying the smallest normal float by 0.5 can produce a subnormal instead of zero; DN leaves NaN payload behavior to the host. [Arm FPU control rules](https://documentation-service.arm.com/static/5e8e11a2fd977155116a2d1a).
 - **Remediation**: Implement the full guest FP environment, including denormal processing, default NaNs, and cumulative exceptions.
 
-- [ ] **A32-R7-26 — BUG — MEDIUM**
+- [x] **A32-R7-26 — BUG — MEDIUM**
 
 - **Summary**: Valid NEON modified-immediate instructions silently zero destinations.
 - **Locations**: [interp_vfp.c:670](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:670).
 - **Evidence & Root Cause**: The decoder accepts the whole family but constructs values only for selected cmodes. Remaining cases store initialized `val64=0` and report success. `VMOV.I16 d0,#1` produces zero rather than `0x0001000100010001`; VORR/VBIC immediates also lose their destination-merging behavior.
 - **Remediation**: Implement each accepted cmode and its operation, or reject unsupported encodings before mutating state.
 
-- [ ] **A32-R7-27 — BUG — MEDIUM**
+- [x] **A32-R7-27 — BUG — MEDIUM**
 
 - **Summary**: VFP/NEON halfword lane moves execute as word moves.
 - **Locations**: [interp_vfp.c:180](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:180), [interp_vfp.c:212](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:212), [interp_vfp.c:238](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:238).
 - **Evidence & Root Cause**: The decoder discards `opc2` and always extracts or replaces 32 bits in accepted CP11 transfers. With D0=`0x5566778811223344`, `VMOV.U16 r0,d0[1]` returns `0x11223344` instead of `0x1122`. The reverse transfer overwrites an entire word.
 - **Remediation**: Decode element width, lane index, and signedness from both opcode fields.
 
-- [ ] **A32-R7-28 — BUG — MEDIUM**
+- [x] **A32-R7-28 — BUG — MEDIUM**
 
 - **Summary**: `VREV64.16` reverses bytes within halfwords.
 - **Locations**: [interp_vfp.c:701](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:701).
 - **Evidence & Root Cause**: The halfword case reverses element positions and applies `bswap16` to every element. Input `0x1122334455667788` becomes `0x8877665544332211` instead of `0x7788556633441122`. The matching mask also fixes Q to zero, making the purported Q-register handling unreachable.
 - **Remediation**: Reverse halfword positions without changing their byte order; correct Q matching and validate register pairing.
 
-- [ ] **A32-R7-29 — BUG — MEDIUM**
+- [x] **A32-R7-29 — BUG — MEDIUM**
 
 - **Summary**: Interpreter fused and non-fused multiply-accumulate instructions share identical semantics.
 - **Locations**: [interp_vfp.c:605](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:605), [interp_vfp.c:622](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:622).
 - **Evidence & Root Cause**: VMLA and VFMA use the same C expression. For single-precision operands `a=1+2^-23`, `b=1-2^-23`, and accumulator `-1`, separately rounded VMLA yields zero while VFMA yields `-2^-46`. Compiler contraction cannot make one expression correctly implement both.
 - **Remediation**: Use explicit fused operations for fused encodings and enforce separate rounding for non-fused encodings.
 
-- [ ] **A32-R7-30 — BUG — MEDIUM**
+- [x] **A32-R7-30 — BUG — MEDIUM**
 
 - **Summary**: Interpreter VCMP fails to record invalid operation for signaling NaNs.
 - **Locations**: [interp_vfp.c:467](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp.c:467).
 - **Evidence & Root Cause**: The NaN path sets IOC only for VCMPE. Ordinary VCMP with S0=`0x7f800001` and S1=0 leaves IOC clear, although the operand is a signaling NaN. This path also bypasses host-exception collection.
 - **Remediation**: Classify NaNs from their bits and set IOC for signaling NaNs in both instructions, and all NaNs in VCMPE.
 
-- [ ] **A32-R7-31 — BUG — MEDIUM**
+- [x] **A32-R7-31 — BUG — MEDIUM**
 
 - **Summary**: Native 16-bit float-to-fixed conversion saturates without setting IOC.
 - **Locations**: [interp_vfp_core.c:411](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_vfp_core.c:411).
 - **Evidence & Root Cause**: Lowering converts to a 32-bit integer, then clamps to 16 bits using integer comparisons. `VCVT.S16.F32 s0,s0,#1` with input 16384.0 converts to 32768 and clamps to 32767 without generating a host invalid exception or explicitly setting guest IOC.
 - **Remediation**: Detect overflow against the actual destination width and accumulate the required conversion exceptions.
 
-- [ ] **A32-R7-32 — DEFECT — MEDIUM**
+- [x] **A32-R7-32 — DEFECT — MEDIUM**
 
 - **Summary**: Valid guest arithmetic and backward branches invoke C undefined behavior.
 - **Locations**: [interp_a32.c:210](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:210), [interp_a32.c:795](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:795), [interp_a32_ctl.c:598](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32_ctl.c:598), [interp_t16.c:461](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_t16.c:461).
@@ -286,389 +438,389 @@ Static audit completed across every file in `src/interp/` and the related emitte
 
 ---
 
-## 2. `i686rt` (`254b3c0`) — 55 Round-7 Findings (`0 / 55` Resolved)
+## 2. `i686rt` (`254b3c0`) — 55 Round-7 Findings (`55 / 55` Resolved)
 
 Static audit completed across all interpreter files and related decoder, CPU-state, SIMD, atomic, and trap paths. No builds, tests, or edits were performed. Examples below are deductions from the code, not executed reproducers.
 
-- [ ] **I686-R7-1 — BUG — HIGH**
+- [x] **I686-R7-1 — BUG — HIGH**
 
 - **Summary**: Subpage recovery can read beyond the guest permissions it validated.
 - **Locations**: [signals_subpage.c:330](/Users/angerman/Projects/zw3rk/i686rt/src/os/signals_subpage.c:330), [signals_subpage.c:795](/Users/angerman/Projects/zw3rk/i686rt/src/os/signals_subpage.c:795).
 - **Evidence & Root Cause**: The classifier treats most F3 operands as four bytes and F2 operands as eight. Packed instructions including `CVTTPS2DQ`, `PSHUFHW`, and `PSHUFLW` read sixteen bytes. Recovery validates the smaller span, opens the enclosing host-page cover, then executes the full interpreter access. An operand near a guest subpage boundary can therefore read a neighboring protected subpage.
 - **Remediation**: Derive access width and direction from the exact opcode/prefix form. Validate the complete operand before opening host-page covers.
 
-- [ ] **I686-R7-2 — BUG — HIGH**
+- [x] **I686-R7-2 — BUG — HIGH**
 
 - **Summary**: LES/LDS/LSS/LFS/LGS read zero bytes and load zero values.
 - **Locations**: [h_seg.c:92](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_seg.c:92), [h_seg.c:318](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_seg.c:318).
 - **Evidence & Root Cause**: `mem_load()` expects a width in bits and calculates `n = width / 8`. `h_seg_lxs()` passes `bytes`—two or four—for the offset and `2u` for the selector. Every call consequently executes zero loop iterations and returns zero. The destination becomes zero and the segment loader receives a null selector, regardless of operand contents.
 - **Remediation**: Pass bit widths consistently, or change the helper to an explicitly byte-counted interface. Reject register-only encodings before computing a memory address.
 
-- [ ] **I686-R7-3 — DEFECT — HIGH**
+- [x] **I686-R7-3 — DEFECT — HIGH**
 
 - **Summary**: Immediate 32-bit far CALL/JMP cannot represent their targets and invoke undefined shifts.
 - **Locations**: [decode.c:366](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:366), [decode.h:62](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.h:62), [h_seg.c:212](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_seg.c:212).
 - **Evidence & Root Cause**: A 16:32 far pointer is packed into the 32-bit `insn->imm`. Encoding the selector shifts a `uint32_t` left by 32; extraction shifts it right by 32. Both are undefined C operations, and the field cannot retain all 48 target bits.
 - **Remediation**: Represent the offset and selector separately, or use a sufficiently wide immediate representation with bounded shifts.
 
-- [ ] **I686-R7-4 — BUG — HIGH**
+- [x] **I686-R7-4 — BUG — HIGH**
 
 - **Summary**: Several ModR/M forms select DS where SS is required.
 - **Locations**: [decode.c:106](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:106), [h_sse_internal.h:133](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_internal.h:133).
 - **Evidence & Root Cause**: Default-segment selection requires `modrm_mod != 0` before selecting SS. However, `[ESP]` through SIB and 16-bit `[BP+SI]`/`[BP+DI]` use SS with `mod=00`. When DS and SS differ, these instructions access the wrong segment and potentially the wrong memory.
 - **Remediation**: Select the default segment from the decoded base register. The decoder already represents displacement-only forms with no base.
 
-- [ ] **I686-R7-5 — BUG — HIGH**
+- [x] **I686-R7-5 — BUG — HIGH**
 
 - **Summary**: SIMD interpreter and common DBT addressing omit 16-bit effective-address wrapping.
 - **Locations**: [h_sse_internal.h:120](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_internal.h:120), [emit_exit.c:117](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_exit.c:117).
 - **Evidence & Root Cause**: Both implementations add complete 32-bit registers without masking the completed offset to sixteen bits. For example, `67 MOV EAX,[BX]` under DBT with `EBX=0x12345678` accesses offset `0x12345678` instead of `0x5678`. SIMD interpreter accesses have the same defect.
 - **Remediation**: Apply address-size wrapping before segment-base addition. Reuse the shared EA semantics or decline unsupported DBT forms.
 
-- [ ] **I686-R7-6 — BUG — MEDIUM**
+- [x] **I686-R7-6 — BUG — MEDIUM**
 
 - **Summary**: SIMD mandatory-prefix decoding changes incorrectly with CS.D.
 - **Locations**: [decode.c:509](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:509), [h_sse.c:562](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse.c:562), [h_sse_int.c:383](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_int.c:383).
 - **Evidence & Root Cause**: The decoder converts `pfx_opsize` into an effective scalar operand-size flag by XORing it with the code-segment default. SIMD handlers also use that field to identify mandatory `66`. In a D=0 segment, unprefixed ADDPS becomes ADDPD, and unprefixed MMX MOVQ becomes an XMM move.
 - **Remediation**: Preserve raw mandatory-prefix identity separately from effective scalar operand size.
 
-- [ ] **I686-R7-7 — BUG — MEDIUM**
+- [x] **I686-R7-7 — BUG — MEDIUM**
 
 - **Summary**: Illegal LOCK prefixes execute instead of raising #UD.
 - **Locations**: [interp.c:305](/Users/angerman/Projects/zw3rk/i686rt/src/interp/interp.c:305), [interp.c:432](/Users/angerman/Projects/zw3rk/i686rt/src/interp/interp.c:432), [decode.c:635](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:635).
 - **Evidence & Root Cause**: Central validation rejects only single shifts and rotates. It does not enforce the opcode tables’ lockability information or require a memory destination. Consequently, forms such as `LOCK MOV`, `LOCK ADD EAX,1`, `LOCK BT`, and `LOCK SHLD` reach ordinary handlers.
 - **Remediation**: Validate LOCK legality centrally against the resolved opcode and operand form before any instruction side effect.
 
-- [ ] **I686-R7-8 — BUG — HIGH**
+- [x] **I686-R7-8 — BUG — HIGH**
 
 - **Summary**: Null and nonexistent selectors become usable segments.
 - **Locations**: [seg.c:124](/Users/angerman/Projects/zw3rk/i686rt/src/interp/seg.c:124), [seg.c:174](/Users/angerman/Projects/zw3rk/i686rt/src/interp/seg.c:174), [seg.c:202](/Users/angerman/Projects/zw3rk/i686rt/src/interp/seg.c:202), [seg.c:318](/Users/angerman/Projects/zw3rk/i686rt/src/interp/seg.c:318).
 - **Evidence & Root Cause**: Selector zero bypasses load validation even for CS/SS. Null data selectors subsequently bypass access checks because they are GDT selectors. Other unrecognized GDT indices are synthesized as flat data descriptors. This suppresses required selector faults and turns invalid selectors into unrestricted flat addressing. Null SS loads and null data-segment accesses must fault. [Intel instruction reference](https://cdrdv2-public.intel.com/868140/253666-089-sdm-vol-2a.pdf).
 - **Remediation**: Recognize all null selectors, reject null CS/SS, track unusable data segments, and reject nonexistent GDT entries.
 
-- [ ] **I686-R7-9 — BUG — HIGH**
+- [x] **I686-R7-9 — BUG — HIGH**
 
 - **Summary**: Segment protection is bypassed by multiple memory paths and DBT eligibility.
 - **Locations**: [seg.c:308](/Users/angerman/Projects/zw3rk/i686rt/src/interp/seg.c:308), [h_bit.c:78](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_bit.c:78), [h_sse_internal.h:146](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_internal.h:146), [engine.c:642](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/engine.c:642).
 - **Evidence & Root Cause**: Strings, bit operations, x87/SIMD accesses, and several direct-memory helpers bypass segment-limit validation. The shared check also lacks read/write intent, so it cannot prohibit writes through read-only descriptors. Instruction fetch does not enforce CS limits. DBT eligibility checks only CS, allowing limited or nonflat data segments to execute through unchecked emitted accesses.
 - **Remediation**: Centralize segment validation with access kind and full width. Gate DBT on every segment assumption until equivalent checks exist.
 
-- [ ] **I686-R7-10 — BUG — HIGH**
+- [x] **I686-R7-10 — BUG — HIGH**
 
 - **Summary**: Expand-down segment limits are interpreted as expand-up limits.
 - **Locations**: [seg.c:325](/Users/angerman/Projects/zw3rk/i686rt/src/interp/seg.c:325).
 - **Evidence & Root Cause**: The expand-down branch requires `(d.type & 0x18u) == 0`, but installed data descriptors include bit `0x10`. Types `0x14`/`0x16` therefore never enter it. Valid offsets above the limit fault, while invalid offsets below it can pass. The unreachable branch also incorrectly allows the limit itself and omits the upper bound and operand extent.
 - **Remediation**: Correct type classification and validate the complete access against `(limit, upper_bound]`, with the upper bound derived from B.
 
-- [ ] **I686-R7-11 — BUG — HIGH**
+- [x] **I686-R7-11 — BUG — HIGH**
 
 - **Summary**: Stack operations ignore SS.B; PUSHF/POPF also ignore SS.base.
 - **Locations**: [h_mov.c:360](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_mov.c:360), [h_branch.c:85](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_branch.c:85), [h_flagsops.c:110](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_flagsops.c:110), [emit_mov.c:531](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_mov.c:531).
 - **Evidence & Root Cause**: Push/pop/call/return helpers always calculate with full ESP. A sixteen-bit stack therefore uses ESP’s upper half instead of wrapping SP. PUSHF/POPF directly address `guest_ptr(sp)`, omitting SS.base entirely. DBT stack accesses likewise use raw ESP while nonflat SS remains eligible.
 - **Remediation**: Separate stack-address size from operand size and use shared SS-aware, limit-checked stack helpers.
 
-- [ ] **I686-R7-12 — BUG — MEDIUM**
+- [x] **I686-R7-12 — BUG — MEDIUM**
 
 - **Summary**: Operand-size-overridden ENTER/LEAVE corrupt frame addressing.
 - **Locations**: [h_mov.c:477](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_mov.c:477).
 - **Evidence & Root Cause**: `66 ENTER` replaces full EBP rather than BP and traverses nested frames using full-width EBP arithmetic. `66 LEAVE` combines old ESP’s upper half with BP, although a 32-bit stack requires `ESP=EBP` before popping BP. With ESP=`0x20001000` and EBP=`0x10002000`, it reads `0x20002000` instead of `0x10002000`.
 - **Remediation**: Implement the independent operand-size and stack-address-size rules, preserving upper register halves where required.
 
-- [ ] **I686-R7-13 — BUG — HIGH**
+- [x] **I686-R7-13 — BUG — HIGH**
 
 - **Summary**: Faulting segment pops and far transfers expose partially committed state.
 - **Locations**: [h_seg.c:172](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_seg.c:172), [h_seg.c:220](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_seg.c:220), [h_seg.c:267](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_seg.c:267).
 - **Evidence & Root Cause**: POP segment, RETF, and IRET increment ESP before validating the selector. Their synthetic fault returns do not pass through the host-fault ESP rollback. Far CALL commits the new CS/base/default size before faultable stack stores; host recovery does not restore that segment state. Retrying therefore starts with an altered stack or code segment.
 - **Remediation**: Validate and stage the complete transfer before committing architectural registers. Preserve the original state on every fault path.
 
-- [ ] **I686-R7-14 — BUG — MEDIUM**
+- [x] **I686-R7-14 — BUG — MEDIUM**
 
 - **Summary**: `modify_ldt` readback generates malformed descriptors.
 - **Locations**: [ldt.c:212](/Users/angerman/Projects/zw3rk/i686rt/src/os/ldt.c:212).
 - **Evidence & Root Cause**: Raw descriptor encoding drops the S bit using `d->type & 0x0f`. The granularity flag is represented as `0x8000` and then truncated into an eight-bit field, losing G. Page-granular byte limits are also emitted without converting back to their encoded twenty-bit limit.
 - **Remediation**: Encode the architectural descriptor fields explicitly, including S, G, and the inverse granularity conversion.
 
-- [ ] **I686-R7-15 — BUG — HIGH**
+- [x] **I686-R7-15 — BUG — HIGH**
 
 - **Summary**: Fault recovery preserves flags from instructions that did not complete.
 - **Locations**: [h_alu.c:408](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_alu.c:408), [emit_alu.c:643](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_alu.c:643), [h_string.c:186](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_string.c:186), [interp.c:497](/Users/angerman/Projects/zw3rk/i686rt/src/interp/interp.c:497).
 - **Evidence & Root Cause**: Interpreter ALU operations and DBT immediate shifts publish flags before faultable stores. Recovery restores only selected registers. `STC; ADC [read_only_zero],0` can thus fault with CF already cleared; retrying loses the carry. Repeated comparisons also retain intermediate flags when a later iteration faults, rather than restoring their initial EFLAGS.
 - **Remediation**: Commit flags after successful writes. Preserve the complete initial flag state for faulting repeated comparisons while retaining completed index/count progress.
 
-- [ ] **I686-R7-16 — BUG — HIGH**
+- [x] **I686-R7-16 — BUG — HIGH**
 
 - **Summary**: LODSB/LODSW overwrite all of EAX.
 - **Locations**: [h_string.c:241](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_string.c:241), [decode.c:82](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:82).
 - **Evidence & Root Cause**: `lods_core()` passes byte counts one or two to `x86_reg_write()`, which expects bit widths eight or sixteen. Both take its full-register assignment path. EAX=`0x12345678` followed by LODSB of `0xAB` becomes `0x000000AB`.
 - **Remediation**: Pass `w * 8U` and make width units explicit throughout the string helpers.
 
-- [ ] **I686-R7-17 — BUG — HIGH**
+- [x] **I686-R7-17 — BUG — HIGH**
 
 - **Summary**: Failed CMPXCHG comparisons bypass destination write protection.
 - **Locations**: [h_alu.c:746](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_alu.c:746), [interp.c:769](/Users/angerman/Projects/zw3rk/i686rt/src/interp/interp.c:769).
 - **Evidence & Root Cause**: On mismatch, CMPXCHG performs only a load before updating the accumulator and flags. Unaligned CMPXCHG8B has the same omission. A mismatching operation against read-only memory therefore succeeds instead of faulting. The architectural destination write cycle occurs for either comparison outcome. [Intel CMPXCHG reference](https://www.intel.com/content/dam/www/public/us/en/documents/manuals/itanium-architecture-vol-4-manual.pdf).
 - **Remediation**: Enforce writable destination semantics on both outcomes, retaining LOCK atomicity and committing registers only after the memory operation succeeds.
 
-- [ ] **I686-R7-18 — BUG — MEDIUM**
+- [x] **I686-R7-18 — BUG — MEDIUM**
 
 - **Summary**: XADD with identical register operands loses its sum.
 - **Locations**: [h_alu.c:809](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_alu.c:809).
 - **Evidence & Root Cause**: The handler writes the destination sum, then overwrites the source with the old destination. When both operands name the same register, the second assignment destroys the result. `XADD EAX,EAX` with EAX=3 leaves 3 rather than 6.
 - **Remediation**: Handle register aliasing explicitly or order register assignments so the final destination receives the sum.
 
-- [ ] **I686-R7-19 — BUG — HIGH**
+- [x] **I686-R7-19 — BUG — HIGH**
 
 - **Summary**: Signal delivery and sigreturn corrupt lazy EFLAGS.
 - **Locations**: [signals_i386.c:217](/Users/angerman/Projects/zw3rk/i686rt/src/os/signals_i386.c:217), [signals_i386.c:419](/Users/angerman/Projects/zw3rk/i686rt/src/os/signals_i386.c:419).
 - **Evidence & Root Cause**: Signal-frame construction copies `ctx->eflags` without materializing pending arithmetic flags. Sigreturn restores explicit EFLAGS without clearing the handler’s lazy descriptor. The frame can contain stale flags, and the next flag consumer can overwrite restored flags with the handler’s last arithmetic result.
 - **Remediation**: Materialize before saving and clear lazy state when restoring explicit architectural flags.
 
-- [ ] **I686-R7-20 — BUG — HIGH**
+- [x] **I686-R7-20 — BUG — HIGH**
 
 - **Summary**: Successful sigreturn replaces restored EAX with zero.
 - **Locations**: [signals_i386.c:417](/Users/angerman/Projects/zw3rk/i686rt/src/os/signals_i386.c:417), [signals_i386.c:705](/Users/angerman/Projects/zw3rk/i686rt/src/os/signals_i386.c:705), [syscalls.c:803](/Users/angerman/Projects/zw3rk/i686rt/src/os/syscalls.c:803).
 - **Evidence & Root Cause**: Sigreturn restores `sc.eax`, but its syscall adapter returns zero. The common syscall completion path then unconditionally assigns that return value to EAX. An interrupted nonzero EAX never survives a successful signal return.
 - **Remediation**: Distinguish syscalls that restore the complete register state from ordinary syscall-return assignment.
 
-- [ ] **I686-R7-21 — BUG — HIGH**
+- [x] **I686-R7-21 — BUG — HIGH**
 
 - **Summary**: Sigreturn restores the x87 status word without restoring TOP.
 - **Locations**: [signals_i386.c:443](/Users/angerman/Projects/zw3rk/i686rt/src/os/signals_i386.c:443), [x87.c:95](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87.c:95).
 - **Evidence & Root Cause**: FP restoration copies `fstat`, tags, and register contents, but never updates `ctx->x87_top`. Stack-relative accesses use that separate field. A handler that changes TOP therefore leaves subsequent ST(i) references mapped to the wrong restored physical registers.
 - **Remediation**: Restore TOP from the saved status word and keep both representations synchronized.
 
-- [ ] **I686-R7-22 — BUG — HIGH**
+- [x] **I686-R7-22 — BUG — HIGH**
 
 - **Summary**: Several synchronous faults bypass guest signal handlers.
 - **Locations**: [interp.c:583](/Users/angerman/Projects/zw3rk/i686rt/src/interp/interp.c:583), [engine.c:694](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/engine.c:694), [engine.c:730](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/engine.c:730).
 - **Evidence & Root Cause**: Interpreter decode failures and missing handlers return directly. DBT’s direct TRAP case also returns without delivery, while its interpreter fallback delivers FAULT/TRAP but excludes UNDEF. Consequently, DBT INT3 and UD2 can terminate execution despite installed SIGTRAP/SIGILL handlers.
 - **Remediation**: Route all architectural synchronous exits through one delivery path, preserving fault versus trap EIP semantics.
 
-- [ ] **I686-R7-23 — BUG — MEDIUM**
+- [x] **I686-R7-23 — BUG — MEDIUM**
 
 - **Summary**: Privileged-instruction behavior incorrectly depends on whether CS is flat.
 - **Locations**: [h_seg.c:386](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_seg.c:386).
 - **Evidence & Root Cause**: CLI/STI raise a protection fault only for nonflat CS. Under ordinary flat user-mode execution they directly modify IF. HLT advances EIP and returns a diagnostic halt. The runtime models CPL=3, so these paths suppress the required privilege faults for normal user processes.
 - **Remediation**: Apply CPL/IOPL privilege rules independently of segment flatness and deliver the appropriate synchronous fault.
 
-- [ ] **I686-R7-24 — BUG — HIGH**
+- [x] **I686-R7-24 — BUG — HIGH**
 
 - **Summary**: Exact-mode single-precision stores discard negative signs.
 - **Locations**: [x87_80_conv.c:582](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80_conv.c:582), [x87_80_conv.c:645](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80_conv.c:645).
 - **Evidence & Root Cause**: The shared IEEE conversion helper always places the sign in bit 63. Its float32 caller truncates the result to `uint32_t`, discarding that sign. In `--x87-80`, storing finite −1 through `FSTP m32` produces +1. Negative finite overflow/underflow results also lose their signs.
 - **Remediation**: Parameterize the destination sign position or construct the float32 sign before narrowing.
 
-- [ ] **I686-R7-25 — DEFECT — HIGH**
+- [x] **I686-R7-25 — DEFECT — HIGH**
 
 - **Summary**: Exact x87 rounding invokes undefined shifts and loses significand carry.
 - **Locations**: [x87_80_internal.h:416](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80_internal.h:416), [x87_80_internal.h:490](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80_internal.h:490).
 - **Evidence & Root Cause**: Default precision allows `eff==64`, making `1ULL << eff` undefined. Separately, rounding increments a 64-bit significand before carry detection; `UINT64_MAX+1` wraps to zero. A value rounding upward across a power-of-two boundary therefore loses the carry needed for normalization.
 - **Remediation**: Return an explicit carry from significand rounding and handle full-width precision without shifting by 64.
 
-- [ ] **I686-R7-26 — DEFECT — HIGH**
+- [x] **I686-R7-26 — DEFECT — HIGH**
 
 - **Summary**: x87 integer stores contain undefined fractional conversions and omit exception status.
 - **Locations**: [x87.c:403](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87.c:403), [h_x87_internal.h:428](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_internal.h:428).
 - **Evidence & Root Cause**: For exact-mode 0.5, `drop=63-eff` becomes 64; both mask construction and right shifting are undefined. Smaller fractions produce larger shift counts. The store API also returns only an integer: overflow to a narrow destination and inexact conversion never set IE/PE. For example, FIST of 32768 to m16 writes the indefinite integer without IE.
 - **Remediation**: Handle subunit magnitudes before shifting and return conversion status alongside the value, including destination-width overflow.
 
-- [ ] **I686-R7-27 — BUG — HIGH**
+- [x] **I686-R7-27 — BUG — HIGH**
 
 - **Summary**: FCMOV instructions execute comparisons, sometimes popping the x87 stack.
 - **Locations**: [insn_tab_groups.h:142](/Users/angerman/Projects/zw3rk/i686rt/src/x86/insn_tab_groups.h:142), [h_x87_arith.c:277](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_arith.c:277).
 - **Evidence & Root Cause**: DA register forms `/0`, `/1`, and `/2` map to FCOM, FUCOM, and FCOMP handlers. Those encodings are FCMOVB, FCMOVE, and FCMOVBE. `DA D1`, for example, compares and pops instead of conditionally copying ST(1) according to EFLAGS. [Intel FCMOVcc reference](https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-2a-manual.pdf).
 - **Remediation**: Decode and execute the actual conditional moves without comparison or stack-pop side effects.
 
-- [ ] **I686-R7-28 — BUG — HIGH**
+- [x] **I686-R7-28 — BUG — HIGH**
 
 - **Summary**: FXSAVE/FXRSTOR corrupt x87 stack occupancy.
 - **Locations**: [h_x87_math.c:386](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:386), [h_x87_math.c:419](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:419), [x87.c:338](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87.c:338).
 - **Evidence & Root Cause**: FXSAVE writes abridged tag bits with reversed polarity: one means empty in this implementation. FXRSTOR reverses them similarly, then calls setters that classify every restored slot and overwrite the restored empty tags. Even an internal save/restore of an empty stack makes its slots nonempty.
 - **Remediation**: Correct tag polarity, restore raw register contents, and reconstruct tags while preserving empty slots.
 
-- [ ] **I686-R7-29 — BUG — HIGH**
+- [x] **I686-R7-29 — BUG — HIGH**
 
 - **Summary**: Legacy x87 environment/state images have incorrect layouts and sizes.
 - **Locations**: [h_x87_math.c:352](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:352), [h_x87_math.c:431](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:431).
 - **Evidence & Root Cause**: FNSAVE writes status at offset 2 and an abridged tag at offset 4 instead of the legacy environment’s status at 4 and full tag at 8. Other fields and register ordering are also incompatible. Callers omit operand size: `66 FNSTENV` writes 28 rather than 14 bytes; `66 FNSAVE` writes 108 rather than 94. FNSTENV additionally fails to mask exceptions after saving.
 - **Remediation**: Implement explicit operand-size-dependent legacy formats, correct tag/register ordering, and the required post-save control-word update.
 
-- [ ] **I686-R7-30 — BUG — HIGH**
+- [x] **I686-R7-30 — BUG — HIGH**
 
 - **Summary**: Unmasked floating-point exceptions do not produce architectural guest traps.
 - **Locations**: [h_sse.c:153](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse.c:153), [x87.c:571](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87.c:571), [h_branch.c:329](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_branch.c:329).
 - **Evidence & Root Cause**: SSE helpers set MXCSR status and commit results without testing exception masks. x87 sets ES/B but continues result/stack updates, and WAIT is a no-op. Unmasking divide-by-zero therefore does not cause the required fault and completion suppression.
 - **Remediation**: Integrate exception masks into instruction completion. Implement SIMD fault delivery and x87 pending-exception checks, including inhibited stores/pops.
 
-- [ ] **I686-R7-31 — BUG — HIGH**
+- [x] **I686-R7-31 — BUG — HIGH**
 
 - **Summary**: x87 stack underflow and overflow silently read or overwrite register storage.
 - **Locations**: [x87.c:78](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87.c:78), [x87.c:290](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87.c:290).
 - **Evidence & Root Cause**: Push decrements TOP without checking the destination tag. Operand reads return values without checking emptiness. Nine FLD1 instructions overwrite a full stack; arithmetic after FNINIT consumes empty-slot storage without the required IE/SF handling or masked indefinite result.
 - **Remediation**: Validate stack operands and push destinations before changing state, implementing masked and unmasked stack-fault rules.
 
-- [ ] **I686-R7-32 — DEFECT — HIGH**
+- [x] **I686-R7-32 — DEFECT — HIGH**
 
 - **Summary**: Exact x87 rounding modes race between guest threads and can remain stale within one thread.
 - **Locations**: [x87_80.c:10](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80.c:10), [h_x87_internal.h:285](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_internal.h:285), [h_x87_math.c:213](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:213).
 - **Evidence & Root Cause**: Softfloat RC/PC reside in mutable process globals. Concurrent guest threads overwrite each other’s arithmetic environment, creating C data races and wrong rounding. Some handlers, including exact FSIN/FCOS/FSCALE, do not refresh that environment after FLDCW.
 - **Remediation**: Pass an explicit per-context arithmetic environment through every operation; remove shared mutable mode state.
 
-- [ ] **I686-R7-33 — BUG — MEDIUM**
+- [x] **I686-R7-33 — BUG — MEDIUM**
 
 - **Summary**: Exact FRNDINT corrupts large integers and rounds some fractions incorrectly.
 - **Locations**: [h_x87_math.c:306](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:306), [x87_80_conv.c:451](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80_conv.c:451).
 - **Evidence & Root Cause**: FRNDINT converts through signed int64, so an already integral `2^64` becomes the integer-indefinite value. Its converter also rounds every nearest-even value with exponent below zero to zero; 0.75 therefore becomes zero instead of one.
 - **Remediation**: Round the extended significand directly, preserving already integral large values and correctly distinguishing half-way cases.
 
-- [ ] **I686-R7-34 — BUG — MEDIUM**
+- [x] **I686-R7-34 — BUG — MEDIUM**
 
 - **Summary**: MOVSS/MOVSD memory loads retain stale upper XMM lanes.
 - **Locations**: [h_sse.c:383](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse.c:383).
 - **Evidence & Root Cause**: The handler copies the old destination and overwrites only four or eight bytes. Legacy scalar memory loads must clear the remaining XMM bits; preservation applies to register-source forms. A previous all-ones destination therefore leaves unwanted upper lanes after a scalar load. [Intel MOVSS reference](https://cdrdv2-public.intel.com/835752/253667-sdm-vol-2b.pdf).
 - **Remediation**: Zero the destination buffer for scalar memory loads before copying the source.
 
-- [ ] **I686-R7-35 — BUG — MEDIUM**
+- [x] **I686-R7-35 — BUG — MEDIUM**
 
 - **Summary**: Packed quadword shifts wrap oversized counts.
 - **Locations**: [h_sse_int.c:500](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_int.c:500), [h_sse_int.c:528](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_int.c:528).
 - **Evidence & Root Cause**: PSRLQ/PSLLQ use `imm & 63`. A count of 64 leaves the operand unchanged and 65 shifts by one. Both MMX and XMM forms must produce zero lanes for counts above 63.
 - **Remediation**: Check the full immediate before shifting and zero oversized results.
 
-- [ ] **I686-R7-36 — BUG — MEDIUM**
+- [x] **I686-R7-36 — BUG — MEDIUM**
 
 - **Summary**: Floating comparison handlers misclassify quiet-NaN exceptions.
 - **Locations**: [h_sse_int.c:34](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_int.c:34), [h_x87_arith.c:534](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_arith.c:534).
 - **Evidence & Root Cause**: SSE compares use `pred<=2` as the signaling set. Equality predicate 0 is quiet, while predicates 5/6 should signal on quiet NaNs. Separately, FUCOMI/FUCOMIP share a helper that sets IE for every unordered result, incorrectly signaling on quiet NaNs.
 - **Remediation**: Preserve comparison identity and encode quiet/signaling rules explicitly, with independent signaling-NaN handling.
 
-- [ ] **I686-R7-37 — BUG — MEDIUM**
+- [x] **I686-R7-37 — BUG — MEDIUM**
 
 - **Summary**: FXRSTOR clears supported DAZ state and accepts reserved MXCSR bits.
 - **Locations**: [h_x87_math.c:408](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:408).
 - **Evidence & Root Cause**: MXCSR restoration uses `& 0xffbf`, silently clearing DAZ bit 6 and discarding reserved bits. This conflicts with the runtime’s supported DAZ handling and LDMXCSR validation. A save/restore changes subsequent denormal behavior; an invalid image succeeds instead of faulting.
 - **Remediation**: Validate against the supported MXCSR mask before changing any state, then restore all supported bits.
 
-- [ ] **I686-R7-38 — BUG — MEDIUM**
+- [x] **I686-R7-38 — BUG — MEDIUM**
 
 - **Summary**: Trigonometric range handling corrupts C2 and stack behavior.
 - **Locations**: [x87_80_trig.c:323](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80_trig.c:323), [x87_80_trig.c:411](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80_trig.c:411), [h_x87_math.c:213](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:213).
 - **Evidence & Root Cause**: Exact helpers leave the range-result boolean false for finite magnitudes at least `2^63`, returning IE instead. Callers consequently clear C2 or perform FSINCOS/FPTAN pushes despite range failure. Default-mode successful paths also fail to clear previously set C2.
 - **Remediation**: Return an explicit range outcome, preserve operands/TOP on range failure, and set or clear C2 on every completion.
 
-- [ ] **I686-R7-39 — BUG — MEDIUM**
+- [x] **I686-R7-39 — BUG — MEDIUM**
 
 - **Summary**: Default x87 directed rounding selects the wrong neighboring value.
 - **Locations**: [h_x87_internal.h:238](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_internal.h:238), [h_x87_internal.h:349](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_internal.h:349).
 - **Evidence & Root Cause**: Division passes the residual `a-s*b` as the quotient-error direction without accounting for a negative divisor. Single-precision RC=3 stores step toward the exact value even when the nearest result is already on the toward-zero side: `1+2^-25` becomes `1+2^-23` instead of 1.
 - **Remediation**: Correct residual direction using divisor sign; adjust toward-zero conversions only when the rounded magnitude exceeds the exact magnitude.
 
-- [ ] **I686-R7-40 — BUG — MEDIUM**
+- [x] **I686-R7-40 — BUG — MEDIUM**
 
 - **Summary**: Exporting binary64 subnormals to extended precision doubles their values.
 - **Locations**: [x87.c:190](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87.c:190).
 - **Evidence & Root Cause**: Subnormal normalization starts at exponent −1022 while normalizing toward fraction bit 51. It needs −1023. The smallest binary64 subnormal is emitted with exponent −1073 rather than −1074, affecting m80 stores and saved state.
 - **Remediation**: Correct the normalization exponent and preserve exact binary64-to-extended conversion.
 
-- [ ] **I686-R7-41 — BUG — MEDIUM**
+- [x] **I686-R7-41 — BUG — MEDIUM**
 
 - **Summary**: MMX operations do not establish their architectural x87 alias state.
 - **Locations**: [h_sse_internal.h:192](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_internal.h:192), [x87.c:355](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87.c:355).
 - **Evidence & Root Cause**: MMX helpers only copy the low 64 bits. They do not mark the x87 tags valid or set the written physical register’s upper sixteen bits appropriately. After FNINIT and MOVD to MM0, the runtime still reports an empty x87 stack.
 - **Remediation**: Centralize MMX state transitions and maintain the architectural tag and register-alias representation.
 
-- [ ] **I686-R7-42 — BUG — MEDIUM**
+- [x] **I686-R7-42 — BUG — MEDIUM**
 
 - **Summary**: Exact FPREM1 incorrectly returns the dividend for some nonzero nearest quotients.
 - **Locations**: [x87_80.c:395](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80.c:395).
 - **Evidence & Root Cause**: Shared remainder code returns immediately whenever the dividend exponent is smaller than the divisor exponent. That shortcut works for truncating FPREM but not FPREM1. With dividend 0.75 and divisor 1, FPREM1 should select quotient 1 and remainder −0.25; this returns +0.75.
 - **Remediation**: Handle nearest-even quotient selection for exponent difference −1 before taking the shortcut.
 
-- [ ] **I686-R7-43 — BUG — MEDIUM**
+- [x] **I686-R7-43 — BUG — MEDIUM**
 
 - **Summary**: Aligned SIMD and FP-state instructions omit required alignment faults.
 - **Locations**: [h_sse.c:414](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse.c:414), [h_sse_int.c:383](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_int.c:383), [h_x87.c:327](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87.c:327), [emit_sse2.c:404](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse2.c:404).
 - **Evidence & Root Cause**: MOVAPS/MOVAPD/MOVDQA and FXSAVE/FXRSTOR use ordinary memory accesses without their required alignment checks. Corresponding DBT moves have the same omission. Mapped but misaligned operands therefore succeed rather than raising #GP.
 - **Remediation**: Check instruction-specific alignment before any memory or architectural-state side effect.
 
-- [ ] **I686-R7-44 — BUG — MEDIUM**
+- [x] **I686-R7-44 — BUG — MEDIUM**
 
 - **Summary**: Default x87 arithmetic sets incorrect exception flags for invalid operands.
 - **Locations**: [h_x87_internal.h:187](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_internal.h:187), [h_x87_internal.h:243](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_internal.h:243).
 - **Evidence & Root Cause**: `d_exc()` raises IE when a NaN result originated from a NaN operand, but omits IE for invalid non-NaN combinations such as `0*∞` or `+∞+-∞`. Division sets ZE for `0/0`, and IE/ZE for `∞/0`, misclassifying both cases.
 - **Remediation**: Classify operands and exceptional operations explicitly before host arithmetic, distinguishing quiet/signaling NaNs and invalid/divide-by-zero cases.
 
-- [ ] **I686-R7-45 — DEFECT — MEDIUM**
+- [x] **I686-R7-45 — DEFECT — MEDIUM**
 
 - **Summary**: FSCALE and FXTRACT can invoke undefined host integer operations.
 - **Locations**: [h_x87_math.c:711](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:711), [h_x87_math.c:736](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_x87_math.c:736).
 - **Evidence & Root Cause**: Default FSCALE casts arbitrary `trunc(b)` to `int`; NaN, infinity, and out-of-range finite values are not checked. FXTRACT negates `ilogb(a)` without handling zero or special values; on implementations returning INT_MIN for zero, that negation overflows.
 - **Remediation**: Handle special values and architectural exponent ranges before host integer conversion or negation.
 
-- [ ] **I686-R7-46 — BUG — MEDIUM**
+- [x] **I686-R7-46 — BUG — MEDIUM**
 
 - **Summary**: Exact FPATAN selects the wrong quadrant for positive infinite X.
 - **Locations**: [x87_80_trig.c:464](/Users/angerman/Projects/zw3rk/i686rt/src/interp/x87_80_trig.c:464).
 - **Evidence & Root Cause**: When both operands are infinite, the implementation always selects magnitude `3π/4`, ignoring X’s sign. `atan2(+∞,+∞)` therefore returns approximately `3π/4` instead of `π/4`.
 - **Remediation**: Select `π/4` versus `3π/4` using X’s sign, then apply Y’s sign.
 
-- [ ] **I686-R7-47 — BUG — MEDIUM**
+- [x] **I686-R7-47 — BUG — MEDIUM**
 
 - **Summary**: DBT unsigned MUL uses signed overflow rules.
 - **Locations**: [emit_alu_ext2.c:174](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_alu_ext2.c:174).
 - **Evidence & Root Cause**: MUL and IMUL choose different widening multiplies but share a comparison against sign-extension of the low product half. Unsigned `0x80000000 * 1` consequently sets CF/OF despite EDX being zero. The sixteen-bit form has the same error.
 - **Remediation**: For unsigned MUL, derive CF/OF from whether the upper half is nonzero.
 
-- [ ] **I686-R7-48 — BUG — HIGH**
+- [x] **I686-R7-48 — BUG — HIGH**
 
 - **Summary**: DBT MMX logical instructions modify XMM registers and overread memory.
 - **Locations**: [emit_sse.c:480](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse.c:480), [emit_sse.c:777](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse.c:777).
 - **Evidence & Root Cause**: Unprefixed PAND/PANDN/POR/PXOR reach an emitter that always operates on 128-bit XMM slots. `PXOR MM0,MM0` clears XMM0 and leaves MM0 unchanged. Memory forms load sixteen bytes for an eight-byte operand, potentially faulting beyond valid memory.
 - **Remediation**: Distinguish MMX from mandatory-66 XMM forms and implement the correct register bank/access width or fall back.
 
-- [ ] **I686-R7-49 — BUG — MEDIUM**
+- [x] **I686-R7-49 — BUG — MEDIUM**
 
 - **Summary**: DBT PUNPCKHDQ interleaves the wrong lanes.
 - **Locations**: [emit_sse.c:313](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse.c:313).
 - **Evidence & Root Cause**: The emitter constructs `{d1,s1,d3,s3}` instead of `{d2,s2,d3,s3}`. Destination `[10,11,12,13]` and source `[20,21,22,23]` produce `[11,21,13,23]`.
 - **Remediation**: Select lane 2 for the first pair or emit the corresponding ZIP2 operation.
 
-- [ ] **I686-R7-50 — BUG — MEDIUM**
+- [x] **I686-R7-50 — BUG — MEDIUM**
 
 - **Summary**: DBT byte shifts reverse direction and encode incorrect counts.
 - **Locations**: [emit_sse2.c:505](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse2.c:505), [emit_sse_shared.h:564](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse_shared.h:564).
 - **Evidence & Root Cause**: PSRLDQ emits the EXT sequence for a left shift; PSLLDQ emits the right-shift sequence. The encoder additionally starts from `0x6E001800`, which already sets immediate-field bits. OR-ing the requested immediate makes the actual count `imm4|3`.
 - **Remediation**: Use an EXT base with a zero immediate field and correct the source ordering/count for each direction.
 
-- [ ] **I686-R7-51 — BUG — HIGH**
+- [x] **I686-R7-51 — BUG — HIGH**
 
 - **Summary**: DBT floating-point arithmetic and conversions ignore essential MXCSR semantics.
 - **Locations**: [emit_sse.c:514](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse.c:514), [emit_sse2.c:352](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse2.c:352).
 - **Evidence & Root Cause**: Arithmetic guards only FTZ/DAZ and otherwise runs under host FP settings without updating guest exception status. Masked DIVSS by zero does not set guest ZE. Packed conversions directly use A64 saturating conversions, which differ from x86 integer-indefinite results for NaN/overflow; CVTPS2DQ also hardcodes nearest rounding.
 - **Remediation**: Implement guest rounding/status/result conversion semantics or decline these paths until they match the interpreter contract.
 
-- [ ] **I686-R7-52 — BUG — HIGH**
+- [x] **I686-R7-52 — BUG — HIGH**
 
 - **Summary**: vm86 entry ignores supplied ESP, and sixteen-bit writes destroy upper register halves.
 - **Locations**: [v86.c:620](/Users/angerman/Projects/zw3rk/i686rt/src/interp/v86.c:620), [v86_internal.h:49](/Users/angerman/Projects/zw3rk/i686rt/src/interp/v86_internal.h:49).
 - **Evidence & Root Cause**: Entry installs the supplied GPRs except ESP, leaving the protected-mode stack register active for vm86 pushes/pops. Separately, `r16_set()` assigns the entire register instead of preserving its upper sixteen bits. Even `MOV AX,imm16` corrupts EAX’s upper half.
 - **Remediation**: Install `ks->regs.esp` on entry and preserve upper halves for sixteen-bit register writes.
 
-- [ ] **I686-R7-53 — BUG — MEDIUM**
+- [x] **I686-R7-53 — BUG — MEDIUM**
 
 - **Summary**: vm86 effective-address decoding uses incorrect registers and ignores address-size override.
 - **Locations**: [v86.c:227](/Users/angerman/Projects/zw3rk/i686rt/src/interp/v86.c:227), [v86.c:258](/Users/angerman/Projects/zw3rk/i686rt/src/interp/v86.c:258), [v86.c:290](/Users/angerman/Projects/zw3rk/i686rt/src/interp/v86.c:290).
 - **Evidence & Root Cause**: The base table maps `[DI]` to register 6, SI. BP-based `mod=00` forms incorrectly select DS. Prefix `67` is discarded without recording it, so subsequent memory operands still execute with sixteen-bit decoding despite comments promising rejection.
 - **Remediation**: Correct the base/segment tables and preserve address-size state, implementing or explicitly rejecting unsupported addressing forms.
 
-- [ ] **I686-R7-54 — BUG — HIGH**
+- [x] **I686-R7-54 — BUG — HIGH**
 
 - **Summary**: A vm86 prefix stream can trap the host interpreter in an unbounded loop.
 - **Locations**: [v86.c:283](/Users/angerman/Projects/zw3rk/i686rt/src/interp/v86.c:283), [v86_internal.h:159](/Users/angerman/Projects/zw3rk/i686rt/src/interp/v86_internal.h:159), [v86.c:649](/Users/angerman/Projects/zw3rk/i686rt/src/interp/v86.c:649).
 - **Evidence & Root Cause**: Prefix scanning has no byte limit, while fetch wraps IP at sixteen bits. A code segment filled with recognized prefix bytes loops forever inside one `v86_step()`. The outer instruction guard never advances, and pending signals are not checked there.
 - **Remediation**: Enforce the instruction-length limit inside fetch/prefix decoding and return the appropriate fault.
 
-- [ ] **I686-R7-55 — BUG — MEDIUM**
+- [x] **I686-R7-55 — BUG — MEDIUM**
 
 - **Summary**: Protected-mode decoding does not enforce one consistent fifteen-byte fetch budget.
 - **Locations**: [decode.c:478](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:478), [decode.c:223](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:223), [decode.c:637](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:637).
@@ -679,144 +831,144 @@ BCD instructions are explicitly excluded by the current decoder; there is no imp
 
 ---
 
-## 3. `mips32rt` (`691d450`) — 20 Round-7 Findings (`0 / 20` Resolved)
+## 3. `mips32rt` (`691d450`) — 20 Round-7 Findings (`20 / 20` Resolved)
 
 Read all eight files in `src/interp/` end-to-end, plus the CPU, trap, signal-state, and FPU headers and relevant callers. No builds or tests were run; no files were changed. Examples below are derived from static inspection.
 
-- [ ] **M32-R7-1 — BUG — HIGH**
+- [x] **M32-R7-1 — BUG — HIGH**
 
 - **Summary**: FR=0 double-precision registers do not alias their even/odd word pairs.
 - **Locations**: [fpmove.c:104](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fpmove.c:104), [fp.c:62](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:62), [fp.c:716](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:716), [fp.c:876](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:876).
 - **Evidence & Root Cause**: Every double occupies one independent `fpr[n]`; `fr_mode` only controls selected parity checks. With FR=0 and initially zero registers, writing `0` to `$f0` and `0x3ff00000` to `$f1` should construct double `1.0`, but double operations read zero from `fpr[0]`. Conversely, `LDC1 $f0` does not update the word read through `$f1`. [QEMU’s FR-aware accessors](https://raw.githubusercontent.com/qemu/qemu/v7.2.0/target/mips/tcg/translate.c) explicitly assemble and split these pairs.
 - **Remediation**: Centralize FR-aware word, doubleword, and high-word accessors and use them throughout memory moves, arithmetic, conversions, and state serialization.
 
-- [ ] **M32-R7-2 — BUG — HIGH**
+- [x] **M32-R7-2 — BUG — HIGH**
 
 - **Summary**: Delay-slot syscalls can lose the branch target or overwrite a signal-handler redirect.
 - **Locations**: [interp.c:108](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:108), [interp.c:808](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:808), [fp.c:838](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:838), [syscalls.c:52](/Users/angerman/Projects/zw3rk/mips32rt/src/os/syscalls.c:52).
 - **Evidence & Root Cause**: `rt_sigprocmask` always advances PC through `mips_sc_advance_pc_once()`. In an integer branch’s delay slot, this makes `exec_syscall()` return `2`; `exec_branch()` preserves branch-PC+8 instead of taking the branch. Conversely, `fp_bc1()` calls `interp_step()`, which normalizes redirected-syscall completion to zero, then overwrites the redirected PC with its branch destination. A self-signaling syscall can therefore create a handler frame without executing the handler.
 - **Remediation**: Preserve distinct outcomes for ordinary completion, syscall completion, and architectural redirection. Record the post-delay-slot destination before entering syscall handling.
 
-- [ ] **M32-R7-3 — BUG — HIGH**
+- [x] **M32-R7-3 — BUG — HIGH**
 
 - **Summary**: Faulting unaligned merge operations deliver the same fault twice.
 - **Locations**: [unaligned.c:36](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/unaligned.c:36), [unaligned.c:54](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/unaligned.c:54), [signals.c:576](/Users/angerman/Projects/zw3rk/mips32rt/src/os/signals.c:576).
 - **Evidence & Root Cause**: `guest_ld8()` and `guest_st8()` already deliver memory faults. Successful delivery clears `exit_reason` to `NONE`. The merge helpers interpret that state as an undelivered fault and call `mips_fault()` again. One `LWL/LWR/SWL/SWR` fault consequently creates a second frame saving the handler’s PC; `SA_RESETHAND` can turn the second delivery into termination.
 - **Remediation**: Propagate the memory helper’s `MIPS_FAULT` without delivering another fault.
 
-- [ ] **M32-R7-4 — BUG — MEDIUM**
+- [x] **M32-R7-4 — BUG — MEDIUM**
 
 - **Summary**: Signed MADD/MSUB accumulation invokes C undefined behavior.
 - **Locations**: [interp.c:301](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:301), [interp.c:323](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:323).
 - **Evidence & Root Cause**: Both instructions add or subtract into an `int64_t` accumulator. `HI:LO=0x7fffffffffffffff`, `rs=rt=1`, followed by `MADD` overflows signed C arithmetic. `MSUB` from `0x8000000000000000` similarly underflows. Architectural accumulation must wrap modulo 2⁶⁴.
 - **Remediation**: Keep the accumulator unsigned and convert the signed 32×32 product to `uint64_t` before accumulation.
 
-- [ ] **M32-R7-5 — BUG — HIGH**
+- [x] **M32-R7-5 — BUG — HIGH**
 
 - **Summary**: SYNC does not enforce memory ordering.
 - **Locations**: [interp.c:197](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:197), [mem.c:510](/Users/angerman/Projects/zw3rk/mips32rt/src/os/mem.c:510).
 - **Evidence & Root Cause**: SYNC immediately returns without a fence. Ordinary accesses do not supply equivalent ordering: loads use ordinary memory reads, and stores before LL activation use plain `memcpy`. The surrounding acquire loads do not provide the required preceding-store-to-following-load ordering. Two threads executing `store; SYNC; load` can therefore admit forbidden store-buffering outcomes on AArch64.
 - **Remediation**: Implement the required compiler and host memory barriers, including full ordering for `SYNC 0`.
 
-- [ ] **M32-R7-6 — BUG — MEDIUM**
+- [x] **M32-R7-6 — BUG — MEDIUM**
 
 - **Summary**: Alignment exceptions are misclassified as mapping faults.
 - **Locations**: [interp.c:538](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:538), [decode.c:65](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/decode.c:65), [fpmove.c:77](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fpmove.c:77), [mem.c:248](/Users/angerman/Projects/zw3rk/mips32rt/src/os/mem.c:248).
 - **Evidence & Root Cause**: Misaligned LL/SC, instruction fetches, and FP accesses call the generic `mips_fault()`. With default FIXADE enabled, that function always selects SIGSEGV, including for accesses explicitly rejected for alignment. Even with FIXADE disabled, an eight-byte FP access at address `4 mod 8` is classified as SIGSEGV because the classifier checks only two address bits.
 - **Remediation**: Pass an explicit alignment/mapping/permission fault cause and access width. Alignment exceptions must not be inferred from FIXADE or address bits alone.
 
-- [ ] **M32-R7-7 — BUG — MEDIUM**
+- [x] **M32-R7-7 — BUG — MEDIUM**
 
 - **Summary**: SC with an invalid reservation checks read permission instead of write permission.
 - **Locations**: [interp.c:553](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:553), [mem.c:774](/Users/angerman/Projects/zw3rk/mips32rt/src/os/mem.c:774).
 - **Evidence & Root Cause**: The dead-reservation path calls `guest_ld32()`, bypassing `guest_sc32()`’s write validation. SC against readable, read-only memory returns zero instead of a store-access exception. The [MIPS instruction specification](https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-05.04.pdf) performs store-address translation before testing LLbit.
 - **Remediation**: Route every SC through store-access validation, then evaluate reservation success without modifying memory on failure.
 
-- [ ] **M32-R7-8 — BUG — MEDIUM**
+- [x] **M32-R7-8 — BUG — MEDIUM**
 
 - **Summary**: Arithmetic traps lose their specific exception cause.
 - **Locations**: [interp.c:241](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:241), [fp.c:42](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:42), [mips32rt.h:468](/Users/angerman/Projects/zw3rk/mips32rt/src/mips32rt.h:468), [signals.c:473](/Users/angerman/Projects/zw3rk/mips32rt/src/os/signals.c:473).
 - **Evidence & Root Cause**: The trap interface carries only signal number and address; signal construction assigns `FPE_FLTINV` to every SIGFPE. Integer overflow and enabled FP divide-by-zero, overflow, underflow, and inexact exceptions consequently reach handlers with incorrect `si_code`. [QEMU’s signal mapping](https://raw.githubusercontent.com/qemu/qemu/v7.2.0/linux-user/mips/cpu_loop.c) preserves these distinctions.
 - **Remediation**: Carry the architectural trap cause through delivery and map it to the corresponding Linux `FPE_*` code.
 
-- [ ] **M32-R7-9 — BUG — MEDIUM**
+- [x] **M32-R7-9 — BUG — MEDIUM**
 
 - **Summary**: BREAK and register-trap codes are discarded.
 - **Locations**: [interp.c:194](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:194), [interp.c:277](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/interp.c:277).
 - **Evidence & Root Cause**: These paths always deliver SIGTRAP without examining the instruction’s code field. Linux MIPS uses codes 6 and 7 for arithmetic overflow and division by zero; compiler-generated checks therefore receive the wrong signal. [QEMU’s Linux-compatible handling](https://raw.githubusercontent.com/qemu/qemu/v7.2.0/linux-user/mips/cpu_loop.c) maps them to SIGFPE with `FPE_INTOVF` and `FPE_INTDIV`.
 - **Remediation**: Decode and preserve BREAK/TRAP codes, including Linux’s BREAK encoding compatibility handling, before selecting signal and `si_code`.
 
-- [ ] **M32-R7-10 — BUG — HIGH**
+- [x] **M32-R7-10 — BUG — HIGH**
 
 - **Summary**: FP ADD/SUB discards information required for correct rounding.
 - **Locations**: [fp.c:309](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:309).
 - **Evidence & Root Cause**: Exponent alignment shifts the smaller mantissa before adding guard/round/sticky positions. Discarded bits become only a Boolean sticky value. Under nearest-even, single-precision `1.0 + 0x33c00000`—an addition of 0.75 ULP—therefore produces `0x3f800000` instead of `0x3f800001`. Subtraction also loses the discarded tail’s direction.
 - **Remediation**: Extend mantissas before alignment and preserve guard, round, and sticky information through addition/subtraction and normalization.
 
-- [ ] **M32-R7-11 — BUG — HIGH**
+- [x] **M32-R7-11 — BUG — HIGH**
 
 - **Summary**: Directed FP overflow returns NaN instead of maximum finite magnitude.
 - **Locations**: [fp.c:248](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:248).
 - **Evidence & Root Cause**: The finite-saturation branch combines an all-ones exponent with an all-ones fraction. With round-toward-zero, `FLT_MAX * 2` produces `0x7fffffff`, rather than `0x7f7fffff`. The double-precision path has the same error.
 - **Remediation**: Use the largest finite exponent, one below the all-ones exponent, when saturation is required.
 
-- [ ] **M32-R7-12 — BUG — MEDIUM**
+- [x] **M32-R7-12 — BUG — MEDIUM**
 
 - **Summary**: Extreme underflow bypasses directed rounding.
 - **Locations**: [fp.c:212](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:212).
 - **Evidence & Root Cause**: When denormalization shifts the retained mantissa to zero, the function returns signed zero immediately despite a nonzero sticky tail. With rounding toward positive infinity, positive minimum-subnormal multiplied by `1/16` must round to positive minimum-subnormal; this path returns zero.
 - **Remediation**: Continue through rounding when the retained mantissa is zero but discarded bits are nonzero.
 
-- [ ] **M32-R7-13 — BUG — HIGH**
+- [x] **M32-R7-13 — BUG — HIGH**
 
 - **Summary**: FP comparisons misorder zero and small finite values.
 - **Locations**: [fp.c:86](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:86), [fp.c:525](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:525).
 - **Evidence & Root Cause**: Unpacking leaves zero’s exponent at zero. Comparison special-cases only two zero operands; otherwise it compares exponents before mantissas. Thus `C.LT.S(+0,+0.5)` evaluates false, while the reversed comparison evaluates true. The wrong FCC subsequently changes BC1 and conditional-move behavior.
 - **Remediation**: Handle either-zero comparisons explicitly, or compare normalized sign/magnitude encodings with signed-zero equivalence.
 
-- [ ] **M32-R7-14 — BUG — MEDIUM**
+- [x] **M32-R7-14 — BUG — MEDIUM**
 
 - **Summary**: Invalid unordered comparisons incorrectly force FCC false.
 - **Locations**: [fp.c:520](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:520), [fp.c:543](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:543).
 - **Evidence & Root Cause**: `invalid` unconditionally assigns `res=0`. For `C.UN.S` on an sNaN with Invalid disabled, the unordered condition must remain true while Invalid is recorded. [QEMU’s comparison helpers](https://raw.githubusercontent.com/qemu/qemu/v7.2.0/target/mips/tcg/fpu_helper.c) keep condition evaluation separate from exception delivery.
 - **Remediation**: Compute the condition independently; suppress FCC writeback only when an enabled exception actually traps.
 
-- [ ] **M32-R7-15 — BUG — MEDIUM**
+- [x] **M32-R7-15 — BUG — MEDIUM**
 
 - **Summary**: ROUND/TRUNC/CEIL/FLOOR suppress required Inexact reporting.
 - **Locations**: [fp.c:618](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:618), [fp.c:742](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:742).
 - **Evidence & Root Cause**: Every explicit-rounding conversion passes `no_inexact=1`. `TRUNC.W.S(1.5)` returns one without Cause.I/Flags.I and does not trap when Enable.I is set. Explicit rounding selects the rounding mode; it does not suppress Inexact. See the [MIPS ROUND.W exception specification](https://www.cs.umd.edu/class/fall2024/cmsc411/resources/MIPS_Vol2.pdf).
 - **Remediation**: Remove this suppression and commit Inexact through the normal FP exception path.
 
-- [ ] **M32-R7-16 — BUG — MEDIUM**
+- [x] **M32-R7-16 — BUG — MEDIUM**
 
 - **Summary**: Legacy NaN format conversion can produce infinity.
 - **Locations**: [fp.c:112](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:112), [fp.c:663](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:663).
 - **Evidence & Root Cause**: `CVT.D.S` on legacy sNaN `0x7fc00000` shifts its sole fraction bit into the double signaling-bit position, then `fp_quiet()` clears it. The committed result becomes `0x7ff0000000000000`: infinity. The reverse conversion has the analogous failure.
 - **Remediation**: Apply the legacy default-NaN rule, or otherwise ensure quieting cannot eliminate the entire NaN fraction.
 
-- [ ] **M32-R7-17 — BUG — MEDIUM**
+- [x] **M32-R7-17 — BUG — MEDIUM**
 
 - **Summary**: NAN2008 integer conversions return legacy invalid-result values.
 - **Locations**: [fp.c:569](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:569), [fp.c:742](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:742), [fp.c:762](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:762).
 - **Evidence & Root Cause**: Invalid conversions always produce positive signed maximum, ignoring `nan2008`; callers overwrite the helper’s result with that constant again. For NAN2008 `CVT.W.S` of qNaN `0x7fc00000`, the expected Invalid-disabled result is zero, as implemented by [QEMU’s NAN2008 conversions](https://raw.githubusercontent.com/qemu/qemu/v7.2.0/target/mips/tcg/fpu_helper.c).
 - **Remediation**: Implement mode-specific invalid-result rules centrally and preserve the helper’s selected result.
 
-- [ ] **M32-R7-18 — BUG — HIGH**
+- [x] **M32-R7-18 — BUG — HIGH**
 
 - **Summary**: Valid FP conditional moves raise SIGILL.
 - **Locations**: [fp.c:724](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:724).
 - **Evidence & Root Cause**: S/D function codes 17, 18, and 19—`MOVF/MOVT`, `MOVZ`, and `MOVN`—have no dispatch cases and fall into the reserved-instruction trap. This happens even when the condition requires leaving the destination unchanged. These are supported pre-R6 instructions in [QEMU’s decoder](https://raw.githubusercontent.com/qemu/qemu/v7.2.0/target/mips/tcg/translate.c).
 - **Remediation**: Implement conditional bitwise FPR moves using the selected FCC or GPR condition and FR-aware accessors.
 
-- [ ] **M32-R7-19 — BUG — MEDIUM**
+- [x] **M32-R7-19 — BUG — MEDIUM**
 
 - **Summary**: FPU control-register moves omit required FCSR semantics.
 - **Locations**: [fpmove.c:162](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fpmove.c:162).
 - **Evidence & Root Cause**: CTC1 blindly replaces FCSR and returns. Writing Cause.V plus Enable.V (`0x10800`) therefore fails to raise the pending FP exception. Writes also overwrite mode indicators, while CFC1/CTC1 reject the defined FCCR/FEXR/FENR aliases 25/26/28. [QEMU’s control helpers](https://raw.githubusercontent.com/qemu/qemu/v7.2.0/target/mips/tcg/fpu_helper.c) implement masks, aliases, and pending-exception detection.
 - **Remediation**: Centralize control-register reads/writes with the admitted profile’s writable masks, alias mappings, and immediate exception check.
 
-- [ ] **M32-R7-20 — DEFECT — MEDIUM**
+- [x] **M32-R7-20 — DEFECT — MEDIUM**
 
 - **Summary**: The FPU header assigns incorrect encoding values to W and L formats.
 - **Locations**: [emit_fp_priv.h:26](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_fp_priv.h:26), [emit_fp.c:886](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/emit_fp.c:886), [fp.c:887](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:887).
@@ -825,179 +977,179 @@ Read all eight files in `src/interp/` end-to-end, plus the CPU, trap, signal-sta
 
 ---
 
-## 4. `ppc32rt` (`278f4e8`) — 25 Round-7 Findings (`0 / 25` Resolved)
+## 4. `ppc32rt` (`278f4e8`) — 25 Round-7 Findings (`25 / 25` Resolved)
 
 Read all nine files in `src/interp/` and the relevant CPU, trap, FPU/SPE, and signal-state headers end-to-end. Findings below are static; no builds or tests were run, and no files were changed.
 
-- [ ] **P32-R7-1 — BUG — HIGH**
+- [x] **P32-R7-1 — BUG — HIGH**
 
 - **Summary**: Failed memory accesses still commit registers, update addresses, and advance NIP.
 - **Locations**: [interp.h:474](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:474), [interp.h:554](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:554), [interp.c:572](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.c:572), [fp_spe.c:29](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.c:29).
 - **Evidence & Root Cause**: Checked `ld*` helpers return zero after recording a fault; `st*` helpers return without writing. Integer handlers do not check that outcome. For example, `lwzu` targeting a mapped `PROT_NONE` page writes zero into RT, updates RA, and advances NIP despite `PPC32_EXIT_FAULT`. Multiple/string operations continue accessing subsequent elements, potentially replacing the original fault address. SPE loads similarly commit fabricated results.
 - **Remediation**: Propagate access success explicitly. Stop immediately on failure, preserve faulting NIP, and commit destination/base updates only after successful accesses.
 
-- [ ] **P32-R7-2 — BUG — HIGH**
+- [x] **P32-R7-2 — BUG — HIGH**
 
 - **Summary**: Instruction-fetch faults are overwritten with undefined-instruction exits.
 - **Locations**: [interp.c:43](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.c:43), [interp.h:286](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:286), [interp.c:750](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.c:750).
 - **Evidence & Root Cause**: A failed `fetch_raw()` records `PPC32_EXIT_FAULT` and returns zero. `interp_step()` nevertheless decodes zero, then overwrites the exit with `PPC32_EXIT_UNDEF`. Consequently, branching into an inaccessible or EOF-trapped page bypasses the driver's normal SIGSEGV/SIGBUS delivery.
 - **Remediation**: Return immediately when instruction fetch records a fault; never decode the placeholder value.
 
-- [ ] **P32-R7-3 — BUG — HIGH**
+- [x] **P32-R7-3 — BUG — HIGH**
 
 - **Summary**: Interpreter instruction fetch bypasses guest execute permissions.
 - **Locations**: [interp.h:367](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:367), [vm32_tlb.c:192](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm32_tlb.c:192).
 - **Evidence & Root Cause**: `fetch_raw()` uses the ordinary `ld32()` path. The TLB checks only read permission for non-store accesses; no surrounding interpreter check requires guest execute permission. A readable guest buffer lacking `PROT_EXEC` can therefore supply executed instructions. This defeats guest NX enforcement; it does not demonstrate execution outside the host JIT's W^X protections.
 - **Remediation**: Add a distinct instruction-fetch access check using guest execute permissions, preserving those permissions separately from host mapping permissions.
 
-- [ ] **P32-R7-4 — BUG — HIGH**
+- [x] **P32-R7-4 — BUG — HIGH**
 
 - **Summary**: `stwcx.` can succeed after another thread invalidates its reservation.
 - **Locations**: [llsc.c:113](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/llsc.c:113), [llsc.c:152](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/llsc.c:152), [interp.h:344](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:344).
 - **Evidence & Root Cause**: SC validates the reservation epoch before its compare-exchange. Ordinary stores perform their memory write and epoch increment without taking the LL lock. Thread A can validate a reservation on `x=0`; thread B then completes a same-value `stw x=0` and invalidation; A's CAS subsequently writes `1` and reports success because the value still matches. The atomic epoch does not make validation and conditional storage indivisible.
 - **Remediation**: Serialize invalidating writes and reservation updates against the entire SC validation/write operation. Locking only the epoch increment is insufficient.
 
-- [ ] **P32-R7-5 — BUG — HIGH**
+- [x] **P32-R7-5 — BUG — HIGH**
 
 - **Summary**: Classic floating-point record forms overwrite CR6 instead of CR1.
 - **Locations**: [fp.h:228](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:228).
 - **Evidence & Root Cause**: `fp_cr1()` inserts FPSCR's top nibble at shift `4`. In this context's CR layout, that is CR6; CR1 requires shift `24`. Thus instructions such as `fadd.` leave CR1 stale and destroy an unrelated condition field.
 - **Remediation**: Replace the mask and insertion shift with `24`, preserving every other CR field.
 
-- [ ] **P32-R7-6 — BUG — MEDIUM**
+- [x] **P32-R7-6 — BUG — MEDIUM**
 
 - **Summary**: Floating-point addition uses subtraction's infinity-invalid predicate.
 - **Locations**: [fp.h:292](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:292), [fp.h:329](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:329), [fp.c:125](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:125).
 - **Evidence & Root Cause**: Both helpers classify same-sign infinities as invalid for both addition and subtraction. Consequently, `+∞ + +∞` produces NaN instead of `+∞`. Conversely, `+∞ + −∞` reaches host arithmetic without setting `VXISI`; `fp_end()` does not capture host `FE_INVALID`.
 - **Remediation**: Distinguish addition's opposite-sign infinity case from subtraction's same-sign case.
 
-- [ ] **P32-R7-7 — BUG — HIGH**
+- [x] **P32-R7-7 — BUG — HIGH**
 
 - **Summary**: Enabled invalid-operation and zero-divide exceptions still overwrite the destination.
 - **Locations**: [fp.c:40](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:40), [fp.c:65](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:65), [fp.h:371](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:371).
 - **Evidence & Root Cause**: Exception handling updates FPSCR but unconditionally reaches `fp_done()`. With `FPSCR.VE=1`, `fsqrt(-1)` overwrites FRT with NaN; enabled zero division similarly commits infinity. These exceptions require destination-update suppression, independently of whether MSR permits exception delivery. [PowerPC programming manual, §3.3.6](https://www.nxp.com/docs/en/user-guide/MPCFPE.pdf).
 - **Remediation**: Separate exception recording from result commitment. Apply enable-dependent destination/FPRF suppression and the appropriate guest exception-delivery policy.
 
-- [ ] **P32-R7-8 — BUG — HIGH**
+- [x] **P32-R7-8 — BUG — HIGH**
 
 - **Summary**: SPE vector floating comparisons produce incorrect results and corrupt neighboring CR fields.
 - **Locations**: [fp.h:404](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:404), [fp_spe.c:197](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.c:197).
 - **Evidence & Root Cause**: Scalar comparisons return `0` or `4`, but `fp_fcmp_merge()` treats them as one-bit booleans. Both lanes true produce `0x3c`, after which `fp_set_crf_bleed()` deliberately writes excess bits into the preceding field. From `CR=0`, equal finite lanes compared into CR1 produce `0x3c000000`, rather than `0x0f000000`. The architectural result occupies one nibble. [SPE manual, p. 5-95](https://www.nxp.com/docs/en/reference-manual/SPEPEM.pdf).
 - **Remediation**: Normalize lane results to `0/1`, construct the four comparison bits, and update only the selected field.
 
-- [ ] **P32-R7-9 — BUG — MEDIUM**
+- [x] **P32-R7-9 — BUG — MEDIUM**
 
 - **Summary**: SPE vector sign operations modify only the upper float.
 - **Locations**: [fp_spe.c:234](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.c:234).
 - **Evidence & Root Cause**: `evfsabs`, `evfsnabs`, and `evfsneg` share the scalar-double mask path, which changes only bit 63. For `rA=0xbf800000bf800000`, `evfsabs` produces `0x3f800000bf800000`, leaving the lower −1.0 unchanged.
 - **Remediation**: Use separate vector-single masks affecting both sign bits, including `0x8000000080000000`.
 
-- [ ] **P32-R7-10 — BUG — HIGH**
+- [x] **P32-R7-10 — BUG — HIGH**
 
 - **Summary**: Implemented SPE MAC operations lose vector lanes and apply incorrect accumulator semantics.
 - **Locations**: [fp_spe.h:117](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.h:117), [fp_spe.c:306](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.c:306).
 - **Evidence & Root Cause**: The whole-word helper multiplies only low words and returns a zero-extended result. Its `acc` path adds old `rD.low` without updating ACC. For `evmwhsmia`, `rA=rB=0x0001000000010000` and `rD=ACC=0`, it produces `rD=1, ACC=0`; the instruction requires `rD=ACC=0x0000000100000001`. The guarded halfword path also concatenates products where a sign-extended product is required. [SPE manual, pp. 5-140 and 5-185](https://www.nxp.com/docs/en/reference-manual/SPEPEM.pdf).
 - **Remediation**: Implement the distinct per-lane, accumulator-copy, and guarded-accumulation operations explicitly; replace the incorrect flag-table mappings.
 
-- [ ] **P32-R7-11 — BUG — HIGH**
+- [x] **P32-R7-11 — BUG — HIGH**
 
 - **Summary**: SPE fractional conversions swap signedness and use the wrong signed scale.
 - **Locations**: [fp_spe.c:261](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.c:261), [fp_spe.h:41](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.h:41), [fp_spe.h:80](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.h:80).
 - **Evidence & Root Cause**: All three conversion tables map `CFUF` to the signed helper and `CFSF` to the unsigned helper. Additionally, signed fractions use `2^32` instead of `2^31`. Thus `efscfsf(0xc0000000)` returns `+0.75` instead of `−0.5`; `efsctsf(+0.25)` returns `0x40000000` instead of `0x20000000`. [SPE manual, §3.2](https://www.nxp.com/docs/en/reference-manual/SPEPEM.pdf).
 - **Remediation**: Correct both dispatch signedness and scaling across scalar-single, scalar-double, and vector forms.
 
-- [ ] **P32-R7-12 — BUG — HIGH**
+- [x] **P32-R7-12 — BUG — HIGH**
 
 - **Summary**: SPE float-to-integer saturation permits undefined out-of-range C casts.
 - **Locations**: [fp.h:469](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:469), [fp.h:488](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:488).
 - **Evidence & Root Cause**: `2147483647.0f` rounds to `2^31`, and `4294967295.0f` rounds to `2^32`. The strict `>` comparisons therefore allow those exact boundary values to reach casts to `int32_t` and `uint32_t`, respectively. Both casts are outside the destination range and invoke undefined behavior.
 - **Remediation**: Reject `r >= 0x1p31f` and `r >= 0x1p32f` before casting, returning the required saturated value.
 
-- [ ] **P32-R7-13 — DEFECT — HIGH**
+- [x] **P32-R7-13 — DEFECT — HIGH**
 
 - **Summary**: SPEFSCR register access and execution semantics are missing.
 - **Locations**: [interp.h:703](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:703), [fp.h:379](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:379), [fp_spe.c:213](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.c:213).
 - **Evidence & Root Cause**: `mfspr`/`mtspr` reject SPR 512. No SPE arithmetic helper reads or updates `ctx->spefscr`; conversions use host rounding and leave guest exception/status bits unchanged. SPEFSCR is user-accessible, as explicitly clarified by the [e500 manual errata, §2.14.1](https://www.nxp.com.cn/docs/en/reference-manual/e500CORERMAD.pdf).
 - **Remediation**: Implement SPR 512 access and apply SPEFSCR rounding, status, saturation, and exception controls throughout SPE execution.
 
-- [ ] **P32-R7-14 — BUG — MEDIUM**
+- [x] **P32-R7-14 — BUG — MEDIUM**
 
 - **Summary**: SPE halfword-vector loads access beyond their operand.
 - **Locations**: [fp_spe.c:29](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.c:29).
 - **Evidence & Root Cause**: `evlwhe[x]`, `evlwhou[x]`, and `evlwhos[x]` read `ld32(ea+2)` and discard its low half. Their operand occupies four bytes, but the implementation accesses six. At `EA=page_end−4`, an inaccessible following page causes a fault despite all operand bytes being available. The common initial check also incorrectly assumes eight-byte width. [SPE manual, p. 5-124](https://www.nxp.com/docs/en/reference-manual/SPEPEM.pdf).
 - **Remediation**: Read one word or two halfwords, validate the actual instruction width, and commit only after success.
 
-- [ ] **P32-R7-15 — DEFECT — MEDIUM**
+- [x] **P32-R7-15 — DEFECT — MEDIUM**
 
 - **Summary**: Interpreter instruction admission ignores the selected Classic/SPE profile.
 - **Locations**: [fp.c:550](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:550), [fp_spe.c:367](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp_spe.c:367).
 - **Evidence & Root Cause**: Neither dispatch path checks `profile` or `is_spe`. Consequently, Classic mode executes `evaddw`, while SPE mode executes Classic FPU instructions such as `lfd` and `fadd`, contrary to the project's declared CPU profiles and `decode.h`'s admission contract.
 - **Remediation**: Reject unavailable instruction families before any architectural or memory side effects.
 
-- [ ] **P32-R7-16 — BUG — MEDIUM**
+- [x] **P32-R7-16 — BUG — MEDIUM**
 
 - **Summary**: `lswi` preserves stale bytes in its partially filled final register.
 - **Locations**: [interp.c:600](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.c:600).
 - **Evidence & Root Cause**: Each destination accumulator starts from `ctx->gpr[reg]`. With `r3=0x11223344`, a one-byte `lswi` loading `0xaa` produces `0xaa223344`; the required result is `0xaa000000`. Unfilled bytes must be cleared. [PowerPC Book I, string loads](https://powerpc.dev/general/PPC_Vers202_Book1_public.pdf).
 - **Remediation**: Initialize each destination accumulator to zero before inserting transferred bytes.
 
-- [ ] **P32-R7-17 — DEFECT — MEDIUM**
+- [x] **P32-R7-17 — DEFECT — MEDIUM**
 
 - **Summary**: `lswx` and `stswx` decode successfully but have no interpreter implementation.
 - **Locations**: [decode.c:525](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/decode.c:525), [decode.c:550](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/decode.c:550), [interp.c:750](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.c:750).
 - **Evidence & Root Cause**: The decoder produces dedicated opcode IDs, but neither has a case in `interp_step()`. Every valid indexed string transfer reaches `PPC32_EXIT_UNDEF`, including zero-count operations. These instructions obtain their byte count from XER. [IBM `lswx` definition](https://www.ibm.com/docs/en/aix/7.1.0?topic=set-lswx-lsx-load-string-word-indexed-instruction).
 - **Remediation**: Implement indexed address calculation, XER byte counts, register wrapping, partial-word clearing, and fault handling.
 
-- [ ] **P32-R7-18 — BUG — MEDIUM**
+- [x] **P32-R7-18 — BUG — MEDIUM**
 
 - **Summary**: FPSCR writes and exception-summary maintenance violate derived and sticky-bit rules.
 - **Locations**: [fp.c:475](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:475), [fp.c:491](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:491), [fp.h:128](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:128).
 - **Evidence & Root Cause**: `mtfsb*` and `mtfsfi` directly mutate bits without recomputing summaries. From zero, `mtfsb1 7` sets VXSNAN but omits VX and FX. Conversely, `fp_raise()` reasserts a software-cleared FX during exact arithmetic merely because an old exception bit remains set. [IBM FPSCR bit-setting rules](https://www.ibm.com/docs/en/aix/7.1.0?topic=set-mtfsb1-move-fpscr-bit-1-instruction).
 - **Remediation**: Centralize FPSCR mutation with correct derived-field recomputation and event-based sticky-summary updates.
 
-- [ ] **P32-R7-19 — BUG — MEDIUM**
+- [x] **P32-R7-19 — BUG — MEDIUM**
 
 - **Summary**: FPSCR.FR does not describe the latest rounding operation.
 - **Locations**: [fp.h:234](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:234), [fp.c:395](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:395).
 - **Evidence & Root Cause**: Arithmetic deliberately retains FR, and integer conversion updates FI without calculating FR. An exact `fadd(1,1)` leaves a previously set FR intact; nearest-even `fctiw(1.5)` produces `2` without setting FR. FR must reflect the current result's rounding. [PowerPC programming manual, §3.3.5](https://www.nxp.com/docs/en/user-guide/MPCFPE.pdf).
 - **Remediation**: Calculate FR alongside FI and clear it for exact operations.
 
-- [ ] **P32-R7-20 — BUG — MEDIUM**
+- [x] **P32-R7-20 — BUG — MEDIUM**
 
 - **Summary**: `fctiw[z]` rejects representable rounded results.
 - **Locations**: [fp.c:359](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:359).
 - **Evidence & Root Cause**: Range checking precedes rounding. `fctiwz(2147483647.25)` and `fctiwz(−2147483648.25)` therefore raise VXCVI, although truncation produces valid signed integers. The conversion model rounds before checking the integer range. [PowerPC programming manual, Appendix D.4.2](https://www.nxp.com/docs/en/user-guide/MPCFPE.pdf).
 - **Remediation**: Handle NaNs/infinities, round under the selected mode, then check representability and select valid-inexact versus invalid status.
 
-- [ ] **P32-R7-21 — BUG — MEDIUM**
+- [x] **P32-R7-21 — BUG — MEDIUM**
 
 - **Summary**: FMA NaN propagation suppresses a required invalid-multiplication indication.
 - **Locations**: [fp.c:204](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:204).
 - **Evidence & Root Cause**: The first NaN causes an early return before the zero-times-infinity check. Thus `fmadd` with multiplicands `0` and `+∞` and a quiet-NaN addend never sets VXIMZ. A NaN addend does not eliminate that multiplication exception. [PowerPC programming manual, §4.2.2.2](https://www.nxp.com/docs/en/user-guide/MPCFPE.pdf).
 - **Remediation**: Determine applicable multiplication exceptions before completing NaN-result propagation.
 
-- [ ] **P32-R7-22 — BUG — MEDIUM**
+- [x] **P32-R7-22 — BUG — MEDIUM**
 
 - **Summary**: Single-precision subnormal results receive normal-number FPRF classifications.
 - **Locations**: [fp.h:236](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.h:236), [fp.c:65](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:65).
 - **Evidence & Root Cause**: Result classification always uses `fp_fprf64()` after expansion into the double-format FPR representation. Exact `fmuls(2^-126, 0.5)` consequently records `0x04`, because `2^-127` is normal as a double; its single-result classification is `0x14`. [PowerPC programming manual, Table 3-16](https://www.nxp.com/docs/en/user-guide/MPCFPE.pdf).
 - **Remediation**: Pass result precision into classification and classify single results before expansion.
 
-- [ ] **P32-R7-23 — BUG — MEDIUM**
+- [x] **P32-R7-23 — BUG — MEDIUM**
 
 - **Summary**: Floating comparisons overwrite FPSCR.C.
 - **Locations**: [fp.c:337](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:337).
 - **Evidence & Root Cause**: `fp_fcmp()` clears all five FPRF bits with `~(0x1f << 12)`, although comparison updates only the four FPCC bits. Starting with C set, `fcmpu(1,1)` incorrectly clears it. The ordered-NaN path additionally forces C to one. [PowerPC programming manual, `fcmpu`/`fcmpo`](https://www.nxp.com/docs/en/user-guide/MPCFPE.pdf).
 - **Remediation**: Update only `0xf << 12`; preserve C rather than treating comparison as arithmetic-result classification.
 
-- [ ] **P32-R7-24 — DEFECT — MEDIUM**
+- [x] **P32-R7-24 — DEFECT — MEDIUM**
 
 - **Summary**: Architectural time-base reads are missing or permanently return zero.
 - **Locations**: [decode.c:335](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/decode.c:335), [interp.h:707](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:707).
 - **Evidence & Root Cause**: Primary-31 dispatch lacks XO 371, the standard `mftb` encoding. Reads routed through `mfspr` for TB/TBU instead return constant zero. Valid timer code therefore encounters an undefined-instruction exit or a clock that never advances. [PowerPC Book II, time-base facility](https://powerpc.dev/general/PPC_Vers202_Book2_public.pdf).
 - **Remediation**: Decode the time-base instruction and provide coherent TB/TBU values from a defined guest time-base clock.
 
-- [ ] **P32-R7-25 — DEFECT — MEDIUM**
+- [x] **P32-R7-25 — DEFECT — MEDIUM**
 
 - **Summary**: Integer update-form validation omits prohibited register combinations.
 - **Locations**: [interp.h:479](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:479), [interp.h:563](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:563).
@@ -1006,165 +1158,165 @@ Read all nine files in `src/interp/` and the relevant CPU, trap, FPU/SPE, and si
 
 ---
 
-## 5. `sparc32rt` (`a810f0c`) — 23 Round-7 Findings (`0 / 23` Resolved)
+## 5. `sparc32rt` (`a810f0c`) — 23 Round-7 Findings (`23 / 23` Resolved)
 
 Read every file in `src/interp/` and the relevant CPU, window, trap, and FPU headers end-to-end. Findings below are from static inspection; no builds, tests, or modifications were performed.
 
-- [ ] **S32-R7-1 — BUG — HIGH**
+- [x] **S32-R7-1 — BUG — HIGH**
 
 - **Summary**: SAVE/RESTORE loses outgoing-register state across window rotations.
 - **Locations**: [interp_win.c:143](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_win.c:143), lines 143–155, 183–185, 206–209.
 - **Evidence & Root Cause**: SAVE replaces `%i*` and `%l*` but leaves the previous window’s `%o*` in place. RESTORE caches only `%l*`/`%i*`. With resident windows: set CWP6 `%o0=0x11`; SAVE to CWP5; set `%o0=0x22`; RESTORE; SAVE again. The interpreter produces `%o0=0x11`, losing CWP5’s `0x22`. The backing representation does not preserve the physical overlap between outgoing and neighboring incoming registers.
 - **Remediation**: Model the overlapping register bank explicitly, or synchronize outgoing registers with the neighboring window’s input storage on every rotation.
 
-- [ ] **S32-R7-2 — BUG — MEDIUM**
+- [x] **S32-R7-2 — BUG — MEDIUM**
 
 - **Summary**: Modifying `%i6` can make RESTORE spuriously fault or replace resident registers from memory.
 - **Locations**: [interp_win.c:182](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_win.c:182), lines 182–204.
 - **Evidence & Root Cause**: RESTORE treats a valid target window as missing when its recorded stack address differs from current `%i6`. After two SAVEs, set `%i6=0` and execute `restore %g0,%g0,%g0`. The target window is resident, but the interpreter attempts a fill from address zero. With a mapped replacement address, it instead substitutes memory contents for the resident locals/inputs.
 - **Remediation**: Base fills on explicit window validity. An ordinary register change must not implicitly invalidate a resident window.
 
-- [ ] **S32-R7-3 — BUG — HIGH**
+- [x] **S32-R7-3 — BUG — HIGH**
 
 - **Summary**: A delayed transfer in a delay slot repeatedly executes itself.
 - **Locations**: [interp.c:562](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:562), lines 622–633.
 - **Evidence & Root Cause**: Before recursively calling `interp_cti(ctx, npc, &dd)`, the outer transfer never updates `ctx->npc`. For `ba T1` followed by non-annulled `ba T2`, the inner call fetches the same second branch as its own delay slot, indefinitely. This prevents return to signal/retirement polling and may exhaust the host stack depending on optimization. Unconditional DCTI couples have defined sequencing. [V8 §5, Table 5-12](https://research.swtch.com/sparcv8.pdf#page=55).
 - **Remediation**: Advance architectural PC/nPC before executing the delay instruction; avoid recursive execution of transfers using stale context.
 
-- [ ] **S32-R7-4 — BUG — HIGH**
+- [x] **S32-R7-4 — BUG — HIGH**
 
 - **Summary**: CALL/Bicc/FBfcc delay-slot faults save the wrong PC/nPC.
 - **Locations**: [interp.c:622](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:622), lines 622–643; [interp_signal.c:226](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:226).
 - **Evidence & Root Cause**: Only JMPL repairs PC/nPC when delay fetch or execution fails. Other transfers leave PC at the branch and nPC at its delay slot. Signal delivery copies those values directly into the frame. A faulting instruction at `B+4` therefore reports `PC=B`, and its pending branch target is lost. Handler recovery can retry the branch or fail to skip the actual faulting instruction.
 - **Remediation**: Record the delay instruction’s PC and already-selected successor before fetching or executing it, for every transfer class.
 
-- [ ] **S32-R7-5 — BUG — HIGH**
+- [x] **S32-R7-5 — BUG — HIGH**
 
 - **Summary**: Ticc instructions in delay slots become illegal instructions.
 - **Locations**: [interp.c:506](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:506), lines 506–547, 635; [interp.c:685](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:685).
 - **Evidence & Root Cause**: Ticc is implemented only in the top-level `interp_step()` path. Delay slots go through `interp_single()`, which has no `SPARC32_OP_TRAP` case. Thus a delay-slot `ta 0x10` never invokes its syscall; even a never-taken `tn` produces `EXIT_UNDEF`.
 - **Remediation**: Share Ticc execution between ordinary and delay-slot paths, preserving the delay instruction’s architectural PC/nPC.
 
-- [ ] **S32-R7-6 — BUG — HIGH**
+- [x] **S32-R7-6 — BUG — HIGH**
 
 - **Summary**: Integer division truncates overflowing quotients instead of saturating.
 - **Locations**: [interp.c:267](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:267), lines 267–324.
 - **Evidence & Root Cause**: UDIV/SDIV cast the full quotient to 32 bits. Their `cc` variants detect overflow but still commit the truncated value and derive N/Z from it. For `Y=1`, `rs1=0`, divisor `1`, UDIV returns zero instead of `0xffffffff`; UDIVcc also sets Z incorrectly. The `INT64_MIN / -1` special case returns negative saturation despite a positive quotient. [V8 B.19](https://research.swtch.com/sparcv8.pdf#page=113).
 - **Remediation**: Saturate all four divide forms before committing the result. Derive N/Z from that result and V from overflow.
 
-- [ ] **S32-R7-7 — BUG — HIGH**
+- [x] **S32-R7-7 — BUG — HIGH**
 
 - **Summary**: MULSCC implements the wrong multiply-step algorithm.
 - **Locations**: [interp.c:342](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:342), lines 342–360.
 - **Evidence & Root Cause**: The code selects the addend using `N xor V`, adds before shifting, and inserts `Y[0]` into the result’s high bit. The required operation shifts `rs1` with `N xor V`, then conditionally adds using `Y[0]`. With `rs1=0`, operand2=`2`, `Y=1`, and clear ICC, this implementation returns `0x80000000` with Z set instead of `2`. [QEMU’s MULSCC implementation](https://raw.githubusercontent.com/qemu/qemu/master/target/sparc/translate.c).
 - **Remediation**: Correct the operand selection and operation order; calculate ICC from the actual addition.
 
-- [ ] **S32-R7-8 — BUG — MEDIUM**
+- [x] **S32-R7-8 — BUG — MEDIUM**
 
 - **Summary**: UMULcc/SMULcc incorrectly set ICC.V.
 - **Locations**: [interp.c:182](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:182), lines 182–193, 257–265.
 - **Evidence & Root Cause**: `interp_mulcc()` sets V when the signed product does not fit 32 bits. For example, `0x40000000 * 2` sets V. V8 specifies V=0 for both multiply-with-condition-code forms. The comment’s claimed signed-overflow rule is incorrect. [V8 B.18](https://research.swtch.com/sparcv8.pdf#page=111).
 - **Remediation**: Set N/Z from the low product word and clear V/C.
 
-- [ ] **S32-R7-9 — BUG — MEDIUM**
+- [x] **S32-R7-9 — BUG — MEDIUM**
 
 - **Summary**: Trapping tagged arithmetic commits ICC before raising the trap.
 - **Locations**: [interp.c:332](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:332), lines 332–340.
 - **Evidence & Root Cause**: TADDccTV/TSUBccTV call the ICC-mutating helpers before checking arithmetic/tag overflow. A tagged operand such as `1` therefore changes ICC despite trapping. These instructions must preserve both destination and ICC on overflow. [V8 B.14/B.16](https://research.swtch.com/sparcv8.pdf#page=107).
 - **Remediation**: Compute prospective result and flags separately; commit them only after the trap checks pass.
 
-- [ ] **S32-R7-10 — BUG — HIGH**
+- [x] **S32-R7-10 — BUG — HIGH**
 
 - **Summary**: CASA’s immediate-ASI encoding is rejected because the `i` bit check is reversed.
 - **Locations**: [decode.c:258](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/decode.c:258), lines 258–269.
 - **Evidence & Root Cause**: The decoder requires `i=1` while interpreting bits 12:5 as an immediate ASI. Immediate-ASI CASA uses `i=0`. LLVM’s LEON encoding example `0xd5e60156` is consequently rejected. Conversely, the decoder accepts the register-ASI form and treats its bits as an immediate. The historical experiment even records disassembly using `%asi`, exposing this confusion. [LLVM LEON CASA encoding](https://reviews.llvm.org/D20098).
 - **Remediation**: Accept the immediate-ASI form with `i=0`; reject unsupported register-ASI forms. Correct the encoding constants and associated documentation.
 
-- [ ] **S32-R7-11 — BUG — MEDIUM**
+- [x] **S32-R7-11 — BUG — MEDIUM**
 
 - **Summary**: Real STBAR instructions are decoded as privileged ASR reads.
 - **Locations**: [decode.h:121](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/decode.h:121), `SPARC32_OP3_STBAR`; [decode.c:184](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/decode.c:184); [interp.c:380](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:380).
 - **Evidence & Root Cause**: STBAR is assigned op3 `0x2c`. Its real encoding is the RDASR form with op3 `0x28`, `rs1=15`, and `rd=0`. Thus `0x8143c000` reaches `interp_rdwr()` and traps because ASR15 is nonzero. [V8 B.30](https://research.swtch.com/sparcv8.pdf#page=134).
 - **Remediation**: Recognize STBAR’s special encoding before generic RDASR dispatch; remove the invented op3 assignment.
 
-- [ ] **S32-R7-12 — BUG — HIGH**
+- [x] **S32-R7-12 — BUG — HIGH**
 
 - **Summary**: Instruction fetch bypasses VM synchronization and authoritative shared permissions.
 - **Locations**: [decode.c:405](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/decode.c:405), lines 405–441; [vm.c:237](/Users/angerman/Projects/zw3rk/sparc32rt/src/rt32/vm.c:237).
 - **Evidence & Root Cause**: Fetch checks `ctx->regions`, then directly dereferences guest memory without the VM access gate. A sibling can unmap or revoke access between validation and the load, causing a host fault instead of a recoverable guest fault. Region snapshots also become stale: mutations synchronize the caller and root context, not every sibling. A sibling can therefore continue fetching after execute permission is removed while host-readable bytes remain.
 - **Remediation**: Hold the VM access gate across fetch validation and copying. Validate against authoritative shared page permissions rather than context snapshots.
 
-- [ ] **S32-R7-13 — BUG — MEDIUM**
+- [x] **S32-R7-13 — BUG — MEDIUM**
 
 - **Summary**: Doubleword stores can partially commit across mapping changes.
 - **Locations**: [interp.c:478](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:478), lines 478–486; [fp.c:265](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp.c:265); [interp_mem.c:110](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_mem.c:110).
 - **Evidence & Root Cause**: STD validates eight bytes outside the VM gate, then performs two independently gated stores. STDF likewise uses separate stores. A sibling can revoke permissions after the first word, making the second fault after memory has already changed. LDD/LDDF similarly permit their two reads to observe different mappings.
 - **Remediation**: Hold one VM access gate across validation and the complete doubleword transfer. Preserve all-or-nothing fault behavior.
 
-- [ ] **S32-R7-14 — BUG — MEDIUM**
+- [x] **S32-R7-14 — BUG — MEDIUM**
 
 - **Summary**: Misaligned JMPL targets can be classified as SIGSEGV instead of SIGBUS.
 - **Locations**: [interp.c:591](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:591); [interp_signal.c:754](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:754).
 - **Evidence & Root Cause**: JMPL detects target misalignment before its delay slot runs. The classifier nevertheless skips every JMPL and derives alignment from the following instruction. A target of `0x1001` with an `ldub` delay slot is classified using width one and produces SIGSEGV.
 - **Remediation**: Record the fault’s cause and required alignment directly, distinguishing target-alignment faults from delay-slot memory faults.
 
-- [ ] **S32-R7-15 — BUG — HIGH**
+- [x] **S32-R7-15 — BUG — HIGH**
 
 - **Summary**: Integer and illegal-instruction traps terminate execution instead of invoking installed guest handlers.
 - **Locations**: [interp.c:158](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp.c:158); [interp_signal.c:149](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:149); [main.c:259](/Users/angerman/Projects/zw3rk/sparc32rt/src/main.c:259), lines 259–277.
 - **Evidence & Root Cause**: Divide-by-zero and tagged overflow produce `EXIT_TRAP`; illegal instructions produce `EXIT_UNDEF`. The run loop attempts synchronous delivery only for `EXIT_FAULT`, and the delivery helper accepts only SIGBUS/SIGSEGV. An installed SIGFPE or SIGILL handler is therefore bypassed; the translator prints a diagnostic and returns status 1.
 - **Remediation**: Map architectural traps to guest signals and `si_code`, preserving fault PC/nPC and invoking the normal synchronous delivery path.
 
-- [ ] **S32-R7-16 — BUG — HIGH**
+- [x] **S32-R7-16 — BUG — HIGH**
 
 - **Summary**: FSR.TEM never enables floating-point traps.
 - **Locations**: [fp_arith.c:85](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp_arith.c:85); [fp.c:103](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp.c:103), lines 103–152.
 - **Evidence & Root Cause**: `fp_raise()` always updates current/accrued flags without checking TEM. Callers then commit destination registers or FCC and return success. With DZM enabled, `FDIVS(1.0, 0.0)` stores infinity and continues. Enabled exceptions require a trap before normal result/accrual commit. [QEMU exception handling](https://raw.githubusercontent.com/qemu/qemu/master/target/sparc/fop_helper.c).
 - **Remediation**: Centralize FP completion: check prospective exceptions against TEM, record FTT/trap state, and suppress normal destination/FCC/accrual updates when trapping.
 
-- [ ] **S32-R7-17 — BUG — MEDIUM**
+- [x] **S32-R7-17 — BUG — MEDIUM**
 
 - **Summary**: Valid FDTOS instructions targeting odd single registers decode as illegal.
 - **Locations**: [decode.c:45](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/decode.c:45), lines 45–47, 207–209; [fp.h:63](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp.h:63).
 - **Evidence & Root Cause**: `fpu_double_dest()` labels opcode `0x0c6` as `FiTOd`. The execution header correctly identifies it as `FDTOS`, whose destination is single precision. Consequently, `fdtos %f0,%f1` is rejected before execution. FITOD is `0x0c8`.
 - **Remediation**: Correct the precision classification and use consistent opcode metadata for decoder and executor validation.
 
-- [ ] **S32-R7-18 — BUG — MEDIUM**
+- [x] **S32-R7-18 — BUG — MEDIUM**
 
 - **Summary**: LDFSR overwrites read-only state, and successful FP operations retain stale FTT.
 - **Locations**: [fp.c:224](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp.c:224); [fp_arith.c:80](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp_arith.c:80).
 - **Evidence & Root Cause**: `ctx->fsr = v` accepts every loaded bit, including FTT, QNE, and version state. Subsequent `fp_clear_cexc()` clears only CEXC. A guest can load a nonzero FTT and observe it survive a successful FMOVS. LDFSR must preserve FTT, while successful FPop completion clears it. [V8 FSR definition](https://research.swtch.com/sparcv8.pdf#page=35).
 - **Remediation**: Apply an architectural writable-field mask and implement FTT lifecycle in shared FP completion handling.
 
-- [ ] **S32-R7-19 — BUG — MEDIUM**
+- [x] **S32-R7-19 — BUG — MEDIUM**
 
 - **Summary**: Quiet comparisons spuriously accrue an invalid-operation exception.
 - **Locations**: [fp_arith.c:837](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp_arith.c:837), lines 837–840, 856–859.
 - **Evidence & Root Cause**: Both comparison helpers unconditionally set `FP_FSR_NVA_BIT` for unordered operands. Starting with clear FSR, `FCMPS(qNaN, 1.0)` therefore produces `aexc.NV=1` despite `cexc.NV=0`. Quiet FCMP with no signaling NaN must not raise invalid. [V8 Appendix N.4](https://research.swtch.com/sparcv8.pdf#page=292).
 - **Remediation**: Accrue NV only when the comparison is signaling or an operand is a signaling NaN.
 
-- [ ] **S32-R7-20 — BUG — MEDIUM**
+- [x] **S32-R7-20 — BUG — MEDIUM**
 
 - **Summary**: FSMULD misses invalid-operation handling for zero times infinity.
 - **Locations**: [fp.c:153](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp.c:153), lines 153–173.
 - **Evidence & Root Cause**: After checking NaN operands, FSMULD performs a native double multiplication without inspecting exceptions. `0.0f * +Infinity` consequently stores a host NaN with CEXC cleared and AEXC unchanged. The ordinary FMULS/FMULD helpers explicitly handle this same invalid case.
 - **Remediation**: Detect zero/infinity operands and route the invalid result through the common FP exception-completion path.
 
-- [ ] **S32-R7-21 — BUG — MEDIUM**
+- [x] **S32-R7-21 — BUG — MEDIUM**
 
 - **Summary**: FDTOI rejects negative fractional inputs whose truncated integer is representable.
 - **Locations**: [fp_arith.c:245](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp_arith.c:245), lines 245–249; [fp.c:191](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp.c:191).
 - **Evidence & Root Cause**: The helper rejects values below `-2147483648.0` before applying truncation toward zero. For `-2147483648.5`, the integer result is representable `INT32_MIN`, but the code raises NV instead of NX. Once TEM is implemented, this also selects the wrong trap.
 - **Remediation**: Determine representability after the instruction’s rounding operation, using a safe intermediate.
 
-- [ ] **S32-R7-22 — BUG — MEDIUM**
+- [x] **S32-R7-22 — BUG — MEDIUM**
 
 - **Summary**: Directed double-to-single conversion can return infinity without overflow flags.
 - **Locations**: [fp_arith.c:290](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp_arith.c:290), lines 290–333.
 - **Evidence & Root Cause**: Overflow is checked only before directed-rounding adjustment. For input double bits `0x47efffffe0000001` with `RD=RP`, the initial nearest-rounded cast yields maximum finite binary32. `nextafterf()` then changes it to infinity, but the function returns with only NX set. OFC/OFA are missing. The negative/RM case is symmetric.
 - **Remediation**: Classify the final directed-rounded result and apply overflow flags after adjustment.
 
-- [ ] **S32-R7-23 — DEFECT — MEDIUM**
+- [x] **S32-R7-23 — DEFECT — MEDIUM**
 
 - **Summary**: FP execution ignores the FPop1/FPop2 encoding distinction.
 - **Locations**: [decode.c:201](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/decode.c:201), lines 201–212; [fp.c:71](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp.c:71), lines 71–78.
@@ -1173,39 +1325,39 @@ Read every file in `src/interp/` and the relevant CPU, window, trap, and FPU hea
 
 ---
 
-## 6. `rvrt` (`2b6759c`) — 5 Round-7 Findings (`0 / 5` Resolved)
+## 6. `rvrt` (`2b6759c`) — 5 Round-7 Findings (`5 / 5` Resolved)
 
 Found five concrete bugs. This checkout has no `src/interp/`; the interpreter lives in `src/core/`. Reviewed that implementation and related ISA, FP, atomic, CPU-state, and trap paths. No builds or tests ran; no files changed.
 
-- [ ] **RV-R7-1 — BUG — HIGH**
+- [x] **RV-R7-1 — BUG — HIGH**
 
 - **Summary**: RV32 syscall errors leave noncanonical register values that cause incorrect integer comparisons.
 - **Locations**: [runtime_main_syscall_leaf.c:511](/Users/angerman/Projects/zw3rk/rvrt/src/runtime/runtime_main_syscall_leaf.c:511), [runtime_main_syscall.c:673](/Users/angerman/Projects/zw3rk/rvrt/src/runtime/runtime_main_syscall.c:673), [internal.h:26](/Users/angerman/Projects/zw3rk/rvrt/src/core/internal.h:26), [interp.c:128](/Users/angerman/Projects/zw3rk/rvrt/src/core/interp.c:128).
 - **Evidence & Root Cause**: This implementation deliberately stores RV32 registers **zero-extended**, but syscall handlers directly write 64-bit negative results. An unknown syscall leaves `a0=0xffffffffffffffda` (`-ENOSYS`); a subsequent `li t0,-38` produces `0x00000000ffffffda` through `rv_put()`. `beq a0,t0,expected` incorrectly falls through because BEQ compares the complete 64-bit containers. Neither syscall completion nor the interpreter entry normalizes the result.
 - **Remediation**: Canonicalize RV32 syscall results at the shared retirement boundary, preserving internal restart/error comparisons before normalization. Apply the same register-write convention to other external CPU-state writers.
 
-- [ ] **RV-R7-2 — BUG — HIGH**
+- [x] **RV-R7-2 — BUG — HIGH**
 
 - **Summary**: The A64 FP path implements `FLT.S/D` as less-than-or-equal and `FLE.S/D` as greater-than.
 - **Locations**: [dbt_emit_fp.c:656](/Users/angerman/Projects/zw3rk/rvrt/src/dbt_emit_fp.c:656), particularly lines 674–679; [dbt_emit_fp.h:198](/Users/angerman/Projects/zw3rk/rvrt/src/dbt_emit_fp.h:198).
 - **Evidence & Root Cause**: `FLT` selects condition `0xd` (`LE`), while `FLE` selects `0xc` (`GT`). Consequently, `FLT(1.0,1.0)` returns 1, `FLE(1.0,2.0)` returns 0, and `FLE(2.0,1.0)` returns 1. The subsequent unordered-result mask cannot correct finite comparisons. Both precisions and guest XLENs are affected in the Darwin/fast-Linux DBT. [Arm condition definitions](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/condition-codes-4-floating-point-comparisons-using-vfp).
 - **Remediation**: Use ordered `LO` (`0x3`) for FLT and `LS` (`0x9`) for FLE. Cover less/equal/greater/unordered operands through emitted-code execution.
 
-- [ ] **RV-R7-3 — BUG — MEDIUM**
+- [x] **RV-R7-3 — BUG — MEDIUM**
 
 - **Summary**: Valid RV32 `C.FLWSP` instructions targeting `f0` trap as illegal instructions.
 - **Locations**: [rv32_expand.c:224](/Users/angerman/Projects/zw3rk/rvrt/src/core/rv32_expand.c:224).
 - **Evidence & Root Cause**: The `C.FLWSP` case rejects `rd==0`, incorrectly applying the integer stack-load restriction to a floating-point destination. Encoding `0x6002` means `c.flwsp f0,0(sp)` and must load writable register `f0`; instead, expansion fails and execution raises an illegal-instruction trap. The restriction applies to `C.LWSP`/`C.LDSP`, whereas `C.FLWSP` permits `f0`. [RISC-V compressed-instruction specification](https://docs.riscv.org/reference/isa/v20260120/unpriv/c-st-ext.html).
 - **Remediation**: Remove the `rd==0` rejection from `C.FLWSP`, retaining it for integer stack loads. Cover successful loading and NaN-boxing into `f0`.
 
-- [ ] **RV-R7-4 — BUG — MEDIUM**
+- [x] **RV-R7-4 — BUG — MEDIUM**
 
 - **Summary**: A memory slow path can turn a malformed single-precision operand from canonical NaN into a finite value.
 - **Locations**: [dbt_emit_fp.c:184](/Users/angerman/Projects/zw3rk/rvrt/src/dbt_emit_fp.c:184), [darwin_dbt_emit.c:98](/Users/angerman/Projects/zw3rk/rvrt/src/darwin_dbt_emit.c:98), [darwin_dbt_emit.c:192](/Users/angerman/Projects/zw3rk/rvrt/src/darwin_dbt_emit.c:192).
 - **Evidence & Root Cause**: `emit_load_unboxed_s()` substitutes canonical NaN for malformed boxing and caches that substituted value, leaving architectural `f[]` unchanged. After a successful memory-helper call, `emit_reload_caches()` reloads single entries using raw `LDR S`, without validating their upper halves. Starting with `f1=0x000000003f800000`, the sequence `fadd.s f2,f1,f1`; successful first-touch integer load; `fadd.s f3,f1,f1` within one block produces NaN first, then `2.0`. The reload replaces cached NaN with raw `1.0`, violating [NaN-boxing semantics](https://riscv.github.io/riscv-unified-db/manual/html/isa/isa_20240411/chapters/d-st-ext.html).
 - **Remediation**: Preserve boxing validation when reconstructing single cache entries. The helper rejoin must satisfy the cache assumptions already embedded in subsequent instructions.
 
-- [ ] **RV-R7-5 — BUG — MEDIUM**
+- [x] **RV-R7-5 — BUG — MEDIUM**
 
 - **Summary**: Trap delivery writes an overflowing alternate-stack signal frame before rejecting it.
 - **Locations**: [signal.c:775](/Users/angerman/Projects/zw3rk/rvrt/src/linux/signal.c:775), especially the unconditional frame writes at lines 783–789.
@@ -1214,186 +1366,186 @@ Found five concrete bugs. This checkout has no `src/interp/`; the interpreter li
 
 ---
 
-## 7. `loongarch64rt` (`058a318`) — 26 Round-7 Findings (`0 / 26` Resolved)
+## 7. `loongarch64rt` (`058a318`) — 26 Round-7 Findings (`26 / 26` Resolved)
 
 Read all 13 files in `src/interp/` and the relevant CPU, FP/vector, and trap headers end-to-end. There is no `include/` directory in this checkout. No builds or tests were run; the counterexamples below follow from static analysis.
 
-- [ ] **LA64-R7-1 — BUG — HIGH**
+- [x] **LA64-R7-1 — BUG — HIGH**
 
 - **Summary**: A faulting integer load overwrites the newly installed signal-handler state.
 - **Locations**: [interp_mem.h:48](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_mem.h:48), [interp.c:481](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:481), [sigframe.c:262](/Users/angerman/Projects/zw3rk/loongarch64rt/src/os/sigframe.c:262).
 - **Evidence & Root Cause**: `la64_signal_fault()` installs the handler context and returns, despite its header claiming otherwise. `ld_bytes()` then returns zero, which the caller writes into `rd`. A faulting `ld.d a0,...` therefore replaces the handler’s signal-number argument with zero; targeting `sp` destroys its stack pointer. The final PC-change check occurs after this write.
 - **Remediation**: Return an explicit fault status and stop instruction execution before destination writeback. Correct the signal helper’s return contract.
 
-- [ ] **LA64-R7-2 — BUG — HIGH**
+- [x] **LA64-R7-2 — BUG — HIGH**
 
 - **Summary**: Atomic memory faults and rejected FP encodings terminate the translator instead of delivering guest signals.
 - **Locations**: [interp_amo.c:28](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:28), [interp.c:617](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:617), [interp.c:835](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:835), [interp_mem.h:32](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_mem.h:32).
 - **Evidence & Root Cause**: Atomic helpers return strings for inaccessible memory; `interp_step()` passes them to `die_at()`, which calls `exit(3)`. Illegal FP comparison conditions follow the same path. Guest `SIGSEGV`/`SIGILL` handlers cannot recover, unlike equivalent faults elsewhere in the interpreter.
 - **Remediation**: Replace string-only failures with structured guest faults carrying signal, code, address, and faulting PC. Reserve translator termination for internal failures.
 
-- [ ] **LA64-R7-3 — BUG — HIGH**
+- [x] **LA64-R7-3 — BUG — HIGH**
 
 - **Summary**: Floating-point exception enables are ignored.
 - **Locations**: [fp_vec_priv.h:48](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec_priv.h:48), [fp.c:474](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:474).
 - **Evidence & Root Cause**: `fp_sync()` never checks FCSR Enables. With `fcsr0=8`, `FDIV.D(1.0,0.0)` commits infinity and continues. Most scalar callers commit their destination before synchronizing exceptions. [QEMU’s FCSR handling](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/fpu_helper.c) checks Enables and raises FPE before returning a result.
 - **Remediation**: Stage results, update Cause, check Enables, and deliver guest `SIGFPE` before destination writeback. Apply the corresponding nontrapping Flags rules.
 
-- [ ] **LA64-R7-4 — BUG — HIGH**
+- [x] **LA64-R7-4 — BUG — HIGH**
 
 - **Summary**: Atomic, scalar-FP, and vector stores bypass shared-file alias propagation.
 - **Locations**: [interp_amo.c:45](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:45), [fp_vec.c:54](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:54), [interp_vec.c:109](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_vec.c:109), [fp_shuf.c:136](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_shuf.c:136), [fp_vec_lasx.c:620](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec_lasx.c:620).
 - **Evidence & Root Cause**: These store paths omit `la64_vm_file_note_store()`, which ordinary integer stores call. For staged `MAP_SHARED` mappings of the same file offset at A and B, an `AMADD.W`, successful `SC.W`, `FST`, or vector store through A leaves B stale. This fails within one thread.
 - **Remediation**: Notify the shared-file layer after every successful store, including indexed vector stores, while preserving serialization. Failed CAS/SC operations must not report a write.
 
-- [ ] **LA64-R7-5 — BUG — HIGH**
+- [x] **LA64-R7-5 — BUG — HIGH**
 
 - **Summary**: LL/SC can succeed after an interfering write through another shared-memory alias.
 - **Locations**: [interp_amo.c:242](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:242), [interp_amo.c:264](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:264), [clone.c:739](/Users/angerman/Projects/zw3rk/loongarch64rt/src/os/clone.c:739), [vm_file_sync.c:200](/Users/angerman/Projects/zw3rk/loongarch64rt/src/vm/vm_file_sync.c:200).
 - **Evidence & Root Cause**: SC checks only `ll_valid` and the guest address. Reservation invalidation compares guest-address ranges, while shared-alias propagation changes the backing bytes without invalidating reservations at other addresses. Worker A can LL through one alias, worker B store through another, and worker A subsequently SC successfully over the intervening update. Scheduler turns preserve the reservation.
 - **Remediation**: Track reservations by backing-memory identity and invalidate across aliases. Comparing `ll_val` alone would still miss ABA writes.
 
-- [ ] **LA64-R7-6 — BUG — HIGH**
+- [x] **LA64-R7-6 — BUG — HIGH**
 
 - **Summary**: Bounds-checking loads/stores access the wrong address and suppress required traps.
 - **Locations**: [interp.c:696](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:696).
 - **Evidence & Root Cause**: `LDGT/LDLE/STGT/STLE` compare `rj` with `rk`, but access memory at `rk`. Failed comparisons silently skip stores or copy `rj` into the load destination. These instructions must access `rj` after a successful bounds assertion and raise a bounds exception otherwise. [QEMU’s implementation](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/insn_trans/trans_memory.c.inc) demonstrates both requirements.
 - **Remediation**: Perform the bounds assertion first, deliver the appropriate guest fault on failure, and use `rj` as the memory address.
 
-- [ ] **LA64-R7-7 — BUG — HIGH**
+- [x] **LA64-R7-7 — BUG — HIGH**
 
 - **Summary**: Vector float-to-integer conversion permits undefined C casts.
 - **Locations**: [fp_vec.c:374](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:374), [fp_vec.c:497](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:497).
 - **Evidence & Root Cause**: `vf_cvt_lane()` checks the unrounded value, then casts `rint(x)` to `int32_t`. Under nearest-even rounding, `2147483647.75` passes the check but rounds to `2147483648`, making the cast undefined. Negative boundary values fail similarly under downward rounding. `VFTINT.W.D` and its LASX counterpart reach this code.
 - **Remediation**: Round provisionally, validate the rounded value, and only then cast. Generate the architectural invalid-conversion result explicitly.
 
-- [ ] **LA64-R7-8 — BUG — HIGH**
+- [x] **LA64-R7-8 — BUG — HIGH**
 
 - **Summary**: The vector decoder conflates distinct conversion instructions.
 - **Locations**: [fp_vec.c:631](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:631), [fp_vec.c:677](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:677).
 - **Evidence & Root Cause**: Dispatch uses `k15 >> 2`, discarding distinguishing opcode bits. `VFCVT.H.S` and `VFCVT.S.D` both execute double-to-single conversion; `VFFINT.S.L` and `VFTINT.W.D` both execute double-to-integer conversion. Integer source lanes containing `1` consequently produce zero for `VFFINT.S.L`, rather than floating-point `1.0`. LASX shares this decoder. [QEMU’s encoding table](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/insns.decode) distinguishes these instructions.
 - **Remediation**: Match complete conversion opcodes and implement each source width, destination width, and conversion direction separately.
 
-- [ ] **LA64-R7-9 — DEFECT — HIGH**
+- [x] **LA64-R7-9 — DEFECT — HIGH**
 
 - **Summary**: Advertised LSX/LASX support includes valid instructions that unconditionally terminate execution.
 - **Locations**: [interp_mem.h:166](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_mem.h:166), [fp_vec.c:584](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:584), [fp_vec.c:717](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:717), [fp_shuf.c:169](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_shuf.c:169).
 - **Evidence & Root Cause**: CPUCFG advertises both extensions, but vector FMA, vector square root, conversion families, and mode-table `VLDI` forms explicitly return “unhandled” errors. The interpreter converts those errors into `exit(3)`. Programs selecting these instructions from the advertised feature profile fail deterministically.
 - **Remediation**: Complete the advertised instruction families. Until then, expose an accurate capability profile and retain proper guest illegal-instruction handling.
 
-- [ ] **LA64-R7-10 — BUG — MEDIUM**
+- [x] **LA64-R7-10 — BUG — MEDIUM**
 
 - **Summary**: CRC instructions use an oversized accumulator, and CRCC uses the wrong polynomial.
 - **Locations**: [interp_bit.h:145](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_bit.h:145), [interp.c:623](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:623).
 - **Evidence & Root Cause**: `crc_step()` initializes a 64-bit accumulator from all of `rk`; high bits shift into the checksum. With data zero and seed `0x100000000`, `CRC.W.B.W` produces `0x01000000` instead of zero. CRCC complements the IEEE CRC result instead of using Castagnoli: zero data and zero seed produce `0xffffffff` instead of zero. The [ISA CRC definitions](https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html#_crcc_w_bhwd_w) specify a 32-bit seed and separate polynomials.
 - **Remediation**: Use a `uint32_t` accumulator and select `0xedb88320` or `0x82f63b78`; remove the CRCC complement.
 
-- [ ] **LA64-R7-11 — BUG — MEDIUM**
+- [x] **LA64-R7-11 — BUG — MEDIUM**
 
 - **Summary**: Three byte-reversal instructions implement the wrong permutations.
 - **Locations**: [interp.c:366](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:366).
 - **Evidence & Root Cause**: `REVB.2H` swaps bytes across all four halfwords without sign-extending the low word. `REVB.4H` reverses bytes within words. `REVB.2W` exchanges words. For input `0x1122334455667788`, `REVB.4H` should produce `0x2211443366558877`, and `REVB.2W` should produce `0x4433221188776655`. [QEMU’s reversal helpers](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/insn_trans/trans_bit.c.inc) corroborate the required permutations.
 - **Remediation**: Implement each element width explicitly and apply low-word sign extension for `REVB.2H`.
 
-- [ ] **LA64-R7-12 — BUG — MEDIUM**
+- [x] **LA64-R7-12 — BUG — MEDIUM**
 
 - **Summary**: `MULW.D.WU` treats its first operand as signed.
 - **Locations**: [interp.c:203](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:203).
 - **Evidence & Root Cause**: The expression converts `rj` through `int32_t`, while only `rk` is zero-extended. With `rj=0xffffffff` and `rk=1`, it returns `0xffffffffffffffff` instead of `0x00000000ffffffff`. Both inputs are unsigned words. [QEMU’s arithmetic dispatch](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/insn_trans/trans_arith.c.inc) zero-extends both.
 - **Remediation**: Multiply two `uint64_t` values obtained from `uint32_t` operands.
 
-- [ ] **LA64-R7-13 — BUG — MEDIUM**
+- [x] **LA64-R7-13 — BUG — MEDIUM**
 
 - **Summary**: Invalid BSTRINS/BSTRPICK ranges execute fabricated operations.
 - **Locations**: [decode.c:419](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/decode.c:419), [interp.c:448](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:448).
 - **Evidence & Root Cause**: Neither decoding nor execution rejects `msb < lsb`. Unsigned width arithmetic produces zero or wraps to a large value, selecting empty or full-width masks. For example, `msb=0, lsb=2` becomes a full-width operation. [QEMU rejects these encodings](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/insn_trans/trans_bit.c.inc), so the interpreter also violates its oracle contract.
 - **Remediation**: Validate the range before computing its width and route rejected encodings through guest `SIGILL`.
 
-- [ ] **LA64-R7-14 — BUG — MEDIUM**
+- [x] **LA64-R7-14 — BUG — MEDIUM**
 
 - **Summary**: Mandatory instruction-fetch and atomic alignment checks are missing.
 - **Locations**: [interp.c:59](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:59), [interp_amo.c:28](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:28).
 - **Evidence & Root Cause**: Fetch accepts any mapped four-byte span without checking `pc & 3`. Atomic helpers access bytes individually without checking natural alignment. Thus an unaligned executable PC can execute, and `AMADD.D` at an address ending in `...001` modifies memory successfully. UAL does not waive these alignment requirements. [ISA alignment rules](https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html), [QEMU atomic alignment](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/insn_trans/trans_atomic.c.inc).
 - **Remediation**: Check alignment before fetching or committing atomic effects, then deliver the appropriate guest address/alignment fault.
 
-- [ ] **LA64-R7-15 — BUG — MEDIUM**
+- [x] **LA64-R7-15 — BUG — MEDIUM**
 
 - **Summary**: AM word/doubleword instructions execute forbidden destination/address overlap.
 - **Locations**: [interp_amo.c:177](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:177), [interp_amo.c:361](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:361).
 - **Evidence & Root Cause**: `amswap.d r4,r5,r4` performs a memory write and replaces `r4`; no overlap validation exists. The [ISA’s AM W/D rules](https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html) require an undefined-instruction exception for this combination. By contrast, `rd==rk` has an architecturally uncertain result and is not itself reported here as a mandatory-trap defect.
 - **Remediation**: Reject prohibited `rd==rj` combinations before accessing memory, using instruction-specific restrictions.
 
-- [ ] **LA64-R7-16 — BUG — MEDIUM**
+- [x] **LA64-R7-16 — BUG — MEDIUM**
 
 - **Summary**: Byte and halfword atomic results are zero-extended.
 - **Locations**: [interp_amo.c:141](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:141), [interp_amo.c:167](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_amo.c:167).
 - **Evidence & Root Cause**: `am_cas()` and `am_rmw()` explicitly zero-extend B/H old values. An old byte `0x80` returns `0x80` instead of `0xffffffffffffff80`. This affects AMCAS, AMSWAP, and AMADD, including `_DB`. [QEMU’s B/H memory types](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/insn_trans/trans_atomic.c.inc) are signed.
 - **Remediation**: Apply `amo_sx_n(old,n)` at every supported width.
 
-- [ ] **LA64-R7-17 — BUG — MEDIUM**
+- [x] **LA64-R7-17 — BUG — MEDIUM**
 
 - **Summary**: Scalar and vector FP comparisons incorrectly order signed zeros.
 - **Locations**: [fp.c:371](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:371), [fp_vec.c:469](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:469).
 - **Evidence & Root Cause**: Equality compares raw representations. `-0.0` and `+0.0` therefore enter the sign-order branch, producing unequal and less-than results. This corrupts FCC-controlled branches/FSEL and vector comparison masks. [SoftFloat comparison handling](https://raw.githubusercontent.com/qemu/qemu/master/fpu/softfloat-parts.c.inc) treats both zeros as equal.
 - **Remediation**: Recognize two zero magnitudes as equal before sign-based ordering.
 
-- [ ] **LA64-R7-18 — BUG — MEDIUM**
+- [x] **LA64-R7-18 — BUG — MEDIUM**
 
 - **Summary**: Narrowing vector conversions overwrite unread aliased source lanes.
 - **Locations**: [fp_vec.c:480](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:480), [fp_vec.c:530](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:530).
 - **Evidence & Root Cause**: Results are written one word at a time while subsequent doubleword sources remain in the destination register. For `vftint.w.d vr0,vr0,vr1`, with `vr0.D={1.0,2.0}` and `vr1.D={3.0,4.0}`, the first two writes destroy the source for result lane 2, yielding `{3,4,0,2}` instead of `{3,4,1,2}`. LASX has the same problem.
 - **Remediation**: Snapshot the sources or stage the complete destination before writeback, as [QEMU’s narrowing helpers](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/vec_helper.c) do.
 
-- [ ] **LA64-R7-19 — BUG — MEDIUM**
+- [x] **LA64-R7-19 — BUG — MEDIUM**
 
 - **Summary**: Vector FCSR Cause records only the last lane.
 - **Locations**: [fp_vec.c:418](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:418), [fp_vec.c:529](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:529), [fp_vec_priv.h:62](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec_priv.h:62).
 - **Evidence & Root Cause**: Every lane invokes scalar `fp_sync()`, overwriting Cause. A vector division with `0/0` in lane 0 and exact `1/1` operations afterward finishes with Invalid Cause cleared. [QEMU’s vector helpers](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/vec_helper.c) accumulate exceptions across the instruction.
 - **Remediation**: Clear Cause once per vector instruction, aggregate lane exceptions, and perform final exception handling before architectural writeback.
 
-- [ ] **LA64-R7-20 — BUG — MEDIUM**
+- [x] **LA64-R7-20 — BUG — MEDIUM**
 
 - **Summary**: `FSCALEB.S` consumes the wrong exponent width.
 - **Locations**: [fp.c:525](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:525).
 - **Evidence & Root Cause**: Both widths interpret the exponent as `int64_t`. With value `1.0f` and exponent bits `0xffffffff00000001`, `.S` clamps to `-4096` and produces zero instead of `2.0f`. Its exponent is the signed low word, as implemented by [QEMU’s scalar helper](https://raw.githubusercontent.com/qemu/qemu/master/target/loongarch/tcg/fpu_helper.c).
 - **Remediation**: Sign-extend the low 32 bits for `.S`; retain the full signed 64-bit exponent for `.D`.
 
-- [ ] **LA64-R7-21 — BUG — MEDIUM**
+- [x] **LA64-R7-21 — BUG — MEDIUM**
 
 - **Summary**: FP min/max mishandles NaNs and equal magnitudes.
 - **Locations**: [fp.c:53](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:53), [fp_vec.c:322](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec.c:322).
 - **Evidence & Root Cause**: The duplicated helpers return the numeric operand for sNaN plus number, spuriously raise Invalid for two qNaNs, and always retain `fj` on magnitude ties. Consequently `FMAXA(-1,+1)` returns `-1`, and `FMINA(+1,-1)` returns `+1`. [SoftFloat min/max semantics](https://raw.githubusercontent.com/qemu/qemu/master/fpu/softfloat-parts.c.inc) distinguish these cases.
 - **Remediation**: Implement correct NaN selection/quieting and exception rules; resolve magnitude ties using ordinary signed min/max ordering. Apply the correction to scalar, LSX, and LASX paths.
 
-- [ ] **LA64-R7-22 — BUG — MEDIUM**
+- [x] **LA64-R7-22 — BUG — MEDIUM**
 
 - **Summary**: `FLOGB` returns signaling NaNs without quieting or Invalid.
 - **Locations**: [fp.c:124](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:124), [fp.c:146](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:146).
 - **Evidence & Root Cause**: Both NaN branches return the input directly. For `.D` input `0x7ff0000000000001`, the signaling representation survives and no Invalid exception is raised. This contradicts the [ISA NaN-propagation rules](https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html).
 - **Remediation**: Classify NaNs by bits, raise Invalid for sNaNs, and quiet the selected NaN while preserving its payload.
 
-- [ ] **LA64-R7-23 — BUG — MEDIUM**
+- [x] **LA64-R7-23 — BUG — MEDIUM**
 
 - **Summary**: `FRSQRTE.S/D` discards floating-point exception status.
 - **Locations**: [fp.c:624](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:624), [fp.c:718](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:718).
 - **Evidence & Root Cause**: The major-9 group sets `sync=0`, including its arithmetic estimate cases. `FRSQRTE(+0)` produces infinity without recording Divide-by-zero; negative inputs lose Invalid. The [ISA estimate rules](https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html) retain these special-input exceptions.
 - **Remediation**: Enable exception synchronization for the estimate cases while retaining no-status-update behavior for register moves.
 
-- [ ] **LA64-R7-24 — BUG — MEDIUM**
+- [x] **LA64-R7-24 — BUG — MEDIUM**
 
 - **Summary**: Invalid scalar FP-to-word conversions can also report spurious Inexact.
 - **Locations**: [fp.c:243](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:243).
 - **Evidence & Root Cause**: `fp_ftint_wd()` calls `rint()` before checking range. For nearest-even `FTINT.W.D(2147483647.5)`, rounding raises Inexact, then the range check adds Invalid without removing that provisional exception. The conversion reports `V|I`; [SoftFloat’s conversion rules](https://raw.githubusercontent.com/qemu/qemu/master/fpu/softfloat-parts.c.inc) report Invalid for this overflow.
 - **Remediation**: Compute conversion status independently of intermediate host arithmetic, suppressing provisional Inexact when conversion is invalid.
 
-- [ ] **LA64-R7-25 — BUG — MEDIUM**
+- [x] **LA64-R7-25 — BUG — MEDIUM**
 
 - **Summary**: Negated fused operations negate after rounding and alter propagated NaN signs.
 - **Locations**: [fp.c:403](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp.c:403).
 - **Evidence & Root Cause**: FNMADD/FNMSUB compute `fma()` and then negate its rounded result. Under upward rounding, `FNMADD.D(1,1,2^-53)` returns `-(1+2^-52)` instead of `-1`. [QEMU’s LoongArch mapping](https://raw.githubusercontent.com/qemu/qemu/v10.0.0/target/loongarch/tcg/insn_trans/trans_farith.c.inc) requests pre-round result negation in [SoftFloat](https://raw.githubusercontent.com/qemu/qemu/v10.0.0/fpu/softfloat-parts.c.inc). The explicit operand/result negations also flip selected NaN signs.
 - **Remediation**: Apply numerical negation before final rounding, preserving directed-rounding semantics. Handle NaN propagation before numerical sign transformations.
 
-- [ ] **LA64-R7-26 — BUG — MEDIUM**
+- [x] **LA64-R7-26 — BUG — MEDIUM**
 
 - **Summary**: Nonzero SYSCALL code fields terminate execution.
 - **Locations**: [interp.c:651](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp.c:651).
@@ -1402,214 +1554,214 @@ Read all 13 files in `src/interp/` and the relevant CPU, FP/vector, and trap hea
 
 ---
 
-## 8. `ppc64rt` (`bda02bd`) — 30 Round-7 Findings (`0 / 30` Resolved)
+## 8. `ppc64rt` (`bda02bd`) — 30 Round-7 Findings (`30 / 30` Resolved)
 
 Completed the static review of all 13 files in `src/interp/` and the related CPU/FPU/VMX/VSX/trap headers. There is no `include/` directory in this checkout. No builds or tests were run; the counterexamples below come from static analysis.
 
-- [ ] **P64-R7-1 — BUG — HIGH**
+- [x] **P64-R7-1 — BUG — HIGH**
 
 - **Summary**: `darn` returns a predictable sequence as successful random output.
 - **Locations**: [interp.c:29](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:29), [interp.c:458](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:458), [profile.h:77](/Users/angerman/Projects/zw3rk/ppc64rt/src/core/profile.h:77).
 - **Evidence & Root Cause**: The implementation uses xorshift with a public constant seed, restored by `ppc64_interp_reset()`. It returns this sequence without indicating failure while advertising DARN support. Guest software using DARN for entropy can therefore generate predictable secrets. QEMU instead obtains guest random bytes and returns the architectural failure value when that fails. [QEMU DARN implementation](https://raw.githubusercontent.com/qemu/qemu/v9.2.0/target/ppc/int_helper.c).
 - **Remediation**: Use the host’s established cryptographic random interface, implement the DARN forms and failure sentinel correctly, and remove the fixed-seed generator from this instruction.
 
-- [ ] **P64-R7-2 — BUG — HIGH**
+- [x] **P64-R7-2 — BUG — HIGH**
 
 - **Summary**: Quadword reservation operations bypass the atomic backend and can succeed after intervening writes.
 - **Locations**: [vec.c:116](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:116), [vec.c:151](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:151), [atomic.h:23](/Users/angerman/Projects/zw3rk/ppc64rt/src/core/atomic.h:23), [fp_str.c:33](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_str.c:33).
 - **Evidence & Root Cause**: Both atomic-backend branches require `w <= 8`. Thus `lqarx` performs an ordinary read and records a local Boolean reservation; `stqcx.` consumes that Boolean, releases its lock, and performs an ordinary write. It neither atomically checks memory nor validates a shared write epoch. A sequence `lqarx; stxv` to the same address; `stqcx.` can report success because `str_write()` bypasses the interpreter reservation invalidator. Concurrent writes can also occur between reservation checking and committing.
 - **Remediation**: Extend the shared atomic interface to 128-bit values and make reservation validation plus conditional commit atomic. Route every relevant store through the same reservation authority.
 
-- [ ] **P64-R7-3 — BUG — HIGH**
+- [x] **P64-R7-3 — BUG — HIGH**
 
 - **Summary**: Load-reserve invalidates the wrong Soft-TLB entry for three quarters of the table.
 - **Locations**: [vec.c:112](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:112), [cpu.h:38](/Users/angerman/Projects/zw3rk/ppc64rt/src/core/cpu.h:38), [vm64.c:506](/Users/angerman/Projects/zw3rk/ppc64rt/src/vm/vm64.c:506).
 - **Evidence & Root Cause**: The reservation path indexes with `(ea >> 12) & 1023`, but the shared TLB contains 4096 entries and uses a 4095 mask. For `EA = 0x400000`, the live entry is 1024 while this code clears entry 0. A previously warmed writable entry remains usable by DBT stores, bypassing reservation epoch updates. An intervening A→B→A write sequence can consequently leave a later store-conditional reporting success.
 - **Remediation**: Derive the index from `PPC64_TLB_SIZE` and ensure reservation establishment revokes every applicable writable fast path.
 
-- [ ] **P64-R7-4 — BUG — HIGH**
+- [x] **P64-R7-4 — BUG — HIGH**
 
 - **Summary**: `lqarx` and `stqcx.` reverse the architectural GPR-pair order in little-endian mode.
 - **Locations**: [vec.c:134](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:134), [vec.c:180](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:180).
 - **Evidence & Root Cause**: The code assigns the doubleword at `EA` to `RT`, and `EA+8` to `RT+1`, then stores using the same order. These instructions place the high half in the even register and the low half in its successor, including little-endian execution. Memory containing low half `1`, high half `2` therefore produces `{RT=1, RT+1=2}` instead of `{2,1}`. [QEMU quadword reservation implementation](https://raw.githubusercontent.com/qemu/qemu/v9.2.0/target/ppc/translate.c).
 - **Remediation**: Correct the register-to-memory half mapping independently of the atomicity repair.
 
-- [ ] **P64-R7-5 — BUG — HIGH**
+- [x] **P64-R7-5 — BUG — HIGH**
 
 - **Summary**: `dcbt` executes as a byte-reversed halfword load and can corrupt a GPR or fault.
 - **Locations**: [interp.h:634](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.h:634), [interp.c:499](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:499), [interp.c:526](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:526).
 - **Evidence & Root Cause**: The memory table assigns XO 278 to the halfword reverse-load operation. XO 278 is `dcbt`; the table executes before the cache-hint handler. Consequently, ordinary `dcbt` reads memory and overwrites the GPR selected by its TH field, commonly GPR0. The reverse-halfword entries use 278/406 instead of the architectural 790/918, also leaving real `lhbrx`/`sthbrx` unsupported. [IBM opcode reference](https://www.ibm.com/docs/en/aix/7.3.0?topic=reference-appendix-b-instruction-set-sorted-by-mnemonic).
 - **Remediation**: Correct both reverse-halfword opcodes and verify that cache-hint encodings cannot enter memory-transfer dispatch.
 
-- [ ] **P64-R7-6 — BUG — HIGH**
+- [x] **P64-R7-6 — BUG — HIGH**
 
 - **Summary**: VSX XX3 instructions interchange the XA and XB register-extension bits.
 - **Locations**: [fp_vsx.c:24](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_vsx.c:24), [fp_vsx.c:36](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_vsx.c:36).
 - **Evidence & Root Cause**: `ax` comes from raw bit 1 and `bx` from bit 2; XA requires bit 2 and XB bit 1. For example, `xxlor vs0,vs1,vs34` reads `vs33` and `vs2`. Logical operations, merges, and permutations using sources from different VSR banks silently consume unrelated registers. [QEMU XX-form field definitions](https://raw.githubusercontent.com/qemu/qemu/master/target/ppc/insn32.decode).
 - **Remediation**: Correct the extension-bit extraction and share it across XX3 handlers.
 
-- [ ] **P64-R7-7 — DEFECT — HIGH**
+- [x] **P64-R7-7 — DEFECT — HIGH**
 
 - **Summary**: Required scalar and vector VSX floating-point arithmetic has no interpreter implementation.
 - **Locations**: [fp_vsx.c:21](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_vsx.c:21), [interp.c:329](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:329), [SPEC.md:56](/Users/angerman/Projects/zw3rk/ppc64rt/SPEC.md:56).
 - **Evidence & Root Cause**: The PO60 executor handles logical operations, permutations, merges, splats, comparisons, and sign operations, then declines everything else. Instructions explicitly required by SPEC §2.2—including `xsadddp`, `xssubdp`, `xsmuldp`, `xsdivdp`, and the listed vector arithmetic families—reach the illegal-instruction path. For example, neither XSADDDP’s XO8 32 nor XVADDDP’s XO8 96 has an execution case.
 - **Remediation**: Implement the promised arithmetic families in the reference interpreter, including FPSCR effects and VSR overlap semantics.
 
-- [ ] **P64-R7-8 — BUG — MEDIUM**
+- [x] **P64-R7-8 — BUG — MEDIUM**
 
 - **Summary**: Register-controlled shifts wrap oversized counts instead of producing the required zero or sign-filled result.
 - **Locations**: [interp.h:566](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.h:566), [interp.h:576](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.h:576), [interp.h:602](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.h:602).
 - **Evidence & Root Cause**: Word logical shifts reduce the actual shift to `n & 31`; doubleword shifts discard count bit 6. Arithmetic shifts similarly discard their oversized-count indicator. Thus `slw(1,32)` and `sld(1,64)` return `1` instead of `0`. Negative `sraw`/`srad` operands shifted by 32/64 retain their original value and clear carry instead of sign-filling. The `n < 64` checks cannot reject counts already masked below 64.
 - **Remediation**: Decode six count bits for word operations and seven for doubleword operations, then handle oversized counts explicitly before performing C shifts.
 
-- [ ] **P64-R7-9 — BUG — MEDIUM**
+- [x] **P64-R7-9 — BUG — MEDIUM**
 
 - **Summary**: `srad` and `sradi` compute CA32 differently from the required CA result.
 - **Locations**: [interp.h:580](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.h:580).
 - **Evidence & Root Cause**: CA examines all discarded bits, while CA32 examines only discarded bits from the low word. With `RS=0x8000000100000000` and shift 40, the implementation sets CA but clears CA32. These instructions copy the same carry result into both fields. [QEMU arithmetic-shift implementation](https://raw.githubusercontent.com/qemu/qemu/v9.2.0/target/ppc/translate.c).
 - **Remediation**: Calculate the architectural carry once and assign it to both CA and CA32.
 
-- [ ] **P64-R7-10 — BUG — MEDIUM**
+- [x] **P64-R7-10 — BUG — MEDIUM**
 
 - **Summary**: `subfo` ignores OE and leaves overflow state unchanged.
 - **Locations**: [interp.c:605](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:605).
 - **Evidence & Root Cause**: The `subf` case computes `y - x` and exits without invoking overflow handling, although the surrounding dispatcher decoded OE. With RA=`1`, RB=`INT64_MIN`, and clear XER, `subfo` returns `INT64_MAX` without setting OV/SO. Non-overflowing operations also fail to clear previous overflow state; the record form consequently copies stale SO into CR0.
 - **Remediation**: Apply the subtraction overflow calculation when OE is set, including OV32 and sticky SO, while preserving carry fields.
 
-- [ ] **P64-R7-11 — BUG — MEDIUM**
+- [x] **P64-R7-11 — BUG — MEDIUM**
 
 - **Summary**: Overflow-enabled integer division clears overflow on division by zero.
 - **Locations**: [interp.h:395](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.h:395).
 - **Evidence & Root Cause**: Both zero-divisor branches assign a quotient but leave `ov=false`. The final OE handler therefore clears OV and OV32 instead of setting overflow and sticky SO. This affects signed and unsigned word and doubleword division. The defect concerns defined exception flags, independently of the quotient chosen for this exceptional case. [QEMU division implementation](https://raw.githubusercontent.com/qemu/qemu/v9.2.0/target/ppc/translate.c).
 - **Remediation**: Include a zero divisor in the overflow predicate for every divide variant.
 
-- [ ] **P64-R7-12 — DEFECT — MEDIUM**
+- [x] **P64-R7-12 — DEFECT — MEDIUM**
 
 - **Summary**: `addex` is decoded but never executed.
 - **Locations**: [decode.c:495](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/decode.c:495), [decode.h:52](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/decode.h:52), [interp.c:589](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:589).
 - **Evidence & Root Cause**: The decoder recognizes ADDEX, but no interpreter dispatch case implements it. Valid CY=0 instructions reach the illegal-instruction path. The header’s description also incorrectly identifies CA32 as its carry input; ADDEX uses the OV/OV32 carry chain. [QEMU ADDEX implementation](https://raw.githubusercontent.com/qemu/qemu/master/target/ppc/translate/fixedpoint-impl.c.inc).
 - **Remediation**: Implement the supported CY semantics and correct the instruction metadata, keeping ADDEX’s carry chain distinct from ordinary CA arithmetic.
 
-- [ ] **P64-R7-13 — BUG — MEDIUM**
+- [x] **P64-R7-13 — BUG — MEDIUM**
 
 - **Summary**: `prtyw` discards the upper word’s parity result.
 - **Locations**: [vec.c:294](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:294), [interp.h:505](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.h:505).
 - **Evidence & Root Cause**: `prtyw` calls `interp_prty64(s,4)`, examining only the low four bytes and returning one bit. It must produce separate parity results for both words. With `RS=0x0000000100000000`, the expected result has bit 32 set, but this implementation returns zero. [QEMU parity implementation](https://raw.githubusercontent.com/qemu/qemu/master/target/ppc/translate/fixedpoint-impl.c.inc).
 - **Remediation**: Calculate both word parities and place them in bits 0 and 32.
 
-- [ ] **P64-R7-14 — BUG — MEDIUM**
+- [x] **P64-R7-14 — BUG — MEDIUM**
 
 - **Summary**: `setnbc` implements inverted Boolean semantics instead of negative Boolean semantics.
 - **Locations**: [power10.h:57](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/power10.h:57).
 - **Evidence & Root Cause**: XO 448 is grouped with `setbcr` as an inversion. Consequently, a clear CR bit returns `1`, and a set bit returns `0`. `setnbc` must return `0` or all ones, respectively. The misleading comment reinforces the same mistake. [QEMU Boolean-condition implementation](https://raw.githubusercontent.com/qemu/qemu/master/target/ppc/translate/fixedpoint-impl.c.inc).
 - **Remediation**: Separate Boolean reversal from arithmetic negation and implement each mnemonic’s result independently.
 
-- [ ] **P64-R7-15 — BUG — MEDIUM**
+- [x] **P64-R7-15 — BUG — MEDIUM**
 
 - **Summary**: CR logical instructions disagree between decoding and execution.
 - **Locations**: [decode.c:131](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/decode.c:131), [interp.c:157](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:157).
 - **Evidence & Root Cause**: The decoder recognizes `crnor` at XO 33, but the interpreter omits it, so valid `crnor` and the common `crnot` alias trap. Separately, the decoder identifies XO 321 as `crorc`, while the executor correctly uses XO 417. This rejects the valid encoding during decoding and misclassifies a different encoding. [IBM opcode reference](https://www.ibm.com/docs/en/aix/7.3.0?topic=reference-appendix-b-instruction-set-sorted-by-mnemonic).
 - **Remediation**: Add CRNOR execution and correct CRORC’s decode entry. Keep the accepted encoding set consistent across both paths.
 
-- [ ] **P64-R7-16 — BUG — MEDIUM**
+- [x] **P64-R7-16 — BUG — MEDIUM**
 
 - **Summary**: Prefixed execution bypasses prefix-format and reserved-bit validation.
 - **Locations**: [interp.c:313](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:313), [prefix.c:58](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:58), [decode.c:626](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/decode.c:626).
 - **Evidence & Root Cause**: Eight-byte instructions enter `ppc64_exec_prefixed()` directly. That executor dispatches primarily by suffix opcode without applying the decoder’s prefix-form and reserved-bit checks. For example, prefix `0x04000000` followed by `0x38600001` executes as `paddi r3,0,1`, although PADDI requires the MLS prefix form. Prefix `0x06040000` likewise executes despite a reserved bit rejected by `decode_prefixed()`.
 - **Remediation**: Validate the complete instruction pair before any state or memory effect, using one authoritative encoding validator that also covers supported prefixed splats.
 
-- [ ] **P64-R7-17 — DEFECT — MEDIUM**
+- [x] **P64-R7-17 — DEFECT — MEDIUM**
 
 - **Summary**: Valid prefixed scalar VSX transfers are decoded but missing from execution.
 - **Locations**: [decode.c:644](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/decode.c:644), [prefix.c:110](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:110), [prefix.c:199](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:199).
 - **Evidence & Root Cause**: The decoder accepts PLXSSP, PSTXSD, and PSTXSSP at suffix primary opcodes 43, 46, and 47. None appears in the executor’s transfer cases. Valid pairs such as `04000000 AC200000`, `04000000 B8200000`, and `04000000 BC200000` therefore trap instead of transferring data.
 - **Remediation**: Implement these forms with the correct VSR bank, single-precision conversion, displacement, and fault behavior.
 
-- [ ] **P64-R7-18 — BUG — MEDIUM**
+- [x] **P64-R7-18 — BUG — MEDIUM**
 
 - **Summary**: Prefixed instructions crossing a 64-byte boundary do not raise the required alignment exception.
 - **Locations**: [interp.c:54](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:54).
 - **Evidence & Root Cause**: Fetch checks only four-byte alignment and unconditionally fetches the suffix. A prefix at `PC % 64 == 60` therefore executes when both words are readable. At a page boundary it can instead report a suffix access fault. Power ISA requires an alignment exception for this placement before fetching the suffix. [QEMU implementation referencing ISA §1.9](https://raw.githubusercontent.com/qemu/qemu/v9.2.0/target/ppc/translate.c).
 - **Remediation**: Detect the forbidden boundary immediately after recognizing a prefix, report the alignment trap at the prefix PC, and reconcile any contrary cross-page expectations in the project specification.
 
-- [ ] **P64-R7-19 — BUG — MEDIUM**
+- [x] **P64-R7-19 — BUG — MEDIUM**
 
 - **Summary**: Invalid update-form loads and stores modify architectural state before reporting illegal instruction.
 - **Locations**: [interp.c:258](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:258).
 - **Evidence & Root Cause**: `mem_access()` performs the memory transfer and writes the load destination before checking `RA==0` or update-load `RA==RT`. Thus `lwzu r3,0(r3)` can overwrite r3 and then trap; an update store with RA zero can modify memory before trapping. Inaccessible addresses also produce an access fault before the invalid operands are recognized.
 - **Remediation**: Validate update-form operands before callbacks, destination writes, or reservation invalidation.
 
-- [ ] **P64-R7-20 — BUG — MEDIUM**
+- [x] **P64-R7-20 — BUG — MEDIUM**
 
 - **Summary**: `lqarx` accepts prohibited destination/address-register overlaps.
 - **Locations**: [vec.c:102](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:102).
 - **Evidence & Root Cause**: Validation checks only that RT is even. It omits the restrictions against RT equaling RA or RB, so prohibited forms perform the load, overwrite registers, and establish a reservation. The independent implementation rejects these overlaps before memory access. [QEMU LQARX validation](https://raw.githubusercontent.com/qemu/qemu/v9.2.0/target/ppc/translate.c).
 - **Remediation**: Enforce all LQARX register restrictions before calculating or accessing memory.
 
-- [ ] **P64-R7-21 — BUG — MEDIUM**
+- [x] **P64-R7-21 — BUG — MEDIUM**
 
 - **Summary**: `mtvsrdd` reads GPR0 when RA zero requires a literal zero.
 - **Locations**: [fp.c:514](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp.c:514), [vec.c:362](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:362).
 - **Evidence & Root Cause**: Both implementations assign `cpu->gpr[ra]` to the high VSR half unconditionally. With RA=0 and nonzero GPR0, they inject that value instead of zero. This violates MTVSRDD’s special RA-zero rule. [Power ISA v3.0C, MTVSRDD](https://ftp.libre-soc.org/PowerISA_public.v3.0C.pdf#page=135).
 - **Remediation**: Apply the literal-zero rule in both paths, preferably through a shared implementation.
 
-- [ ] **P64-R7-22 — BUG — MEDIUM**
+- [x] **P64-R7-22 — BUG — MEDIUM**
 
 - **Summary**: VSX word transfers reject the extension bit needed to access VSR32–63.
 - **Locations**: [fp.c:522](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp.c:522), [vec.c:375](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:375).
 - **Evidence & Root Cause**: `mtvsrwa` treats raw bit 0 as forbidden Rc, despite calculating a TX-extended register index. `mfvsrwz` and `mtvsrwz` likewise reject that bit and use only the five-bit register number. Valid transfers involving VSR32–63 consequently trap. Bit 0 is the VSR extension for these instructions. [Power ISA v3.0C, register-transfer instructions](https://ftp.libre-soc.org/PowerISA_public.v3.0C.pdf#page=133).
 - **Remediation**: Decode TX instead of Rc and use the complete six-bit VSR index consistently.
 
-- [ ] **P64-R7-23 — BUG — MEDIUM**
+- [x] **P64-R7-23 — BUG — MEDIUM**
 
 - **Summary**: `vsumsws` adds the wrong word from VB.
 - **Locations**: [fp_str.c:851](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_str.c:851).
 - **Evidence & Root Cause**: The accumulator reads `pack_get(blo,bhi,3,32)`, selecting the highest numerical word. VSUMSWS adds architectural VB bits 96–127, which correspond to the lowest word in this representation. With VA zero, VB low word `1`, and VB high word `2`, the implementation produces `2` instead of `1`. [AltiVec instruction reference](https://www.nxp.com/docs/en/reference-manual/ALTIVECPEM.pdf#page=278).
 - **Remediation**: Read VB through the lane index corresponding to architectural word 3—index zero in these little-endian packing helpers.
 
-- [ ] **P64-R7-24 — BUG — MEDIUM**
+- [x] **P64-R7-24 — BUG — MEDIUM**
 
 - **Summary**: VMX saturation status and VSCR access are unimplemented.
 - **Locations**: [fp_str.c:782](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_str.c:782), [fp_str.c:851](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_str.c:851), [cpu.h:62](/Users/angerman/Projects/zw3rk/ppc64rt/src/core/cpu.h:62), [SPEC.md:57](/Users/angerman/Projects/zw3rk/ppc64rt/SPEC.md:57).
 - **Evidence & Root Cause**: `vaddubs`, `vsububs`, and `vsumsws` clamp results but never set `cpu->vscr`. For example, unsigned byte `255+1` yields 255 while leaving SAT clear. No interpreter implementation reads or writes VSCR, and the explicitly required `mfvscr`/`mtvscr` instructions are absent. Saturation must set the sticky SAT state. [AltiVec programming reference](https://www.nxp.com/docs/en/reference-manual/ALTIVECPOWERISAPEM.pdf).
 - **Remediation**: Implement VSCR transfers and set sticky SAT whenever any affected lane saturates, preserving unrelated VSCR fields.
 
-- [ ] **P64-R7-25 — BUG — MEDIUM**
+- [x] **P64-R7-25 — BUG — MEDIUM**
 
 - **Summary**: `fcfid` ignores guest rounding and required FPSCR updates.
 - **Locations**: [fp.c:421](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp.c:421).
 - **Evidence & Root Cause**: Conversion is a bare `(double)s` without installing FPSCR[RN] or recording rounding/classification flags. Under round-toward-positive-infinity, integer `2^53+1` should become `2^53+2`; with the normal host nearest mode it becomes `2^53`. Inexact and result-status fields remain stale, and the record form copies stale FPSCR status into CR1. [IBM assembler reference](https://www.ibm.com/docs/ssw_aix_71/assembler/assembler_pdf.pdf).
 - **Remediation**: Perform conversion under guest rounding semantics and update all defined FPSCR fields before applying Rc.
 
-- [ ] **P64-R7-26 — BUG — MEDIUM**
+- [x] **P64-R7-26 — BUG — MEDIUM**
 
 - **Summary**: `fcmpu` and `xscmpudp` update CR but leave FPSCR comparison and exception state stale.
 - **Locations**: [fp.c:331](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp.c:331), [power10.h:122](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/power10.h:122).
 - **Evidence & Root Cause**: Both handlers call the value-only `fp_cmpu()` helper and write only the selected CR field. Neither updates FPSCR[FPCC], and signaling NaNs do not set VXSNAN and its summaries. Even an ordinary finite comparison leaves a previous FPCC result observable through `mffs`. [QEMU floating-point comparison implementation](https://raw.githubusercontent.com/qemu/qemu/v9.2.0/target/ppc/fpu_helper.c).
 - **Remediation**: Use a stateful comparison helper that distinguishes signaling NaNs and updates CR and FPSCR together.
 
-- [ ] **P64-R7-27 — BUG — MEDIUM**
+- [x] **P64-R7-27 — BUG — MEDIUM**
 
 - **Summary**: Single-precision overflow is missed when directed rounding produces the largest finite value.
 - **Locations**: [fp_single.c:159](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_single.c:159).
 - **Evidence & Root Cause**: `fp1_single()` sets OX only when `isinf(f)` is true. Under round-toward-zero, `fmuls` with operands `FLT_MAX` and `2` produces finite `FLT_MAX`; the implementation records only inexact. The mathematical result overflowed the single-precision range regardless of the finite rounded endpoint.
 - **Remediation**: Determine overflow from the operation’s range and rounding semantics, rather than testing whether the final representation is infinity.
 
-- [ ] **P64-R7-28 — BUG — MEDIUM**
+- [x] **P64-R7-28 — BUG — MEDIUM**
 
 - **Summary**: The long-double intermediate can double-round single-precision arithmetic incorrectly.
 - **Locations**: [fp_single.c:159](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_single.c:159), [fp_single.c:242](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_single.c:242), [fp_single.c:354](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_single.c:354).
 - **Evidence & Root Cause**: Arithmetic first rounds into `long double`, then into `float`. On the AArch64 Linux binary128 path, nearest-mode `fadds` with FRA=`1+2^-24` and FRB=`2^-200` loses the small positive addend in the intermediate. The subsequent binary32 tie rounds to `1`, although the exact sum lies above the midpoint and must round to `1+2^-23`. The absorbed-addend correction explicitly returns when `LDBL_MANT_DIG != 53`. The instruction operates on the full significands before rounding its result. [IBM PowerPC instruction reference](https://datasheets.chipdb.org/IBM/PowerPC/750/750cx_um3-17-05.pdf).
 - **Remediation**: Preserve discarded information through the final rounding step, or use an established correctly rounded implementation. A wider intermediate alone is insufficient.
 
-- [ ] **P64-R7-29 — BUG — MEDIUM**
+- [x] **P64-R7-29 — BUG — MEDIUM**
 
 - **Summary**: Floating-point arithmetic records generic invalid-operation status without its required cause bits.
 - **Locations**: [fp_single.c:78](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_single.c:78), [fp_single.c:138](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_single.c:138), [fp_single.c:228](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/fp_single.c:228).
 - **Evidence & Root Cause**: The exception interface reduces invalid arithmetic to `exc |= 16`, which `fp1_record()` maps only to VX. Starting with clear FPSCR, `fdiv 0,0` therefore omits VXZDZ; `fsub +Inf,+Inf` omits VXISI. Software inspecting the architected invalid-cause fields cannot distinguish these operations. [QEMU FP exception handling](https://raw.githubusercontent.com/qemu/qemu/v9.2.0/target/ppc/fpu_helper.c).
 - **Remediation**: Classify invalid operations from opcode and operand classes, set their specific sticky causes, and derive VX/FEX/FX consistently.
 
-- [ ] **P64-R7-30 — BUG — MEDIUM**
+- [x] **P64-R7-30 — BUG — MEDIUM**
 
 - **Summary**: Signal frames expose the internal XER encoding instead of the guest architectural encoding.
 - **Locations**: [cpu.h:19](/Users/angerman/Projects/zw3rk/ppc64rt/src/core/cpu.h:19), [vec.c:212](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/vec.c:212), [sigframe.c:246](/Users/angerman/Projects/zw3rk/ppc64rt/src/os/sigframe.c:246), [sigframe.c:339](/Users/angerman/Projects/zw3rk/ppc64rt/src/os/sigframe.c:339).
@@ -1618,130 +1770,130 @@ Completed the static review of all 13 files in `src/interp/` and the related CPU
 
 ---
 
-## 9. `mips64rt` (`f29422b`) — 18 Round-7 Findings (`0 / 18` Resolved)
+## 9. `mips64rt` (`f29422b`) — 18 Round-7 Findings (`18 / 18` Resolved)
 
 Read all ten files in `src/interp/` end-to-end and the CPU/FPU/trap headers present. There is no `include/` directory or separate MSA header. No builds, tests, or edits were performed. Examples below are static deductions.
 
-- [ ] **M64-R7-1 — BUG — HIGH**
+- [x] **M64-R7-1 — BUG — HIGH**
 
 - **Summary**: R6 binaries are admitted but execute incompatible R2 semantics.
 - **Locations**: [interp.c:755](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/interp.c:755), [cpu.h:142](/Users/angerman/Projects/zw3rk/mips64rt/src/core/cpu.h:142), [loader.c:370](/Users/angerman/Projects/zw3rk/mips64rt/src/loader.c:370).
 - **Evidence & Root Cause**: ELF admission checks ABI without selecting an ISA revision. R6 `BGEUC` uses opcode `0x06`, which the interpreter always executes as `BLEZ`. With distinct source registers containing 2 and 1, a taken compact branch becomes an untaken delayed branch. CPU state also lacks forbidden-slot tracking, so required R6 CTI rejection cannot occur. [MIPS64 instruction reference](https://www.cipunited.com/xlx/files/document/202008/1205490289250.pdf).
 - **Remediation**: Introduce revision-aware admission, decoding, and forbidden-slot state. Reject unsupported revisions until implemented.
 
-- [ ] **M64-R7-2 — BUG — HIGH**
+- [x] **M64-R7-2 — BUG — HIGH**
 
 - **Summary**: LL/SC reservations survive interfering writes through shared-memory aliases.
 - **Locations**: [unaligned.c:297](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:297), [unaligned.c:383](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:383), [unaligned.c:494](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:494), [vm_file.c:497](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm_file.c:497).
 - **Evidence & Root Cause**: Reservation generations identify guest virtual addresses, while native `MAP_SHARED` mappings can alias the same backing word. Thread A can load-linked through one mapping; thread B can change and restore the word through another mapping whose epoch bucket differs. Neither A’s generation nor its reservation changes, and the final value CAS succeeds incorrectly. Process-private generation arrays likewise miss writes from another process.
 - **Remediation**: Track reservations by backing identity and offset, with invalidation shared across participating mappings/processes. Value comparison alone cannot detect ABA interference.
 
-- [ ] **M64-R7-3 — BUG — HIGH**
+- [x] **M64-R7-3 — BUG — HIGH**
 
 - **Summary**: COP1 branch delay-slot faults discard the installed signal-handler PC.
 - **Locations**: [fp.c:812](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:812), [interp.c:849](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/interp.c:849).
 - **Evidence & Root Cause**: `fp_branch()` executes its slot through `interp_step()`. That function converts handled faults and dispatcher-owned PC changes into return value zero. `fp_branch()` then overwrites the handler PC with the ordinary branch destination. For example, a handled overflow in a `BC1T` delay slot installs a signal frame but skips the handler, continuing with signal-delivery register state.
 - **Remediation**: Preserve an explicit redirected-PC outcome when executing a delay slot, or share the integer branch’s slot-execution contract.
 
-- [ ] **M64-R7-4 — BUG — HIGH**
+- [x] **M64-R7-4 — BUG — HIGH**
 
 - **Summary**: Unaligned merge accesses deliver memory faults twice.
 - **Locations**: [unaligned.c:70](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:70), [unaligned.c:88](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:88), [mem.c:91](/Users/angerman/Projects/zw3rk/mips64rt/src/os/mem.c:91).
 - **Evidence & Root Cause**: `guest_ld8()`/`guest_st8()` already deliver faults. Successful handler installation deliberately leaves `exit_reason == MIPS64_EXIT_NONE`; `load_bytes()`/`store_bytes()` interpret that as an undelivered fault and call `mips_fault()` again. Normally the first delivery blocks SIGSEGV, so the second marks execution fatal before the handler runs. `SA_NODEFER` instead permits an erroneous nested frame.
 - **Remediation**: Propagate accessor failures without raising another fault.
 
-- [ ] **M64-R7-5 — BUG — HIGH**
+- [x] **M64-R7-5 — BUG — HIGH**
 
 - **Summary**: FCC1–FCC7 branches lose their taken target during delay-slot memory recovery.
 - **Locations**: [decode.c:126](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/decode.c:126), [decode.h:207](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/decode.h:207), [mem_recover.c:197](/Users/angerman/Projects/zw3rk/mips64rt/src/dbt/mem_recover.c:197).
 - **Evidence & Root Cause**: `is_bc()` requires `rt <= 3`, excluding branches whose `rt` field selects FCC1–FCC7. Recovery therefore classifies a taken `bc1t $fcc1,target` as a nonbranch and resumes at `branch_pc+8`. Additionally, the header reverses the BC1T/BC1FL constants, making the likely classifier incorrect.
 - **Remediation**: Accept all FCC selectors, derive likely from `rt & 2`, and correct the constants.
 
-- [ ] **M64-R7-6 — BUG — HIGH**
+- [x] **M64-R7-6 — BUG — HIGH**
 
 - **Summary**: NAN2008 binaries execute legacy NaN semantics.
 - **Locations**: [fp.c:86](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:86), [fp.h:39](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.h:39), [loader.c:811](/Users/angerman/Projects/zw3rk/mips64rt/src/loader.c:811).
 - **Evidence & Root Cause**: Admission accepts `EF_MIPS_NAN2008`, but loading never initializes the NaN mode and interpreter classification always uses legacy polarity. Consequently, NAN2008 quiet NaN `0x7fc00000` raises Invalid, signaling NaN `0x7f800001` does not, and invalid arithmetic produces `0x7fbfffff`, which is signaling under NAN2008. [GNU NaN-encoding documentation](https://sourceware.org/binutils/docs-2.24/as/MIPS-NaN-Encodings.html).
 - **Remediation**: Initialize and consistently honor the selected NaN mode, including default results and conversions; otherwise reject that mode.
 
-- [ ] **M64-R7-7 — BUG — HIGH**
+- [x] **M64-R7-7 — BUG — HIGH**
 
 - **Summary**: Destination/source aliasing suppresses signaling-NaN exceptions.
 - **Locations**: [fp.c:341](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:341), [fp.c:381](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:381), [fp.c:505](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:505), [fp_ps.c:273](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp_ps.c:273).
 - **Evidence & Root Cause**: Several arithmetic paths write the default quiet NaN into `fd` before rereading source registers to detect signaling NaNs. Legacy `SQRT.S $f0,$f0` with `0x7fc00000` therefore replaces its signaling operand before classification, suppressing Invalid and an enabled trap. Binary arithmetic and COP1X have the same ordering defect.
 - **Remediation**: Snapshot and classify all source bits before destination writeback.
 
-- [ ] **M64-R7-8 — BUG — HIGH**
+- [x] **M64-R7-8 — BUG — HIGH**
 
 - **Summary**: COP1X multiply-add uses incorrect rounding semantics and ignores guest RM.
 - **Locations**: [fp_ps.c:287](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp_ps.c:287), [fp_ps.c:330](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp_ps.c:330).
 - **Evidence & Root Cause**: The R2 path uses host `fma()`/`fmaf()`, although legacy MADD rounds the intermediate product and then the sum. With `fr=-1`, `fs=1+2^-23`, `ft=1-2^-23`, nearest-rounded `MADD.S` should produce zero; this code produces `-2^-46`. Neither path consults guest RM, also breaking directed rounding. [MIPS MADD specification](https://personal.denison.edu/~bressoud/cs281-s10/Supplements/ISA_Vol_2.pdf).
 - **Remediation**: Implement the selected architecture’s intermediate and final rounding, using guest RM and combined exception accounting.
 
-- [ ] **M64-R7-9 — BUG — MEDIUM**
+- [x] **M64-R7-9 — BUG — MEDIUM**
 
 - **Summary**: Misaligned JR/JALR targets fault before required link and delay-slot effects.
 - **Locations**: [interp.c:787](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/interp.c:787).
 - **Evidence & Root Cause**: The target-alignment check returns before writing JALR’s link register or executing its slot. The architectural exception occurs when the target is subsequently fetched. A misaligned `jalr` followed by a store therefore incorrectly skips both the link update and store, and records the jump PC instead of the target. [MIPS instruction reference](https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-6.06.pdf).
 - **Remediation**: Commit the link and slot first; raise the alignment fault during target fetch.
 
-- [ ] **M64-R7-10 — BUG — MEDIUM**
+- [x] **M64-R7-10 — BUG — MEDIUM**
 
 - **Summary**: Traditional GNU arithmetic BREAK encodings deliver the wrong signal.
 - **Locations**: [interp.c:54](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/interp.c:54), [interp.c:220](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/interp.c:220).
 - **Evidence & Root Cause**: `trap_code()` extracts only bits 15:6, suitable for register trap instructions but insufficient for BREAK’s 20-bit code. GNU `break 7` (`0x0007000d`) and `break 6` (`0x0006000d`) become code zero and deliver SIGTRAP instead of the arithmetic SIGFPE mapping. Linux normalizes the historical BREAK encoding separately. [Linux MIPS trap handling](https://code.googlesource.com/linux/torvalds/linux/+/0d19d9e14687ff6f43d6c4806ace9ff682d7703f/arch/mips/kernel/traps.c).
 - **Remediation**: Separate BREAK’s full code extraction/normalization from TEQ/TNE-family extraction.
 
-- [ ] **M64-R7-11 — BUG — MEDIUM**
+- [x] **M64-R7-11 — BUG — MEDIUM**
 
 - **Summary**: Misaligned LL/SC/LLD/SCD report SIGSEGV instead of SIGBUS.
 - **Locations**: [unaligned.c:459](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:459), [unaligned.c:490](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:490), [unaligned.c:588](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:588), [unaligned.c:620](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/unaligned.c:620).
 - **Evidence & Root Cause**: All four alignment checks call `mips_fault()`, which raises SIGSEGV. Linux MIPS rejects alignment emulation for these instructions and delivers SIGBUS, including when FIXADE is enabled. [Linux unaligned-access handling](https://codebrowser.dev/linux/linux/arch/mips/kernel/unaligned.c.html).
 - **Remediation**: Use the existing `mips_bus_fault()` path for these alignment failures.
 
-- [ ] **M64-R7-12 — BUG — MEDIUM**
+- [x] **M64-R7-12 — BUG — MEDIUM**
 
 - **Summary**: FCSR Cause bits accumulate across arithmetic instructions.
 - **Locations**: [fp.c:103](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:103), [fp.c:109](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:109), [fp.c:841](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:841).
 - **Evidence & Root Cause**: `fp_raise()` only ORs causes; `fp_clear_trap()` resets only thread-local trap state. Masked `DIV.S 1/0` followed by exact `ADD.S 1+1` leaves Cause.Z set. Causes must describe the latest arithmetic operation; only Flags are sticky. [MIPS64 FCSR specification](https://0x04.net/~mwk/doc/mips/MD00083-2B-MIPS64INT-AFP-02.50.pdf).
 - **Remediation**: Replace the Cause field per arithmetic operation while preserving cumulative Flags.
 
-- [ ] **M64-R7-13 — BUG — MEDIUM**
+- [x] **M64-R7-13 — BUG — MEDIUM**
 
 - **Summary**: Trapped floating-point instructions incorrectly modify sticky Flags.
 - **Locations**: [fp.c:109](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:109), [fp.c:144](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:144), [fp.c:207](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:207).
 - **Evidence & Root Cause**: Exceptions update Flags independently. With Overflow enabled and Inexact disabled, overflowing arithmetic arms the Overflow trap and then sets Flag.I. Finalization restores the destination and FCC, but leaves that flag changed. Trapped instructions must preserve all Flags. [MIPS64 exception specification](https://0x04.net/~mwk/doc/mips/MD00083-2B-MIPS64INT-AFP-02.50.pdf).
 - **Remediation**: Accumulate exceptions, determine whether the instruction traps, then update Flags only on completion.
 
-- [ ] **M64-R7-14 — BUG — MEDIUM**
+- [x] **M64-R7-14 — BUG — MEDIUM**
 
 - **Summary**: Division mishandles infinity operands.
 - **Locations**: [fp.c:457](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:457), [fp.c:585](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:585).
 - **Evidence & Root Cause**: For `DIV.S 1/+∞` under round-toward-positive-infinity, the residual calculation evaluates `0*∞`, obtains NaN, and incorrectly advances zero to `2^-149`, also setting Inexact. Both S and D paths additionally raise Divide-by-zero for `∞/0`, which should return signed infinity without that exception. [MIPS64 division exception rules](https://0x04.net/~mwk/doc/mips/MD00083-2B-MIPS64INT-AFP-02.50.pdf).
 - **Remediation**: Resolve zero/infinity operand combinations before residual-based rounding.
 
-- [ ] **M64-R7-15 — BUG — MEDIUM**
+- [x] **M64-R7-15 — BUG — MEDIUM**
 
 - **Summary**: FCSR’s flush-to-zero control is accepted but ignored.
 - **Locations**: [fpmove.c:192](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fpmove.c:192), [fp.c:159](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:159), [fp.c:194](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:194).
 - **Evidence & Root Cause**: `CTC1` stores FS bit 24, but arithmetic never reads it. With FS set, `MUL.S(2^-126,0.5)` returns subnormal `2^-127` instead of flushing the result to zero. [MIPS64 FS definition](https://0x04.net/~mwk/doc/mips/MD00083-2B-MIPS64INT-AFP-02.50.pdf).
 - **Remediation**: Apply FS result handling and exception accounting consistently across scalar arithmetic, conversions, PS, and multiply-add.
 
-- [ ] **M64-R7-16 — BUG — MEDIUM**
+- [x] **M64-R7-16 — BUG — MEDIUM**
 
 - **Summary**: Paired-single cancellation produces the wrong zero sign under round-down.
 - **Locations**: [fp_ps.c:121](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp_ps.c:121), [fp.c:256](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:256).
 - **Evidence & Root Cause**: `ADD.PS(+1,-1)` and `SUB.PS(+1,+1)` produce host-rounded positive zero. `fp_adj_f()` preserves it because numeric `r == q`, even when guest RM requires negative zero. Scalar ADD/SUB already contain a dedicated cancellation correction that PS lacks.
 - **Remediation**: Apply the signed-zero cancellation rule independently to both PS lanes.
 
-- [ ] **M64-R7-17 — DEFECT — MEDIUM**
+- [x] **M64-R7-17 — DEFECT — MEDIUM**
 
 - **Summary**: Required FCSR alias-register accesses raise SIGILL.
 - **Locations**: [fpmove.c:181](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fpmove.c:181).
 - **Evidence & Root Cause**: CFC1/CTC1 recognize only control registers 0 and 31. Legal FCCR register 25, FEXR register 26, and FENR register 28 accesses return `MIPS_FAULT`, which becomes SIGILL. These aliases are required when the R2 FPU is implemented. [MIPS64 control-register specification](https://0x04.net/~mwk/doc/mips/MD00083-2B-MIPS64INT-AFP-02.50.pdf).
 - **Remediation**: Implement alias packing, writable masks, shared FCSR updates, and applicable write-triggered exception checks.
 
-- [ ] **M64-R7-18 — DEFECT — MEDIUM**
+- [x] **M64-R7-18 — DEFECT — MEDIUM**
 
 - **Summary**: Valid floating-point conditional moves are unimplemented.
 - **Locations**: [fp.c:667](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp.c:667).
@@ -1750,249 +1902,249 @@ Read all ten files in `src/interp/` end-to-end and the CPU/FPU/trap headers pres
 
 ---
 
-## 10. `sparc64rt` (`bab379d`) — 35 Round-7 Findings (`0 / 35` Resolved)
+## 10. `sparc64rt` (`bab379d`) — 35 Round-7 Findings (`35 / 35` Resolved)
 
 Reviewed all 18 files in `src/interp/` and the relevant CPU, window, FPU, VIS, and trap headers end-to-end using read-only review lanes. No builds or tests were run; no files were changed. Counterexamples below are static traces.
 
-- [ ] **S64-R7-1 — BUG — HIGH**
+- [x] **S64-R7-1 — BUG — HIGH**
 
 - **Summary**: Nested delay-slot branches permit unbounded host recursion.
 - **Locations**: [interp.c:244](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:244), [interp.c:349](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:349).
 - **Evidence & Root Cause**: `exec_delay` recursively invokes `exec_cti`, which invokes `exec_delay` again. Two adjacent, non-annulled `ba` instructions, each targeting itself, alternate indefinitely through these calls. Guest code can exhaust the translator’s stack and prevent return to the dispatcher.
 - **Remediation**: Execute delayed control transfers through an iterative PC/nPC state machine with bounded work per dispatcher entry.
 
-- [ ] **S64-R7-2 — BUG — HIGH**
+- [x] **S64-R7-2 — BUG — HIGH**
 
 - **Summary**: Quad FP exceptions corrupt architectural state before trapping.
 - **Locations**: [fp_quad.c:167](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_quad.c:167), [fp_qdiv.c:111](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qdiv.c:111), [fp_qconv.c:119](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qconv.c:119).
 - **Evidence & Root Cause**: Quad handlers publish destinations/FCC before checking TEM, accrue trapped exceptions, and omit IEEE `FTT`. For `FDIVQ(1,+0)` with initial FSR `0x01000000`, the destination becomes infinity and FSR becomes `0x01000042`. The signal layer consequently classifies it as SIGILL. Quad integer conversions also bypass exception-state completion entirely.
 - **Remediation**: Use the shared exception-commit helper before publishing results. Preserve destinations, FCC, and AEXC on enabled exceptions; complete successful conversions through the same helper.
 
-- [ ] **S64-R7-3 — BUG — HIGH**
+- [x] **S64-R7-3 — BUG — HIGH**
 
 - **Summary**: Directed rounding changes exact results.
 - **Locations**: [fp_sd.c:285](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_sd.c:285), [fp_quad.c:310](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_quad.c:310), [fp_qdiv.c:245](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qdiv.c:245), [fp_qconv.c:268](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qconv.c:268).
 - **Evidence & Root Cause**: Upward/downward rounding increments based solely on sign, without requiring discarded bits. Upward `FADDS(1,1)` produces `0x40000001` instead of `0x40000000`, with NX clear. The same defect affects double and quad operations and narrowing conversions.
 - **Remediation**: Require `g || r || s` before any directed-rounding increment.
 
-- [ ] **S64-R7-4 — BUG — HIGH**
+- [x] **S64-R7-4 — BUG — HIGH**
 
 - **Summary**: FP addition/subtraction discards information needed for correct arithmetic.
 - **Locations**: [fp_sd.c:374](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_sd.c:374), [fp_sd.c:417](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_sd.c:417), [fp_quad.c:411](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_quad.c:411).
 - **Evidence & Root Cause**: Single/double alignment collapses discarded bits into sticky before arithmetic. Subtraction omits their borrow; quad subtraction likewise fails to incorporate its separated fractional bits during subtraction and normalization. `FSUBS(0x3f800000,0x3f7fffff)` produces `2^-23` with NX instead of exact `2^-24`.
 - **Remediation**: Retain an extended significand through alignment, subtraction, and normalization; round only afterward.
 
-- [ ] **S64-R7-5 — BUG — HIGH**
+- [x] **S64-R7-5 — BUG — HIGH**
 
 - **Summary**: Quad subnormal packing loses retained fraction bits and boundary rounding information.
 - **Locations**: [fp_quad.c:286](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_quad.c:286), [fp_quad.c:356](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_quad.c:356), [fp_qdiv.c:221](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qdiv.c:221), [fp_qdiv.c:290](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qdiv.c:290).
 - **Evidence & Root Cause**: Subnormal output retains `slo` but discards the fraction in `shi`. Thus `FMULQ(2^-16382,0.5)` returns zero instead of an exact nonzero subnormal. Additionally, `shift >= 113` clears guard/round, making nearest-rounded `min_subnormal × 0.75` incorrectly become zero.
 - **Remediation**: Preserve both fraction halves and compute guard/round/sticky correctly at the 113-bit boundary.
 
-- [ ] **S64-R7-6 — BUG — HIGH**
+- [x] **S64-R7-6 — BUG — HIGH**
 
 - **Summary**: `FQTOS` loses the sign of negative finite results.
 - **Locations**: [fp_qconv.c:344](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qconv.c:344), [fp_qconv.c:379](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qconv.c:379), [fp_qconv.c:792](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qconv.c:792).
 - **Evidence & Root Cause**: Binary32 packing places the sign in bit **32**. The destination assignment then casts to `uint32_t`, discarding it. `FQTOS(-1.0Q)` therefore yields positive `0x3f800000`. Finite negative overflow and underflow paths have the same defect.
 - **Remediation**: Place the binary32 sign in bit 31 in every packing branch.
 
-- [ ] **S64-R7-7 — BUG — HIGH**
+- [x] **S64-R7-7 — BUG — HIGH**
 
 - **Summary**: `FSMULD` truncates its widened product.
 - **Locations**: [fp_conv.c:579](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_conv.c:579), [fp_sd.c:663](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_sd.c:663).
 - **Evidence & Root Cause**: The caller requests a 24-bit product, discards its GRS bits, and widens the truncated significand. Multiplying two single values `0x3f800001` yields double `0x3ff0000040000000` instead of `0x3ff0000040000040`. The full product fits exactly in double precision, as reflected in [QEMU’s widening implementation](https://raw.githubusercontent.com/qemu/qemu/master/target/sparc/fop_helper.c).
 - **Remediation**: Preserve the complete 48-bit significand product before encoding the double result.
 
-- [ ] **S64-R7-8 — BUG — HIGH**
+- [x] **S64-R7-8 — BUG — HIGH**
 
 - **Summary**: `STQF` stores the high half twice.
 - **Locations**: [fp_ldst.c:208](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_ldst.c:208).
 - **Evidence & Root Cause**: Both eight-byte stores use `cpu->fp.d[2U * qi]`. The low 64 bits are never read. Every quad value with unequal halves is corrupted when stored; the comment intentionally reproducing an oracle quirk does not implement the register’s contents.
 - **Remediation**: Store `cpu->fp.d[2U * qi + 1U]` at `va + 8`.
 
-- [ ] **S64-R7-9 — BUG — HIGH**
+- [x] **S64-R7-9 — BUG — HIGH**
 
 - **Summary**: Integer `LDDA/STDA` access floating-point registers.
 - **Locations**: [decode.c:481](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/decode.c:481), [fp_ldst.c:119](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_ldst.c:119), [fp_ldst.c:218](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_ldst.c:218).
 - **Evidence & Root Cause**: The decoder unconditionally classifies integer alternate doubleword instructions as FPU operations. For example, `ldda [addr] 0x80,%l0` writes `fp.d[8]` and leaves `%l0/%l1` unchanged. `STDA` correspondingly stores unrelated FPR contents.
 - **Remediation**: Route integer doubleword instructions to integer handlers; distinguish specialized ASIs without changing the architectural register file.
 
-- [ ] **S64-R7-10 — BUG — HIGH**
+- [x] **S64-R7-10 — BUG — HIGH**
 
 - **Summary**: Misaligned atomics become fatal internal errors.
 - **Locations**: [interp_mem.c:302](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:302), [interp_mem.c:357](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:357), [threads.c:861](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/threads.c:861), [mem_space_write.c:615](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/mem_space_write.c:615).
 - **Evidence & Root Cause**: Misaligned CASA/CASXA/SWAP are declined by the host fast path, then forwarded without alignment validation to the atomic substrate. Its rejection becomes `SPARC64_STEP_INTERNAL`, terminating execution instead of delivering a recoverable guest alignment signal.
 - **Remediation**: Check natural alignment before either atomic backend and return the architectural misalignment trap.
 
-- [ ] **S64-R7-11 — BUG — MEDIUM**
+- [x] **S64-R7-11 — BUG — MEDIUM**
 
 - **Summary**: Tagged arithmetic incorrectly sets `xcc.V` and traps on 64-bit overflow.
 - **Locations**: [interp_win.c:644](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_win.c:644).
 - **Evidence & Root Cause**: Nonzero tags set both overflow bits, and trapping variants test `icc.V | xcc.V`. Consequently, `TADDcc(1,0)` wrongly sets `xcc.V`; `TADDccTV(0x7fffffff00000000,0x100000000)` wrongly traps. Tag overflow affects `icc.V`; 64-bit overflow alone does not trigger the tagged trap. [V9 tagged-arithmetic specification](https://www.cs.utexas.edu/~novak/sparcv9.pdf#page=260).
 - **Remediation**: Apply tag bits only to `icc.V` and base the TV exception solely on tag/32-bit overflow.
 
-- [ ] **S64-R7-12 — BUG — MEDIUM**
+- [x] **S64-R7-12 — BUG — MEDIUM**
 
 - **Summary**: A valid `TADDcc` encoding is misclassified as SIR.
 - **Locations**: [decode.c:198](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/decode.c:198).
 - **Evidence & Root Cause**: `op3=TADDcc, rd=31, rs1=0, i=1` is forcibly classified privileged. Thus `taddcc %g0,0,%i7` traps instead of writing zero and updating CCR. SIR uses the WRASR encoding, not this arithmetic opcode.
 - **Remediation**: Remove the false SIR special case from the ALU decoder.
 
-- [ ] **S64-R7-13 — BUG — MEDIUM**
+- [x] **S64-R7-13 — BUG — MEDIUM**
 
 - **Summary**: Legacy integer division truncates overflow, mishandles signed results, and copies incorrect flags into `xcc`.
 - **Locations**: [interp_win.c:502](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_win.c:502), [interp_win.c:591](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_win.c:591).
 - **Evidence & Root Cause**: UDIV with `Y=1`, low dividend zero, divisor one returns zero instead of saturated `0xffffffff`. SDIV producing `-1` zero-extends it. The `cc` variants calculate flags from truncated results and assign identical nibbles, incorrectly propagating 32-bit overflow to `xcc.V`. [V9 division rules](https://www.cs.utexas.edu/~novak/sparcv9.pdf#page=178).
 - **Remediation**: Saturate before publishing results, sign-extend signed quotients, and calculate each CCR nibble separately.
 
-- [ ] **S64-R7-14 — BUG — MEDIUM**
+- [x] **S64-R7-14 — BUG — MEDIUM**
 
 - **Summary**: `MULScc` implements the wrong multiply-step algorithm.
 - **Locations**: [interp_win.c:671](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_win.c:671).
 - **Evidence & Root Cause**: It uses `xcc.N xor xcc.V` to select the addend, adds before shifting, and inserts `Y[0]` into the result. With `rs1=0`, `rs2=2`, `Y=1`, and CCR zero, it returns `0x80000000` instead of low-word `2`. [QEMU’s implementation](https://raw.githubusercontent.com/qemu/qemu/master/target/sparc/translate.c) follows the required shift-then-add sequence.
 - **Remediation**: Shift using `icc.N xor icc.V`, select the multiplicand using old `Y[0]`, then add and update ICC.
 
-- [ ] **S64-R7-15 — BUG — MEDIUM**
+- [x] **S64-R7-15 — BUG — MEDIUM**
 
 - **Summary**: `FLUSHW` unnecessarily spills the current window.
 - **Locations**: [interp.c:152](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:152), [interp_win.c:249](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_win.c:249).
 - **Evidence & Root Cause**: Architectural `FLUSHW` calls a runtime snapshot helper that always writes the current `%l/%i` image. A second FLUSHW after all caller windows have been flushed still writes 128 bytes, or faults if the current stack pointer is unmapped. Architectural FLUSHW excludes the current window. [V9 A.21](https://www.cs.utexas.edu/~novak/sparcv9.pdf#page=193).
 - **Remediation**: Separate architectural caller-window flushing from full runtime snapshots.
 
-- [ ] **S64-R7-16 — BUG — MEDIUM**
+- [x] **S64-R7-16 — BUG — MEDIUM**
 
 - **Summary**: Legacy `FBfcc` instructions always decode as illegal.
 - **Locations**: [decode.c:121](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/decode.c:121).
 - **Evidence & Root Cause**: Only `op2=5` is handled. The code explicitly rejects `op2=6`, which is the legacy floating branch with `disp22` and FCC0. Valid floating branches therefore trap before condition or annul handling. Both families are implemented independently in [QEMU’s SPARC translator](https://raw.githubusercontent.com/qemu/qemu/master/target/sparc/translate.c).
 - **Remediation**: Decode `op2=6` with FCC0 and signed `disp22`, retaining the existing predicted form.
 
-- [ ] **S64-R7-17 — BUG — MEDIUM**
+- [x] **S64-R7-17 — BUG — MEDIUM**
 
 - **Summary**: Register-conditioned `FMOVr` instructions are unimplemented.
 - **Locations**: [fp.c:424](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp.c:424), [fp.c:558](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp.c:558).
 - **Evidence & Root Cause**: The function named `fp_movr` implements integer-CCR-conditioned FMOVcc. Actual FMOVr encodings, such as `FMOVRsZ` with `opf=0x025`, match neither dispatch condition and always trap.
 - **Remediation**: Decode the register-conditioned family separately, evaluate full-width `rs1`, and implement single/double/quad copies.
 
-- [ ] **S64-R7-18 — BUG — MEDIUM**
+- [x] **S64-R7-18 — BUG — MEDIUM**
 
 - **Summary**: Floating conditional moves use the wrong “unordered or greater” predicate.
 - **Locations**: [fp.c:341](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp.c:341), [fp.c:397](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp.c:397).
 - **Evidence & Root Cause**: Condition 5 returns `fcc != 2`, accepting equal/less/unordered and rejecting greater. The already-correct shared evaluator uses `fcc == 3 || fcc == 2`. This causes unwanted destination writes and missed moves.
 - **Remediation**: Reuse `sparc64_eval_fcond` instead of maintaining a divergent predicate table.
 
-- [ ] **S64-R7-19 — BUG — MEDIUM**
+- [x] **S64-R7-19 — BUG — MEDIUM**
 
 - **Summary**: `ALIGNADDRL` computes the wrong GSR alignment offset.
 - **Locations**: [decode.c:318](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/decode.c:318), [interp.c:135](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:135).
 - **Evidence & Root Cause**: ALIGNADDR and ALIGNADDRL share a handler that always stores `sum & 7`. ALIGNADDRL requires `(-sum) & 7`; a sum ending in one should set seven. Subsequent FALIGNDATA therefore splices the wrong bytes. [QEMU ALIGNADDRL implementation](https://raw.githubusercontent.com/qemu/qemu/master/target/sparc/translate.c).
 - **Remediation**: Select the negated low-three-bit offset for ALIGNADDRL while preserving the aligned destination address.
 
-- [ ] **S64-R7-20 — BUG — MEDIUM**
+- [x] **S64-R7-20 — BUG — MEDIUM**
 
 - **Summary**: Immediate `Tcc` ignores `rs1` when calculating the trap number.
 - **Locations**: [interp.c:368](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:368).
 - **Evidence & Root Cause**: Immediate form uses `d->imm` alone. With `%g2=0x60`, `ta %g2+0x0d` should select trap `0x6d`, but instead takes the generic trap path. The inverse can incorrectly invoke the syscall gate. [V9 Tcc definition](https://www.cs.utexas.edu/~novak/sparcv9.pdf#page=264).
 - **Remediation**: Always add `rs1` to the selected second operand, mask to seven bits, and carry that evaluated number through dispatch.
 
-- [ ] **S64-R7-21 — BUG — MEDIUM**
+- [x] **S64-R7-21 — BUG — MEDIUM**
 
 - **Summary**: Misaligned `JMPL/RETURN` targets produce the wrong signal and fault value.
 - **Locations**: [interp.c:298](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:298), [interp.c:316](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:316).
 - **Evidence & Root Cause**: Both paths return `SPARC64_TRAP_ILLEGAL` with the instruction word. The signal layer delivers SIGILL instead of the alignment signal, and loses the target address. Misaligned jump targets require an alignment exception. [V9 JMPL definition](https://www.cs.utexas.edu/~novak/sparcv9.pdf#page=195).
 - **Remediation**: Return an alignment-specific trap carrying the target, with correct SIGBUS mapping and pre-commit state.
 
-- [ ] **S64-R7-22 — BUG — MEDIUM**
+- [x] **S64-R7-22 — BUG — MEDIUM**
 
 - **Summary**: A pending branch target of zero is destroyed on a delay-slot trap.
 - **Locations**: [interp.c:482](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:482).
 - **Evidence & Root Cause**: Trap cleanup treats `cpu->npc == 0` as missing state. After a branch to zero whose delay instruction traps, the branch has already published the correct nPC, but cleanup replaces it with `delay_pc + 4`. Signal recovery resumes along the wrong path.
 - **Remediation**: Track whether PC/nPC were published explicitly; never use a guest address as an initialization sentinel.
 
-- [ ] **S64-R7-23 — BUG — MEDIUM**
+- [x] **S64-R7-23 — BUG — MEDIUM**
 
 - **Summary**: Integer alternate accesses reject valid `%asi` register forms.
 - **Locations**: [decode.c:468](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/decode.c:468), [interp_mem.c:412](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:412), [interp_mem.c:450](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:450).
 - **Evidence & Root Cause**: The decoder uses `asi=0xff` for `i=1`; integer handlers pass it unchanged to validation, which rejects it. Thus writing `%asi=0x80` cannot enable ordinary register-ASI loads/stores or CAS. CASA/CASXA decoding also leaves their compare-register field zero in this form.
 - **Remediation**: Resolve `regasi` from CPU state before validation and decode CAS `rs2` independently of the `i` bit.
 
-- [ ] **S64-R7-24 — BUG — MEDIUM**
+- [x] **S64-R7-24 — BUG — MEDIUM**
 
 - **Summary**: No-fault ASIs behave like ordinary writable ASIs.
 - **Locations**: [interp_mem.c:416](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:416), [interp_mem.c:549](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:549), [fp_ldst.c:218](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_ldst.c:218).
 - **Evidence & Root Cause**: ASIs `0x82/0x8a` affect only byte order. An aligned no-fault load from unmapped memory traps instead of returning zero; stores through those ASIs modify memory. FP loads and host atomic admission share the omission. [QEMU ASI helpers](https://raw.githubusercontent.com/qemu/qemu/master/target/sparc/ldst_helper.c).
 - **Remediation**: Preserve no-fault semantics through execution, suppress only eligible guest access faults, and reject stores/atomics through no-fault ASIs.
 
-- [ ] **S64-R7-25 — BUG — MEDIUM**
+- [x] **S64-R7-25 — BUG — MEDIUM**
 
 - **Summary**: `LDD/STD` accept addresses lacking doubleword alignment.
 - **Locations**: [interp_mem.c:475](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:475), [interp_mem.c:571](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:571).
 - **Evidence & Root Cause**: Two independent four-byte accesses enforce only four-byte alignment. Address `0x1004` succeeds. Four bytes before an inaccessible page, LDD commits its first register and STD writes its first word before faulting, instead of rejecting the original misaligned access.
 - **Remediation**: Check eight-byte alignment first and stage the complete load before publishing either register.
 
-- [ ] **S64-R7-26 — BUG — MEDIUM**
+- [x] **S64-R7-26 — BUG — MEDIUM**
 
 - **Summary**: FP double/quad memory operations reject valid word-aligned addresses.
 - **Locations**: [fp_ldst.c:190](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_ldst.c:190), [fp_ldst.c:219](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_ldst.c:219), [fp_ldst.c:232](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_ldst.c:232).
 - **Evidence & Root Cause**: LDDF/STDF inherit eight-byte alignment checks; LDQF/STQF explicitly require sixteen. V9 permits word alignment, with software emulation for optional stricter hardware traps. This user-mode implementation instead delivers SIGBUS for addresses such as `0x1004`. [V9 FP memory alignment](https://www.cs.utexas.edu/~novak/sparcv9.pdf#page=197).
 - **Remediation**: Support word-aligned transfers using staged four-byte pieces or equivalent checked byte access.
 
-- [ ] **S64-R7-27 — BUG — MEDIUM**
+- [x] **S64-R7-27 — BUG — MEDIUM**
 
 - **Summary**: CAS can succeed on read-only memory when comparison fails.
 - **Locations**: [interp_mem.c:228](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:228), [interp_mem.c:254](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:254).
 - **Evidence & Root Cause**: After the writable-memory fast path declines, fallback LR requires only read permission. A mismatch immediately returns success. A read-only word containing one with compare operand two therefore avoids the required write-permission fault. CAS requires writability even on mismatch. [V9 A.9](https://www.cs.utexas.edu/~novak/sparcv9.pdf#page=177).
 - **Remediation**: Validate read/write access for the entire atomic operation before comparison.
 
-- [ ] **S64-R7-28 — BUG — MEDIUM**
+- [x] **S64-R7-28 — BUG — MEDIUM**
 
 - **Summary**: Generic CASA paths compare the unused upper 32 bits.
 - **Locations**: [interp_mem.c:232](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:232), [interp_mem.c:275](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:275), [interp_mem.c:645](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:645).
 - **Evidence & Root Cause**: Generic callback/fallback execution compares a zero-extended memory word with the full 64-bit compare register. Memory `1` and compare register `0x100000001` incorrectly mismatch. The host fast path truncates correctly, making behavior backend-dependent.
 - **Remediation**: Mask compare and replacement operands to the requested atomic width before selecting any backend.
 
-- [ ] **S64-R7-29 — BUG — MEDIUM**
+- [x] **S64-R7-29 — BUG — MEDIUM**
 
 - **Summary**: FSR transfers overwrite preserved state and omit required completion effects.
 - **Locations**: [interp_mem.c:515](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:515), [interp_mem.c:590](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:590).
 - **Evidence & Root Cause**: LDFSR replaces the whole FSR, clearing FCC1–FCC3. Both load forms accept unrestricted values instead of applying writable-field masks. Successful STFSR/STXFSR never clear FTT. Reserved `rd=2..31` forms also fall through as valid transfers. [V9 FSR transfer rules](https://www.cs.utexas.edu/~novak/sparcv9.pdf#page=249).
 - **Remediation**: Validate encodings, preserve unaffected/read-only fields, and clear FTT only after successful stores.
 
-- [ ] **S64-R7-30 — BUG — MEDIUM**
+- [x] **S64-R7-30 — BUG — MEDIUM**
 
 - **Summary**: FP register writes never update FPRS dirty bits.
 - **Locations**: [fp.c:201](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp.c:201), [fp_ldst.c:223](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_ldst.c:223), [interp.c:95](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp.c:95).
 - **Evidence & Root Cause**: Destination writes modify only the FP file. After clearing dirty bits with `wr %g0,4,%fprs`, modifying `%f2` still leaves readable FPRS equal to four. Upper-bank writes similarly omit DU.
 - **Remediation**: Set the corresponding DL/DU bits on committed FP writes, including loads, conversions, and VIS operations.
 
-- [ ] **S64-R7-31 — BUG — MEDIUM**
+- [x] **S64-R7-31 — BUG — MEDIUM**
 
 - **Summary**: Widening subnormal single/double values to quad changes their values.
 - **Locations**: [fp_qconv.c:651](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qconv.c:651), [fp_qconv.c:702](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qconv.c:702).
 - **Evidence & Root Cause**: Normalization targets bit 22/51 instead of 23/52, then packs the remaining fraction at the normal scale. Single input bits `0x00000003` become `2.5 × 2^-149` instead of `3 × 2^-149`. Double input bits `3` have the analogous error.
 - **Remediation**: Normalize at the actual hidden-bit position and remove that bit using the full fraction mask.
 
-- [ ] **S64-R7-32 — BUG — MEDIUM**
+- [x] **S64-R7-32 — BUG — MEDIUM**
 
 - **Summary**: Float-to-integer conversions reject valid boundary values and raise spurious overflow.
 - **Locations**: [fp_conv.c:274](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_conv.c:274), [fp_conv.c:307](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_conv.c:307), [fp_qconv.c:568](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qconv.c:568).
 - **Evidence & Root Cause**: Quad conversion rejects exact `-2^31/-2^63`; double-to-int32 rejects `-2147483648.5` before truncation. Invalid paths commit NV|OF, so enabling only OF can trap an invalid conversion whose NV is masked.
 - **Remediation**: Check representability after truncation, permit the negative endpoint, and raise NV alone for invalid conversions.
 
-- [ ] **S64-R7-33 — BUG — MEDIUM**
+- [x] **S64-R7-33 — BUG — MEDIUM**
 
 - **Summary**: Quad zero addition/subtraction ignores operand signs.
 - **Locations**: [fp_quad.c:671](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_quad.c:671).
 - **Evidence & Root Cause**: Both-zero handling chooses the result sign solely from rounding direction. Nearest `FADDQ(-0,-0)` returns +0; downward `FADDQ(+0,+0)` returns -0. These are same-sign additions, not cancellation.
 - **Remediation**: Preserve a common effective operand sign; use rounding direction only for opposite-sign cancellation.
 
-- [ ] **S64-R7-34 — BUG — MEDIUM**
+- [x] **S64-R7-34 — BUG — MEDIUM**
 
 - **Summary**: `FDIVQ` raises divide-by-zero for infinity divided by zero.
 - **Locations**: [fp_qdiv.c:556](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_qdiv.c:556).
 - **Evidence & Root Cause**: The zero-denominator branch precedes the infinite-numerator branch. Consequently, `+Inf / +0` sets DZ and can trap, although the result is infinity without an exception. The single/double implementation already handles this case correctly.
 - **Remediation**: Handle an infinite numerator before the finite-nonzero divided-by-zero case.
 
-- [ ] **S64-R7-35 — BUG — MEDIUM**
+- [x] **S64-R7-35 — BUG — MEDIUM**
 
 - **Summary**: Enabled FP overflow/underflow traps publish multiple current-exception bits.
 - **Locations**: [fp_commit.c:21](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp_commit.c:21), [fp.c:159](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/fp.c:159).
@@ -2001,60 +2153,60 @@ Reviewed all 18 files in `src/interp/` and the relevant CPU, window, FPU, VIS, a
 
 ---
 
-## 11. `rt-series` (`a7b9bc6`) — 8 Round-7 Findings (`0 / 8` Resolved)
+## 11. `rt-series` (`a7b9bc6`) — 8 Round-7 Findings (`8 / 8` Resolved)
 
 Static review completed without running builds or tests. `tests/qual/` is absent from this checkout; the review included the torture suite’s two helper headers and all nine files under `tools/`.
 
-- [ ] **RTS-R7-1 — DEFECT — HIGH**
+- [x] **RTS-R7-1 — DEFECT — HIGH**
 
 - **Summary**: The TestFloat pipeline neither invokes the upstream tools correctly nor executes the guest FP operations being qualified.
 - **Locations**: [tools/run_grind.sh:410](/Users/angerman/Projects/zw3rk/rt-series/tools/run_grind.sh:410), lines 410–480.
 - **Evidence & Root Cause**: The generator receives `-rounds` without a type/function; upstream requires a type/function and uses `-n` for case counts. The verifier likewise receives no function argument. Beyond those invocation errors, the pipeline feeds generator output directly into the verifier. Function-mode generator results come from SoftFloat; verifying them against SoftFloat does not exercise translated guest FP instructions. Upstream explicitly requires an intervening program that executes the operation. See the [generator interface](https://www.jhauser.us/arithmetic/TestFloat-3/doc/testfloat_gen.html), [verifier interface](https://www.jhauser.us/arithmetic/TestFloat-3/doc/testfloat_ver.html), and [required pipeline](https://www.jhauser.us/arithmetic/TestFloat-3/doc/TestFloat-general.html).
 - **Remediation**: Add a guest operation runner that produces actual results and exception flags, or use a correctly configured guest `testfloat`. Specify operations and rounding modes explicitly, use supported arguments, and require a positive verified case count.
 
-- [ ] **RTS-R7-2 — BUG — MEDIUM**
+- [x] **RTS-R7-2 — BUG — MEDIUM**
 
 - **Summary**: The FP preservation comparison invokes undefined behavior by discarding `volatile`.
 - **Locations**: [tests/p3_torture.c:396](/Users/angerman/Projects/zw3rk/rt-series/tests/p3_torture.c:396); declarations at lines 371 and 392.
 - **Evidence & Root Cause**: Both `b` and `ref` are defined as `volatile double`, but their addresses are cast to `const void *` and passed to `memcmp`, which reads them through nonvolatile accesses. C11 §6.7.3p6 defines this access as undefined behavior, undermining the supposedly exact comparison. See the [C11 committee draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf).
 - **Remediation**: Read both volatile values into ordinary `double` snapshots and compare those snapshots, or compare their representations through volatile-qualified character pointers.
 
-- [ ] **RTS-R7-3 — DEFECT — MEDIUM**
+- [x] **RTS-R7-3 — DEFECT — MEDIUM**
 
 - **Summary**: The signal-frame test never checks `siginfo_t.si_signo` and accepts a missing `siginfo_t`.
 - **Locations**: [tests/p3_torture.c:108](/Users/angerman/Projects/zw3rk/rt-series/tests/p3_torture.c:108), lines 108–115 and 250–320.
 - **Evidence & Root Cause**: `g_usr1_signo` captures the handler’s separate `signo` argument, yet its assertion reports `"si_signo mismatch"`. Nothing reads `info->si_signo`. When `info == NULL`, `g_usr1_code` retains its initialized zero, which the test explicitly accepts. A translator supplying the correct handler argument but corrupt or absent signal information can therefore receive the advertised `si_signo/si_code/ucontext` PASS.
 - **Remediation**: Record and require a non-null `info`; independently check the handler argument, `info->si_signo`, and the supplied `si_code`.
 
-- [ ] **RTS-R7-4 — DEFECT — MEDIUM**
+- [x] **RTS-R7-4 — DEFECT — MEDIUM**
 
 - **Summary**: Nested alternate-stack delivery is advertised but never exercised; dropped nested signals also pass.
 - **Locations**: [tests/p3_torture.c:134](/Users/angerman/Projects/zw3rk/rt-series/tests/p3_torture.c:134), lines 134–148, 170–179, 245–246, 448–458, and 794–797.
 - **Evidence & Root Cause**: `usr1_handler` ignores the result of `raise(SIGUSR2)`. The nested handler only changes `g_nest_depth`, which no assertion examines. Suppressing SIGUSR2 leaves every PASS condition unchanged. These handlers also run without `SA_ONSTACK`, before the alternate stack is installed. The actual alternate-stack handler never delivers a nested signal, despite the coverage claim at line 8.
 - **Remediation**: Run the nested scenario with an installed alternate stack and appropriate `SA_ONSTACK` dispositions. Assert delivery count, nesting order, and actual stack residency for both handlers.
 
-- [ ] **RTS-R7-5 — DEFECT — MEDIUM**
+- [x] **RTS-R7-5 — DEFECT — MEDIUM**
 
 - **Summary**: The SPARC V8 annul rule incorrectly describes branch control flow.
 - **Locations**: [lode/ISA-TRAP-AND-ABI-MATRIX.md:37](/Users/angerman/Projects/zw3rk/rt-series/lode/ISA-TRAP-AND-ABI-MATRIX.md:37).
 - **Evidence & Root Cause**: The matrix describes annul as `pc = npc + 4, npc = npc + 8` without restricting that rule to an untaken conditional branch. A taken conditional branch executes its delay instruction even with `,a`; `ba,a target` skips the delay instruction and transfers directly to `target`. Applying the documented rule universally can discard a required instruction or select the wrong PC. See the [SPARC V8 Architecture Manual](https://www.cs.utexas.edu/~novak/sparcv8.pdf).
 - **Remediation**: Document taken conditional, untaken conditional, and unconditional annulled branches separately, with explicit resulting `pc`/`npc` values.
 
-- [ ] **RTS-R7-6 — DEFECT — MEDIUM**
+- [x] **RTS-R7-6 — DEFECT — MEDIUM**
 
 - **Summary**: The combined MIPS64/N32 signal-frame description incorrectly assigns N32 a 64-bit `ucontext`.
 - **Locations**: [lode/ISA-TRAP-AND-ABI-MATRIX.md:58](/Users/angerman/Projects/zw3rk/rt-series/lode/ISA-TRAP-AND-ABI-MATRIX.md:58).
 - **Evidence & Root Cause**: N32 retains 64-bit saved registers but uses 32-bit `uc_flags`, `uc_link`, and stack fields. Consequently, `uc_mcontext` begins at offset 24 for N32 versus 40 for N64. Treating the layouts as shared shifts saved-register accesses by 16 bytes. Both frames also have a 24-byte prefix omitted from this row. The distinction appears in [Linux’s N32 definitions](https://code.googlesource.com/linux/torvalds/linux/+/26ba1bf310f0ed43f249a93d0cf8a93675cd8ae8/arch/mips/kernel/signal_n32.c) and the sibling’s [frozen layouts](/Users/angerman/Projects/zw3rk/mips64rt/src/os/sigframe_mips64rt.h:162).
 - **Remediation**: Specify N64 and N32 layouts separately, including their common prefix, pointer widths, and distinct context offsets.
 
-- [ ] **RTS-R7-7 — BUG — MEDIUM**
+- [x] **RTS-R7-7 — BUG — MEDIUM**
 
 - **Summary**: The lmbench qualification loop supplies incompatible arguments to multiple tools.
 - **Locations**: [tools/run_grind.sh:641](/Users/angerman/Projects/zw3rk/rt-series/tools/run_grind.sh:641), lines 641–658.
 - **Evidence & Root Cause**: Every binary receives `-P 1 null`. That operation is valid for `lat_syscall`, but `lat_proc` requires `procedure`, `fork`, `exec`, or `shell`; `lat_ctx` expects a numeric process count; and `lat_pagefault` expects an existing input file. Correct installations therefore encounter harness-induced failures instead of the intended qualification workloads. See upstream [lat_proc](https://raw.githubusercontent.com/intel/lmbench/master/src/lat_proc.c), [lat_ctx](https://raw.githubusercontent.com/intel/lmbench/master/src/lat_ctx.c), and [lat_pagefault](https://raw.githubusercontent.com/intel/lmbench/master/src/lat_pagefault.c).
 - **Remediation**: Dispatch arguments per tool and prepare the page-fault input file explicitly. Validate each tool’s expected completion output.
 
-- [ ] **RTS-R7-8 — DEFECT — LOW**
+- [x] **RTS-R7-8 — DEFECT — LOW**
 
 - **Summary**: The SPARC32 signal-frame size contradicts its field offsets and the frozen implementation.
 - **Locations**: [lode/ISA-TRAP-AND-ABI-MATRIX.md:55](/Users/angerman/Projects/zw3rk/rt-series/lode/ISA-TRAP-AND-ABI-MATRIX.md:55).
@@ -2071,12 +2223,12 @@ Following complete remediation, `fable` (`claude-fable-5-1`) verification review
 | # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R6 Total** | Raw Round-6 `astra` Transcript |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | 1 | `a32rt` | Class A | `0207c7b` | 6 | 3 | 0 | 4 | 5 | 0 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r6-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r6-a32rt-astra.md) |
-| 2 | `i686rt` | Class A | `d4decf8` | 4 | 4 | 0 | 6 | 2 | 0 | 0 | 0 | **0 / 8** | [`2026-11-03-defects-r6-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r6-i686rt-astra.md) |
+| 2 | `i686rt` | Class A | `d4decf8` | 4 | 4 | 0 | 6 | 2 | 0 | 0 | 0 | **8 / 8** | [`2026-11-03-defects-r6-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r6-i686rt-astra.md) |
 | 3 | `mips32rt` | Class A | `0e879ac` | 5 | 4 | 2 | 6 | 2 | 1 | 1 | 1 | **0 / 11** | [`2026-11-03-defects-r6-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r6-mips32rt-astra.md) |
 | 4 | `ppc32rt` | Class A | `540bf78` | 4 | 3 | 0 | 4 | 3 | 0 | 0 | 0 | **0 / 7** | [`2026-11-03-defects-r6-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r6-ppc32rt-astra.md) |
 | 5 | `sparc32rt` | Class A | `c4a1e7a` | 6 | 2 | 2 | 6 | 2 | 1 | 1 | 0 | **0 / 10** | [`2026-11-03-defects-r6-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r6-sparc32rt-astra.md) |
-| 6 | `rvrt` | Class B | `8b57344` | 2 | 1 | 2 | 2 | 1 | 1 | 1 | 0 | **0 / 5** | [`2026-11-03-defects-r6-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r6-rvrt-astra.md) |
-| 7 | `loongarch64rt` | Class B | `494c134` | 5 | 1 | 2 | 5 | 1 | 1 | 1 | 0 | **0 / 8** | [`2026-11-03-defects-r6-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r6-loongarch64rt-astra.md) |
+| 6 | `rvrt` | Class B | `8b57344` | 2 | 1 | 2 | 2 | 1 | 1 | 1 | 0 | **5 / 5** | [`2026-11-03-defects-r6-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r6-rvrt-astra.md) |
+| 7 | `loongarch64rt` | Class B | `494c134` | 5 | 1 | 2 | 5 | 1 | 1 | 1 | 0 | **8 / 8** | [`2026-11-03-defects-r6-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r6-loongarch64rt-astra.md) |
 | 8 | `ppc64rt` | Class B | `28df326` | 4 | 6 | 0 | 5 | 4 | 1 | 0 | 0 | **0 / 10** | [`2026-11-03-defects-r6-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r6-ppc64rt-astra.md) |
 | 9 | `mips64rt` | Class B | `a37e353` | 3 | 3 | 1 | 4 | 2 | 0 | 1 | 0 | **0 / 7** | [`2026-11-03-defects-r6-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r6-mips64rt-astra.md) |
 | 10 | `sparc64rt` | Class B | `1fc64d4` | 5 | 4 | 0 | 5 | 4 | 0 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r6-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r6-sparc64rt-astra.md) |
@@ -2157,7 +2309,7 @@ These are static findings, not runtime reproductions. No additional DRY, YAGNI, 
 
 ---
 
-## 2. `i686rt` (`d4decf8`) — 8 Round-6 Findings (`0 / 8` Resolved)
+## 2. `i686rt` (`d4decf8`) — 8 Round-6 Findings (`8 / 8` Resolved)
 
 Found **8 remaining defects** at HEAD `d4decf8`. Used exactly **7 shell commands**; read no Markdown and ran no builds, tests, Docker, or QEMU. Findings were compared against available Round 1–5 commit history; complete novelty against unread audit reports cannot be guaranteed.
 
@@ -2363,7 +2515,7 @@ Found **10 remaining issues** at HEAD `c4a1e7a`. Used seven shell invocations; r
 
 ---
 
-## 6. `rvrt` (`8b57344`) — 5 Round-6 Findings (`0 / 5` Resolved)
+## 6. `rvrt` (`8b57344`) — 5 Round-6 Findings (`5 / 5` Resolved)
 
 Found **five findings** at HEAD `8b57344`. Used seven read-only shell invocations; no Markdown, builds, tests, Docker, or QEMU. Novelty was checked against available remediation commit messages and code diffs; exclusion from every historical finding cannot be guaranteed without the prior reports.
 
@@ -2396,7 +2548,7 @@ These are static findings, not runtime-verified reproductions. No files were cha
 
 ---
 
-## 7. `loongarch64rt` (`494c134`) — 8 Round-6 Findings (`0 / 8` Resolved)
+## 7. `loongarch64rt` (`494c134`) — 8 Round-6 Findings (`8 / 8` Resolved)
 
 Found **eight remaining issues** at verified HEAD `494c134`. Used **six shell commands**; no Markdown reads, builds, tests, Docker, or QEMU. Findings are static, not runtime-confirmed. Git remediation history was checked, but without the previous audit reports, “never reported in Rounds 1–5” cannot be fully established.
 
