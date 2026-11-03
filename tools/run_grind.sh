@@ -8,7 +8,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set -eu
-grind_cleanup() { rm -rf /tmp/grind_*_$$ "${_ydir:-}" /tmp/grind_libc_$$.log /tmp/grind_ltp_$$.log 2>/dev/null; }
+grind_cleanup() { rm -rf /tmp/grind_*_$$ /tmp/grind_*_$$.* "${_ydir:-}" /tmp/grind_libc_$$.log /tmp/grind_ltp_$$.log /tmp/rt_grind_*_$$ /tmp/rt_grind_*_$$.* /tmp/csmith_*_$$ /tmp/csmith_*_$$.* /tmp/yarpgen_*_$$ /tmp/yarpgen_*_$$.* 2>/dev/null; }
 trap '_rc=$?; grind_cleanup; exit $_rc' EXIT
 trap 'grind_cleanup; exit 130' INT
 trap 'grind_cleanup; exit 143' TERM
@@ -48,6 +48,14 @@ case "$ARCH_FILTER" in
     all|host|a32rt|i686rt|mips32rt|ppc32rt|sparc32rt|rvrt|loongarch64rt|ppc64rt|mips64rt|sparc64rt) ;;
     *)
         echo "ERROR: Invalid --arch '$ARCH_FILTER'" >&2
+        exit 2
+        ;;
+esac
+
+case "$SUITE_FILTER" in
+    all|stress-ng|gcc-torture|torture|testfloat|compiler-rt|libc-ltp|libc|ltp|lmbench|csmith|yarpgen|upstream-check|upstream) ;;
+    *)
+        echo "ERROR: Invalid --suite '$SUITE_FILTER' (expected all|stress-ng|gcc-torture|torture|testfloat|compiler-rt|libc-ltp|libc|ltp|lmbench|csmith|yarpgen|upstream-check)" >&2
         exit 2
         ;;
 esac
@@ -110,7 +118,13 @@ grind_skip() {
 
 want_suite() {
     if [ "$SUITE_FILTER" = "all" ]; then return 0; fi
-    [ "$SUITE_FILTER" = "$1" ]
+    if [ "$SUITE_FILTER" = "$1" ]; then return 0; fi
+    case "$SUITE_FILTER" in
+        torture) [ "$1" = "gcc-torture" ] ;;
+        libc|ltp|libc-ltp) [ "$1" = "libc-ltp" ] ;;
+        upstream|upstream-check) [ "$1" = "upstream-check" ] ;;
+        *) return 1 ;;
+    esac
 }
 
 find_backend_rt_bin() {
@@ -731,6 +745,7 @@ run_weekly_soak() {
     echo "== Grind weekly [$CURRENT_ARCH]: Csmith/Yarpgen soak + upstream check (host make check / foreign adapter) =="
     _cc="${GRIND_CC:-}"
     _cxx="${GRIND_CXX:-}"
+    if want_suite csmith; then
     if command -v csmith >/dev/null 2>&1 && [ -n "$_cc" ] && command -v "$_cc" >/dev/null 2>&1; then
         _cinc="${CSMITH_INCLUDE:-/usr/include/csmith}"
         if [ ! -f "$_cinc/csmith.h" ]; then
@@ -749,7 +764,9 @@ run_weekly_soak() {
     else
         grind_skip "csmith" "csmith or cross-compiler ($_cc) not installed"
     fi
+    fi
 
+    if want_suite yarpgen; then
     if command -v yarpgen >/dev/null 2>&1; then
         _ydir="/tmp/grind_yarpgen_${CURRENT_ARCH}_$$"
         mkdir -p "$_ydir"
@@ -805,7 +822,9 @@ run_weekly_soak() {
     else
         grind_skip "yarpgen" "yarpgen not installed (fixed-seed soak not run)"
     fi
+    fi
 
+    if want_suite upstream-check; then
     if [ -n "${UPSTREAM_CHECK_DIR:-}" ] && [ -f "${UPSTREAM_CHECK_DIR}/Makefile" ]; then
         if [ "$CURRENT_ARCH" = "host" ]; then
             if timeout --kill-after=30s 1800s make -C "$UPSTREAM_CHECK_DIR" check >/tmp/grind_upstream_$$.log 2>&1; then
@@ -819,6 +838,7 @@ run_weekly_soak() {
         fi
     else
         grind_skip "upstream-check" "UPSTREAM_CHECK_DIR not set (point at guest source tree for upstream make check)"
+    fi
     fi
 }
 

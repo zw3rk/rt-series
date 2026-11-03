@@ -22,6 +22,15 @@ MODE="${1:---smoke}"
 KIND="${2:-dbt}"
 B="/tmp/rt-bench"
 
+case "$KIND" in
+    dbt|interp|qemu) ;;
+    *)
+        echo "ERROR: Invalid KIND '$KIND' (expected dbt|interp|qemu)" >&2
+        exit 2
+        ;;
+esac
+REMOTE_INNER_COUNT=0
+
 for item in $ARCH_LIST; do
     arch=${item%%:*}
     rest=${item#*:}
@@ -33,8 +42,15 @@ for item in $ARCH_LIST; do
     if [ "$KIND" = "qemu" ]; then
         out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/qemu/$q" "$guest" "$MODE")
         parse_and_print "qemu" "$arch" "tcg" "$out"
+        REMOTE_INNER_COUNT=$((REMOTE_INNER_COUNT + 1))
     elif [ "$KIND" = "dbt" ] || [ "$KIND" = "interp" ]; then
         out=$(rt_run_bounded_translator "$REMOTE_BENCH_TIMEOUT" "$rt" "$KIND" "$bin" "$guest" "$MODE")
         parse_and_print "linux" "$arch" "$KIND" "$out"
+        REMOTE_INNER_COUNT=$((REMOTE_INNER_COUNT + 1))
     fi
 done
+
+if [ "$REMOTE_INNER_COUNT" -eq 0 ]; then
+    echo "ERROR: no benchmarks executed for KIND='$KIND'" >&2
+    exit 1
+fi

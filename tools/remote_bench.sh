@@ -23,6 +23,15 @@ PHASE="${2:-all}"
 B="/Users/angerman/rt-bench"
 LIMACTL="/Users/angerman/.nix-profile/bin/limactl"
 
+case "$PHASE" in
+    all|baseline|darwin|darwin-interp|hl|linux|linux-interp|qemu) ;;
+    *)
+        echo "ERROR: Invalid PHASE '$PHASE' (expected all|baseline|darwin|darwin-interp|hl|linux|linux-interp|qemu)" >&2
+        exit 2
+        ;;
+esac
+REMOTE_BENCH_COUNT=0
+
 run_darwin_engine() {
     arch="$1"
     rt="$2"
@@ -44,8 +53,10 @@ run_hl_engine() {
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "baseline" ]; then
     out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$B/bench/bench-darwin-arm64" "$MODE")
     parse_and_print "native-darwin" "arm64" "native" "$out"
+    REMOTE_BENCH_COUNT=$((REMOTE_BENCH_COUNT + 1))
     out=$(run_bounded "$REMOTE_BENCH_TIMEOUT" "$LIMACTL" shell --workdir /tmp/rt-bench bench /tmp/rt-bench/bench/bench-aarch64 "$MODE")
     parse_and_print "native-linux" "aarch64" "native" "$out"
+    REMOTE_BENCH_COUNT=$((REMOTE_BENCH_COUNT + 1))
 fi
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "darwin" ]; then
@@ -55,6 +66,7 @@ if [ "$PHASE" = "all" ] || [ "$PHASE" = "darwin" ]; then
         rt=${rest%%:*}
         out=$(run_darwin_engine "$arch" "$rt" "dbt")
         parse_and_print "darwin" "$arch" "dbt" "$out"
+        REMOTE_BENCH_COUNT=$((REMOTE_BENCH_COUNT + 1))
     done
 fi
 
@@ -65,6 +77,7 @@ if [ "$PHASE" = "all" ] || [ "$PHASE" = "darwin-interp" ]; then
         rt=${rest%%:*}
         out=$(run_darwin_engine "$arch" "$rt" "interp")
         parse_and_print "darwin" "$arch" "interp" "$out"
+        REMOTE_BENCH_COUNT=$((REMOTE_BENCH_COUNT + 1))
     done
 fi
 
@@ -75,17 +88,26 @@ if [ "$PHASE" = "all" ] || [ "$PHASE" = "hl" ]; then
         rt=${rest%%:*}
         out=$(run_hl_engine "$arch" "$rt" "dbt")
         parse_and_print "hl" "$arch" "dbt" "$out"
+        REMOTE_BENCH_COUNT=$((REMOTE_BENCH_COUNT + 1))
     done
 fi
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "linux" ]; then
     run_bounded "$REMOTE_LIMA_TIMEOUT" "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "dbt"
+    REMOTE_BENCH_COUNT=$((REMOTE_BENCH_COUNT + 1))
 fi
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "linux-interp" ]; then
     run_bounded "$REMOTE_LIMA_TIMEOUT" "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "interp"
+    REMOTE_BENCH_COUNT=$((REMOTE_BENCH_COUNT + 1))
 fi
 
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "qemu" ]; then
     run_bounded "$REMOTE_LIMA_TIMEOUT" "$LIMACTL" shell --workdir /tmp/rt-bench bench sh /tmp/rt-bench/remote_linux_inner.sh "$MODE" "qemu"
+    REMOTE_BENCH_COUNT=$((REMOTE_BENCH_COUNT + 1))
+fi
+
+if [ "$REMOTE_BENCH_COUNT" -eq 0 ]; then
+    echo "ERROR: no benchmarks executed for PHASE='$PHASE'" >&2
+    exit 1
 fi
