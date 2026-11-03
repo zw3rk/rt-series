@@ -797,6 +797,7 @@ run_grind_via() {
 print_usage() {
     cat << 'EOF'
 Usage: tools/run_catalogue.sh <guest-payload|smoke|qualify|grind-nightly|grind-weekly> [options]
+Note: tools/catalogue_payloads.sh must be present alongside run_catalogue.sh.
 
 Commands:
   guest-payload         Execute Tier 1..4 real-world software suite inside a guest sysroot

@@ -169,11 +169,11 @@ parse_and_print() {
             "$target" "$arch" "$engine" "-" "-" "-" "-" "-" "-" "FAIL"
         return 1
     fi
-    cm=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="coremark" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
-    cc=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="chacha20" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
-    vf=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="vfp_simd" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
-    ib=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="calls_ibtc" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
-    sc=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="syscalls" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    cm=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="coremark" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    cc=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="chacha20" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    vf=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="vfp_simd" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    ib=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="calls_ibtc" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    sc=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="syscalls" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
     tot=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2 ~ /^total_us=[0-9]+$/ && $3=="ALL_PASS" && NF==3 {sub(/^total_us=/,"",$2); print $2}')
     st=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2 ~ /^total_us=[0-9]+$/ && $3=="ALL_PASS" && NF==3 {print $3}')
     for _f in "$cm" "$cc" "$vf" "$ib" "$sc" "$tot"; do case "$_f" in ""|*[!0-9]*) printf "RESULT\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$target" "$arch" "$engine" "-" "-" "-" "-" "-" "-" "FAIL"; return 1 ;; esac; done
