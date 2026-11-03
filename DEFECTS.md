@@ -1,6 +1,6 @@
-# `rt-series` Master Defect, Curated-C11, DRY, YAGNI & CLEAN Checklist (Round 4 + Rounds 1–3 Archives)
+# `rt-series` Master Defect, Curated-C11, DRY, YAGNI & CLEAN Checklist (Round 5 + Rounds 1–4 Archives)
 
-**Audit Date:** 2026-11-03 (Round 4; Rounds 1–3 on 2026-11-02)  
+**Audit Date:** 2026-11-03 (Rounds 4–5; Rounds 1–3 on 2026-11-02)  
 **Static Auditor ("Hunting"):** `gpt-6-astra` (`codex exec -m gpt-6-astra --sandbox read-only`) across 11 concurrent read-only static audit lanes  
 **Remediation Engine ("Fixing"):** `muse` (`muse exec --yolo --parallel-tool-calls`)  
 **Post-Remediation Verifier ("Review"):** `claude-fable-5-1` (`claude -p --model claude-fable-5-1 --effort high`)  
@@ -11,9 +11,1141 @@
 
 ---
 
-## Part I — Round-4 Active Checklist (`125 / 125` Resolved)
+## Part I — Round-5 Active Checklist (`0 / 109` Resolved)
 
-### 0.1 Round 4 Audit Matrix (`125 / 125` Resolved)
+### 0.1 Round 5 Audit Matrix (`0 / 109` Resolved)
+
+Following complete remediation, `fable` (`claude-fable-5-1`) verification review, and `muse` post-review follow-up across Round 1 (`187` items), Round 2 (`145` items), Round 3 (`85` items), and Round 4 (`125` items), Round 5 performed a fresh `gpt-6-astra` static audit of all 11 repositories at their post-Round-4 `HEAD` commits (`109` findings: `0 Critical`, `65 High`, `26 Medium`, `18 Low`).
+
+| # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R5 Total** | Raw Round-5 `astra` Transcript |
+|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | `a32rt` | Class A | `acd2834` | 6 | 3 | 1 | 6 | 1 | 1 | 1 | 1 | **0 / 10** | [`2026-11-03-defects-r5-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-a32rt-astra.md) |
+| 2 | `i686rt` | Class A | `e993289` | 7 | 2 | 2 | 7 | 2 | 1 | 1 | 0 | **0 / 11** | [`2026-11-03-defects-r5-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r5-i686rt-astra.md) |
+| 3 | `mips32rt` | Class A | `aa2eb8e` | 8 | 1 | 2 | 6 | 3 | 1 | 1 | 0 | **0 / 11** | [`2026-11-03-defects-r5-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-mips32rt-astra.md) |
+| 4 | `ppc32rt` | Class A | `a091b8f` | 9 | 0 | 2 | 8 | 1 | 1 | 1 | 0 | **0 / 11** | [`2026-11-03-defects-r5-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-ppc32rt-astra.md) |
+| 5 | `sparc32rt` | Class A | `edfcf6f` | 8 | 2 | 2 | 5 | 5 | 1 | 1 | 0 | **0 / 12** | [`2026-11-03-defects-r5-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-sparc32rt-astra.md) |
+| 6 | `rvrt` | Class B | `841d562` | 2 | 3 | 2 | 2 | 3 | 1 | 1 | 0 | **0 / 7** | [`2026-11-03-defects-r5-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r5-rvrt-astra.md) |
+| 7 | `loongarch64rt` | Class B | `1256d4b` | 6 | 2 | 1 | 6 | 2 | 1 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r5-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-loongarch64rt-astra.md) |
+| 8 | `ppc64rt` | Class B | `69d193a` | 6 | 2 | 2 | 6 | 2 | 1 | 1 | 0 | **0 / 10** | [`2026-11-03-defects-r5-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-ppc64rt-astra.md) |
+| 9 | `mips64rt` | Class B | `e8f6ffe` | 6 | 4 | 1 | 7 | 3 | 1 | 0 | 0 | **0 / 11** | [`2026-11-03-defects-r5-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-mips64rt-astra.md) |
+| 10 | `sparc64rt` | Class B | `750b805` | 4 | 3 | 2 | 4 | 2 | 1 | 1 | 1 | **0 / 9** | [`2026-11-03-defects-r5-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-sparc64rt-astra.md) |
+| 11 | `rt-series` | Harness | `448a548` | 3 | 4 | 1 | 4 | 3 | 0 | 0 | 1 | **0 / 8** | [`2026-11-03-defects-r5-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r5-rt-series-astra.md) |
+| | **Total (Round 5)** | | | **65** | **26** | **18** | **61** | **27** | **10** | **8** | **3** | **0 / 109** | |
+
+### 0.2 Round 5 Cross-Cutting Defect Clusters (Cross-Runtime Check Index)
+
+- [ ] **X-R5-1 — High — Retained Inode FD Access-Mode Mismatch (`O_RDONLY` vs `O_RDWR`), Staged `MAP_SHARED` Store/Read Coherence & Darwin Sub-Page Backing Preservation**
+  - **Linked Items**: `A32-R5-2`, `A32-R5-7`, `I686-R5-8`, `M32-R5-7`, `P32-R5-6`, `P32-R5-7`, `S32-R5-8`, `S32-R5-9`, `RV-R5-3`, `RV-R5-4`, `LA64-R5-1`, `LA64-R5-2`, `LA64-R5-3`, `LA64-R5-4`, `LA64-R5-6`, `P64-R5-5`, `P64-R5-6`, `M64-R5-2`, `M64-R5-7`, `M64-R5-8`
+  - **Summary**: Inode-level descriptor caching reusing an `O_RDONLY` or `O_WRONLY` descriptor for subsequent writable/readable mappings (`P32-R5-7`, `LA64-R5-3`, `P64-R5-5..6`), staged `MAP_SHARED` store/read propagation and `pread`/`pwrite` error/short-read handling (`M32-R5-7`, `P32-R5-6`, `LA64-R5-2`, `M64-R5-2`), Darwin sub-page replacement and partial-page file overlay (`A32-R5-2`, `RV-R5-3`, `LA64-R5-6`), and transactional `munmap`/`mremap`/region-table rollback (`A32-R5-7`, `I686-R5-8`, `S32-R5-8..9`, `LA64-R5-1`, `LA64-R5-4`, `M64-R5-7..8`).
+- [ ] **X-R5-2 — High — Syscall Socket (`sendmsg`/`recvmsg`/`sendmmsg`/`recvmmsg`/`select`) & Vectored I/O (`readv`/`writev`) Marshalling, Atomicity & Copyout Permission Checks**
+  - **Linked Items**: `A32-R5-3`, `A32-R5-4`, `A32-R5-5`, `I686-R5-4`, `I686-R5-5`, `I686-R5-6`, `I686-R5-7`, `I686-R5-9`, `M32-R5-6`, `P32-R5-3`, `P32-R5-4`, `P32-R5-5`, `M64-R5-1`, `M64-R5-10`, `S64-R5-1`, `S64-R5-2`, `S64-R5-3`, `S64-R5-5`, `S64-R5-6`
+  - **Summary**: `sendmsg` writing to read-only guest headers (`A32-R5-3`), ancillary `SCM_RIGHTS` truncation/drop (`A32-R5-4`, `I686-R5-5`), `select` >1024-fd host-word overrun (`A32-R5-5`), `i686rt` socket message marshalling/timeout/copyout checks (`I686-R5-4..7`, `I686-R5-9`), `readv`/`writev` chunking and descriptor snapshot (`M32-R5-6`, `P32-R5-3..5`, `S64-R5-3`), `mips64rt` `clock_nanosleep` & `clock_getres` dispatch (`M64-R5-1`, `M64-R5-10`), and `sparc64rt` composite open flags, `F_SETFL`, and `statx` negative timestamps (`S64-R5-1..2`, `S64-R5-5..6`).
+- [ ] **X-R5-3 — High — Thread Lifecycle, Futex Emulation/Endianness/Requeue, Signal Queue Ownership & Synchronous vs Asynchronous Delivery**
+  - **Linked Items**: `M32-R5-2`, `M32-R5-3`, `M32-R5-4`, `M32-R5-5`, `P32-R5-1`, `P32-R5-8`, `P32-R5-9`, `S32-R5-3`, `S32-R5-4`, `S32-R5-5`, `S32-R5-6`, `S32-R5-7`, `S32-R5-10`, `M64-R5-5`
+  - **Summary**: `mips32rt` BE futex value endianness, `REQUEUE`/`WAKE_OP` `val2` count, clone reaper lifecycle, and O32 robust list teardown (`M32-R5-2..5`), `ppc32rt` synchronous `clone(CLONE_VM)` execution, self-directed blocked signal queueing, and callback thread joinability (`P32-R5-1`, `P32-R5-8..9`), `sparc32rt` `rt_sigsuspend` process vs thread signal queue ownership, default-fatal signal handling, `SA_SIGINFO` frame fields, and futex slot recycling (`S32-R5-3..7`, `S32-R5-10`), and `mips64rt` thread-group leader `SYS_exit` vs `SYS_exit_group` (`M64-R5-5`).
+- [ ] **X-R5-4 — High — Interpreter/DBT Permission Enforcement (`PROT_EXEC`, A2 Sub-Pages), Exclusive Store ABA & Precise Fault State**
+  - **Linked Items**: `A32-R5-1`, `A32-R5-6`, `I686-R5-2`, `I686-R5-3`, `M32-R5-1`, `P32-R5-2`, `S32-R5-1`, `S32-R5-2`, `RV-R5-1`, `RV-R5-2`
+  - **Summary**: `a32rt` interpreter fetch checking `PROT_EXEC` (`A32-R5-1`) and software `STREX` ABA exclusion (`A32-R5-6`), `i686rt` `LDMXCSR` reserved bits fault and `LOCK`-prefixed shift `#UD` (`I686-R5-2..3`), `mips32rt` A2 sub-page permission enforcement in DBT (`M32-R5-1`), `ppc32rt` FP load/store fault preserving FPR/RA/`nip` (`P32-R5-2`), `sparc32rt` `LDDF`/`STDF` alignment & fault width classification (`S32-R5-1..2`), and `rvrt` Soft-TLB emitter scratch-register/offset validation (`RV-R5-1..2`).
+- [ ] **X-R5-5 — High — ISA / FPU Rounding, Exception Flags (`Cause` vs Sticky `Flags`, SNaN `CVT`), Prefix Decoding & ELF Loader Bounds/Entropy Validation**
+  - **Linked Items**: `I686-R5-1`, `M32-R5-8`, `LA64-R5-5`, `LA64-R5-7`, `P64-R5-1`, `P64-R5-2`, `P64-R5-3`, `P64-R5-4`, `P64-R5-7`, `M64-R5-3`, `M64-R5-4`, `M64-R5-6`, `S64-R5-4`
+  - **Summary**: `i686rt` SSE directed rounding adjustment (`I686-R5-1`), `mips32rt` reserved `CVT.S.S`/`CVT.D.D` rejection (`M32-R5-8`), `loongarch64rt` DBT FCSR `Cause` vs sticky `Flags` separation and malformed `PT_INTERP` rejection (`LA64-R5-5`, `LA64-R5-7`), `ppc64rt` `PLHA` sign extension, prefixed scalar FP `rt` decoding, `PLXSD` vs `PLHA` dispatch, and unsigned branch displacement shifts (`P64-R5-2..4`, `P64-R5-7`), `mips64rt` `CVT.S.D`/`CVT.D.S` SNaN `FP_EXC_V`, `CFC1` sign-extension, and OS CSPRNG `AT_RANDOM` (`M64-R5-3..4`, `M64-R5-6`), and overflow-safe ELF header/bias validation (`P64-R5-1`, `S64-R5-4`).
+- [ ] **X-R5-6 — Medium — Intra-Repo DRY, YAGNI, CLEAN, Differential/Parity Test Verification & `rt-series` Harness**
+  - **Linked Items**: `A32-R5-8`, `A32-R5-9`, `A32-R5-10`, `I686-R5-10`, `I686-R5-11`, `M32-R5-9`, `M32-R5-10`, `M32-R5-11`, `P32-R5-10`, `P32-R5-11`, `S32-R5-11`, `S32-R5-12`, `RV-R5-5`, `RV-R5-6`, `RV-R5-7`, `LA64-R5-8`, `LA64-R5-9`, `P64-R5-8`, `P64-R5-9`, `P64-R5-10`, `M64-R5-9`, `M64-R5-11`, `S64-R5-7`, `S64-R5-8`, `S64-R5-9`, `RTS-R5-1..8`
+
+---
+
+## 1. `a32rt` (`acd2834`) — 10 Round-5 Findings (`0 / 10` Resolved)
+
+Found **10 actionable findings**. Used exactly **8 read-only shell commands**; no Markdown reads, builds, tests, Docker, or QEMU. These are static findings, not reproduced failures. Inspection covered the requested areas selectively; no `rt32/` or `family/` paths were found. Family-related state resides in `vm_file.c`.
+
+1. **[A32-R5-1] BUG — Interpreter instruction fetch ignores execute permission.**  
+   **Evidence:** [src/interp/interp.c:108](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp.c:108), lines 108–115 and 141–158; dispatch at line 194.  
+   Both instruction-fetch helpers call `i_load_bytes()`, which checks only `PROT_READ`. Consequently, readable guest data can execute without `PROT_EXEC`, while execute-only pages fail the read check.  
+   **Fix:** Separate instruction fetch from data loads, validate guest execute permission across the complete instruction, and retain the correct fault PC. Add A32 and Thumb cases for readable/non-executable and execute-only mappings.
+
+2. **[A32-R5-2] BUG — Darwin sub-page replacement destroys neighboring shared backing.**  
+   **Evidence:** [src/os/backend_darwin.c:108](/Users/angerman/Projects/zw3rk/a32rt/src/os/backend_darwin.c:108), lines 108–150; replacement admission at [src/vm.c:641](/Users/angerman/Projects/zw3rk/a32rt/src/vm.c:641).  
+   The replacement path snapshots an entire host page, replaces it with `MAP_PRIVATE | MAP_ANONYMOUS`, and copies neighboring bytes back. This preserves bytes but loses their backing identity. For example, replacing one 4 KiB quarter of a 16 KiB shared mapping makes the surviving quarters private, although their tracking records still describe shared mappings.  
+   **Fix:** Preserve shared backing for unaffected sub-pages. Until that is supported, reject this mixed-backing replacement before retiring any mapping. Cover visibility through a second mapping and across `fork()`.
+
+3. **[A32-R5-3] BUG — Successful `sendmsg` writes to its read-only input header.**  
+   **Evidence:** [src/os/os_sys_sock.c:474](/Users/angerman/Projects/zw3rk/a32rt/src/os/os_sys_sock.c:474), lines 474–475 and 537–541.  
+   `sendmsg` validates the header for reading, but the common success path writes `msg_namelen` and `msg_flags` for both sending and receiving. A valid header on a read-only page therefore faults after the message has already been sent; on permissive host pages, it silently modifies guest input.  
+   **Fix:** Restrict header copyout to `recvmsg`. Add a read-only-header case; the existing [socket test at line 93](/Users/angerman/Projects/zw3rk/a32rt/tests/test_m5_ltp_gdb.c:93) uses a writable stack header.
+
+4. **[A32-R5-4] BUG — Ancillary data is silently dropped when sending.**  
+   **Evidence:** [src/os/os_sys_sock.c:491](/Users/angerman/Projects/zw3rk/a32rt/src/os/os_sys_sock.c:491), lines 491–518.  
+   Conversion uses a fixed 1,024-byte host buffer. When the next control message does not fit, the loop simply breaks and sends the converted prefix successfully. Valid control data can disappear without an error. A legal 253-descriptor `SCM_RIGHTS` message alone requires more than this buffer after host-header expansion.  
+   **Fix:** Compute the required converted size with overflow checks and allocate bounded storage, or reject excess input before sending anything. Add boundary tests and verify that all requested descriptors arrive.
+
+5. **[A32-R5-5] BUG — Large `select` sets expose guest memory to host-word overrun.**  
+   **Evidence:** [src/os/os_sys_sock.c:606](/Users/angerman/Projects/zw3rk/a32rt/src/os/os_sys_sock.c:606), lines 606–610 and 652–679.  
+   Above 1,024 descriptors, the implementation abandons translation and passes guest bitmaps directly to the 64-bit syscall. For `nfds = 1025`, the guest bitmap occupies 132 bytes, but the host rounds it to 136 bytes. With a sufficiently large descriptor table, the kernel can read or overwrite four bytes beyond the guest bitmap. This path also validates only four bytes.  
+   **Fix:** Allocate host-word-rounded buffers for large sets, validate the complete guest spans, zero host padding, and copy back only guest-sized data. Extend the existing [small-descriptor test](/Users/angerman/Projects/zw3rk/a32rt/tests/test_m5_ltp_gdb.c:384) with a high descriptor and trailing canary.
+
+6. **[A32-R5-6] BUG — Software exclusive-store validation has an ABA race.**  
+   **Evidence:** [src/vm/vm32.c:518](/Users/angerman/Projects/zw3rk/a32rt/src/vm/vm32.c:518), lines 518–550; ordinary stores at [src/interp/interp.c:127](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp.c:127).  
+   Reservation validation and the final value CAS are separate operations. After the last epoch check, another thread can write A→B→A and invalidate the reservation. The CAS still sees A and succeeds, incorrectly reporting a successful `STREX`. Sequentially consistent atomics do not make this multi-operation transaction indivisible.  
+   **Fix:** Coordinate reservation validation and the store with all competing writes, using an appropriate per-reservation synchronization protocol. Add a controlled interleaving test around the final epoch check.
+
+7. **[A32-R5-7] DEFECT — `mremap` ignores protection failures and incompletely restores rollback state.**  
+   **Evidence:** [src/vm/vm_mremap.c:102](/Users/angerman/Projects/zw3rk/a32rt/src/vm/vm_mremap.c:102), lines 102–112 and [273–294](/Users/angerman/Projects/zw3rk/a32rt/src/vm/vm_mremap.c:273).  
+   Copy-time protection changes and destination protection restoration discard errors. A failed widening can lead directly to a fault in `memcpy`; failed final protection can leave the moved mapping writable. If retiring the source fails, rollback drops the destination but does not restore source protections widened for copying.  
+   **Fix:** Return errors from the copy helper, track temporary protection changes, restore source permissions on every failure, and require successful destination protection before retiring the source. Validate these branches with injected backend failures.
+
+8. **[A32-R5-8] DRY — Reservation-range invalidation has three implementations.**  
+   **Evidence:** [src/interp/interp.c:128](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp.c:128), [src/signals.c:281](/Users/angerman/Projects/zw3rk/a32rt/src/signals.c:281), and [src/vm/vm32.c:482](/Users/angerman/Projects/zw3rk/a32rt/src/vm/vm32.c:482).  
+   Interpreter stores and signal-frame construction implement their own four-byte loops, while `a32_vm32_copyout_invalidate()` already implements range invalidation by reservation granule. This duplicates boundary and granule policy inside the repository.  
+   **Fix:** Route both callers through the existing local helper. Keep write ordering explicit; consolidation alone does not repair finding 6.
+
+9. **[A32-R5-9] YAGNI — Unused Soft-TLB probe contains unreachable cross-page logic.**  
+   **Evidence:** [src/vm/vm32.c:136](/Users/angerman/Projects/zw3rk/a32rt/src/vm/vm32.c:136), lines 136–167; declaration at [src/vm/vm32.h:100](/Users/angerman/Projects/zw3rk/a32rt/src/vm/vm32.h:100).  
+   Repository search found only the definition and declaration. Furthermore, accepted widths are powers of two up to 16 and misaligned addresses are rejected first, so the subsequent cross-page branch cannot execute.  
+   **Fix:** Remove the unused API if it has no supported external consumer. If retained as a diagnostic interface, remove unreachable handling and add an actual caller/test.
+
+10. **[A32-R5-10] CLEAN — Decoder predicate contains an unconditional override.**  
+    **Evidence:** [src/interp/interp_a32.c:164](/Users/angerman/Projects/zw3rk/a32rt/src/interp/interp_a32.c:164).  
+    `((insn & 0x90U) != 0x90U || true)` is always true. It presents an encoding restriction that does not exist and obscures the decoder’s actual admission rule.  
+    **Fix:** Remove the tautological clause if the broad dispatch is intentional; otherwise restore the intended restriction with encoding-specific tests. No inspected C/C++/assembly file exceeds 900 lines; the largest is `signals.c` at 899.
+
+**Cross-runtime propagation notes:** These are inspection targets, not confirmed sibling defects.
+
+| Findings | Sibling runtimes to check |
+|---|---|
+| 1, 6 | `mips32rt`, `ppc32rt`, `rvrt`, `mips64rt`, `ppc64rt`, `loongarch64rt`: fetch permissions and software reservation protocols |
+| 2, 7 | `i686rt`, `mips32rt`, `ppc32rt`: large-host-page replacement, backing preservation, and remap rollback |
+| 3–5 | Especially `i686rt`, `mips32rt`, `ppc32rt`: 32/64-bit socket and descriptor-set translation; inspect analogous Darwin socket paths in other runtimes |
+| 8–10 | Check copied local helpers and decoder scaffolding; consolidate only within each repository |
+
+ELF loading, DBT dispatch, FP conversion, and file-family bookkeeping received selective inspection without additional sufficiently established findings. This bounded pass does not establish those areas as defect-free.
+
+- [ ] **A32-R5-1:** Remediate `A32-R5-1` in `a32rt` and verify with tests.
+- [ ] **A32-R5-2:** Remediate `A32-R5-2` in `a32rt` and verify with tests.
+- [ ] **A32-R5-3:** Remediate `A32-R5-3` in `a32rt` and verify with tests.
+- [ ] **A32-R5-4:** Remediate `A32-R5-4` in `a32rt` and verify with tests.
+- [ ] **A32-R5-5:** Remediate `A32-R5-5` in `a32rt` and verify with tests.
+- [ ] **A32-R5-6:** Remediate `A32-R5-6` in `a32rt` and verify with tests.
+- [ ] **A32-R5-7:** Remediate `A32-R5-7` in `a32rt` and verify with tests.
+- [ ] **A32-R5-8:** Remediate `A32-R5-8` in `a32rt` and verify with tests.
+- [ ] **A32-R5-9:** Remediate `A32-R5-9` in `a32rt` and verify with tests.
+- [ ] **A32-R5-10:** Remediate `A32-R5-10` in `a32rt` and verify with tests.
+
+---
+
+## 2. `i686rt` (`e993289`) — 11 Round-5 Findings (`0 / 11` Resolved)
+
+Static inspection found **11 actionable findings**. Eight shell commands were used; no Markdown files, builds, tests, Docker, or QEMU were run. These are source-derived findings, not reproduced failures. Inspection covered selected interpreter, DBT, VM, syscall, ELF/rt32, and test paths; it does not establish whole-repository correctness.
+
+1. **[I686-R5-1] BUG — SSE directed rounding can move an already-correct result by another ULP.**
+
+   **Evidence:** [src/interp/h_sse.c:82](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse.c:82), especially lines 94–117.
+
+   **Root cause:** After converting double to float, the helper adjusts every inexact normal result solely according to rounding mode and sign. It never checks which side of the exact value the initial conversion landed on.
+
+   **Concrete consequence:** Under round-up, `ADDSS(1.0f, 3 × 2^-25)` should produce `0x3f800001`. With host round-to-nearest, the initial cast already produces that value, but the helper increments it to `0x3f800002`.
+
+   **Fix:** Adjust only when the initial result lies on the wrong side of the exact value. Also preserve arithmetic residuals: the double intermediate at lines 185–192 can itself discard information needed for directed rounding. Add bit-exact cases for all rounding modes.
+
+2. **[I686-R5-2] BUG — LDMXCSR accepts reserved bits, and a test requires that incorrect behavior.**
+
+   **Evidence:** [src/interp/h_sse_int.c:642](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_sse_int.c:642), [tests/unit/test_l5b_cases.c:363](/Users/angerman/Projects/zw3rk/i686rt/tests/unit/test_l5b_cases.c:363). The DBT also documents masking at [src/dbt/emit_sse2.c:388](/Users/angerman/Projects/zw3rk/i686rt/src/dbt/emit_sse2.c:388).
+
+   **Root cause:** The interpreter commits the masked value and sets MXCSR.IE instead of generating the required general-protection fault. The test explicitly expects successful execution with bit 16 set.
+
+   **Fix:** Validate reserved bits before changing MXCSR or advancing EIP. Deliver the guest fault with prior state intact. Apply the same validation to DBT execution and replace the test’s success expectation with fault-and-state-preservation assertions.
+
+3. **[I686-R5-3] BUG — LOCK-prefixed shifts execute instead of faulting.**
+
+   **Evidence:** [src/interp/h_shift.c:203](/Users/angerman/Projects/zw3rk/i686rt/src/interp/h_shift.c:203), [src/x86/decode.c:636](/Users/angerman/Projects/zw3rk/i686rt/src/x86/decode.c:636), [src/interp/interp.c:399](/Users/angerman/Projects/zw3rk/i686rt/src/interp/interp.c:399).
+
+   **Root cause:** There is no common LOCK legality check before handler dispatch. Shift handlers deliberately implement locked atomic updates; zero-count shifts return success even earlier.
+
+   **Concrete consequence:** `F0 D1 20`—LOCK SHL through `[EAX]`—modifies memory instead of raising #UD.
+
+   **Fix:** Validate LOCK against an opcode-and-memory-destination allowlist before either engine executes the instruction. Remove the unreachable shift/rotate atomic machinery after enforcing legality. Cover both zero and nonzero counts.
+
+4. **[I686-R5-4] BUG / DEFECT — Socket message marshalling bypasses fault-safe guest copies.**
+
+   **Evidence:** [src/os/sys_sock_msg.c:137](/Users/angerman/Projects/zw3rk/i686rt/src/os/sys_sock_msg.c:137), lines 199–213 and 315–317; compare [src/os/marshal.c:43](/Users/angerman/Projects/zw3rk/i686rt/src/os/marshal.c:43).
+
+   **Root cause:** Iovec descriptors and ancillary data are dereferenced directly after address-range checks. Those checks do not establish accessibility. Payload pointers are also passed directly to host `sendmsg`/`recvmsg`.
+
+   **Consequences:** An inaccessible descriptor or control buffer can escape to the outer execution fault checkpoint, skipping local cleanup. On A2, a valid guest payload sharing a restricted host page can instead receive host `EFAULT`, because kernel copies cannot invoke the runtime’s user-space healing path.
+
+   **Fix:** Snapshot descriptors and control data through checked copies. Stage payloads through host buffers where A2 requires it, with explicit cleanup and descriptor ownership on every failure.
+
+5. **[I686-R5-5] BUG — Ancillary truncation discards SCM_RIGHTS descriptors that fit.**
+
+   **Evidence:** [src/os/sys_sock_msg.c:79](/Users/angerman/Projects/zw3rk/i686rt/src/os/sys_sock_msg.c:79).
+
+   **Root cause:** Conversion requires an entire control message to fit. Otherwise it drops the entire payload and closes every received descriptor.
+
+   **Concrete consequence:** A two-descriptor SCM_RIGHTS message with guest control capacity of 16 bytes has room for the 12-byte header and one descriptor. The implementation delivers neither descriptor.
+
+   **Fix:** Emit the prefix that fits, retain complete descriptor-sized units, set `MSG_CTRUNC`, and close only undelivered descriptors. Add a partial-rights test; existing tests cover whole-message fit/drop cases.
+
+6. **[I686-R5-6] BUG — Multi-message syscalls count entries whose `msg_len` copyout failed.**
+
+   **Evidence:** [src/os/sys_sock_msg.c:362](/Users/angerman/Projects/zw3rk/i686rt/src/os/sys_sock_msg.c:362) and [src/os/sys_sock_msg.c:468](/Users/angerman/Projects/zw3rk/i686rt/src/os/sys_sock_msg.c:468).
+
+   **Root cause:** Both `sendmmsg` and `recvmmsg` discard `i686_copy_to_guest`’s return value and increment the completed count.
+
+   **Concrete consequence:** Place the 28-byte message header at the end of a writable page and `msg_len` on an inaccessible next page. The syscall reports a completed entry without publishing its length.
+
+   **Fix:** Stop on failed length copyout. Return `-EFAULT` if no previous entry completed, otherwise return the previous completed count. Preserve the distinction between an irreversible send/receive side effect and a successfully reported entry.
+
+7. **[I686-R5-7] BUG — `recvmmsg` timeout emulation changes shared socket state.**
+
+   **Evidence:** [src/os/sys_sock_msg.c:417](/Users/angerman/Projects/zw3rk/i686rt/src/os/sys_sock_msg.c:417), lines 449–461.
+
+   **Root cause:** A per-call deadline is implemented by temporarily replacing `SO_RCVTIMEO`. That option belongs to the socket and is shared across threads and duplicated descriptors.
+
+   **Consequences:** Concurrent receives observe another call’s timeout. Concurrent option changes can be overwritten by restoration of the saved value. Failures from both `setsockopt` calls are ignored.
+
+   **Fix:** Implement the deadline without changing socket options—for example, deadline-aware readiness waits followed by nonblocking receives, with signal and `MSG_WAITFORONE` handling.
+
+8. **[I686-R5-8] DEFECT — Failed `munmap` can leave a live mapping without backing-file tracking.**
+
+   **Evidence:** [src/rt32/rt32_vm_mmap.c:270](/Users/angerman/Projects/zw3rk/i686rt/src/rt32/rt32_vm_mmap.c:270).
+
+   **Root cause:** `i686_vm_file_untrack_map` commits removal before `rt32_vm_reserve_prot_none` performs the fallible host operation. If reservation fails, the function returns without restoring tracking.
+
+   **Consequence:** Guest region metadata and the surviving host mapping can remain while backing-file records and owned descriptors have been removed. Later file-refresh or truncation handling no longer sees that mapping.
+
+   **Fix:** Prepare tracking changes without committing them, perform the host operation, then commit metadata removal. Alternatively retain sufficient state for rollback. Validate with an injected reservation failure.
+
+9. **[I686-R5-9] DEFECT / CLEAN — Guest-controlled time64 values cause signed-overflow undefined behavior.**
+
+   **Evidence:** [src/os/sys_sock_msg.c:390](/Users/angerman/Projects/zw3rk/i686rt/src/os/sys_sock_msg.c:390) and line 410.
+
+   **Root cause:** High words are shifted left as signed `int64_t`; values setting bit 63 exceed the signed range. Separately, adding a large positive timeout to monotonic time can overflow `time_t`, as can the nanosecond carry.
+
+   **Fix:** Assemble raw words using `uint64_t`, then decode their signed representation safely. Validate negative values and use checked deadline addition. Add boundary cases for negative encodings and `INT64_MAX`.
+
+10. **[I686-R5-10] DRY — Darwin readiness waiting is duplicated within this repository.**
+
+    **Evidence:** [src/os/backend_darwin_io.c:47](/Users/angerman/Projects/zw3rk/i686rt/src/os/backend_darwin_io.c:47), [src/os/backend_darwin_net.c:86](/Users/angerman/Projects/zw3rk/i686rt/src/os/backend_darwin_net.c:86).
+
+    **Root cause:** Both translation units contain the same lease check, wake-pipe polling, timeout handling, and readiness interpretation.
+
+    **Fix:** Keep one private Darwin backend helper inside i686rt. This makes signal, timeout, and invalid-descriptor corrections apply consistently. No cross-repository library extraction is warranted.
+
+11. **[I686-R5-11] YAGNI / CLEAN — Socket backend APIs have no callers while guest syscalls bypass them.**
+
+    **Evidence:** [src/os/backend.h:152](/Users/angerman/Projects/zw3rk/i686rt/src/os/backend.h:152), [src/os/backend_linux_sys.c:293](/Users/angerman/Projects/zw3rk/i686rt/src/os/backend_linux_sys.c:293), [src/os/backend_darwin_net.c:118](/Users/angerman/Projects/zw3rk/i686rt/src/os/backend_darwin_net.c:118), versus [src/os/sys_sock.c:123](/Users/angerman/Projects/zw3rk/i686rt/src/os/sys_sock.c:123).
+
+    **Root cause:** Searches found declarations and implementations, but no callers for the inspected `rt_host_socket/socketpair/bind/connect/accept4/sendto/recvfrom` APIs. Actual syscall handlers call libc directly.
+
+    **Consequence:** Two networking paths are maintained, but backend lease handling and platform adaptations do not govern guest socket execution.
+
+    **Fix:** Establish one active path: wire guest handlers through the backend with proper ABI conversion, or remove unused implementations where no current contract requires them. Correct comments claiming Darwin is never a runtime host.
+
+**Cross-runtime propagation notes**
+
+Sibling repositories were not inspected; these are targeted follow-up checks, not confirmed sibling defects.
+
+| Findings | Sibling checks |
+|---|---|
+| R5-1–3 | Check x86 execution paths in **hyper-linux**, if independently implemented. These opcode semantics do not directly transfer to ARM guest execution in **a32rt**. |
+| R5-4–7, R5-9 | Check **a32rt** compat socket marshalling and **hyper-linux** syscall adapters for direct guest pointers, ancillary truncation, ignored copyouts, shared timeout mutation, and signed time assembly. |
+| R5-8 | Prioritize **a32rt** VM/file-tracking transaction order; inspect corresponding **hyper-linux** mapping bookkeeping. |
+| R5-10–11 | Check both siblings for duplicated Darwin wait helpers and backend APIs bypassed by active syscall paths. Keep remedies repository-local. |
+
+No inspected source file exceeded 900 lines; the largest was `src/os/sys_stat.c` at 898. No additional ELF-loader finding met the confidence threshold within this inspection budget.
+
+- [ ] **I686-R5-1:** Remediate `I686-R5-1` in `i686rt` and verify with tests.
+- [ ] **I686-R5-2:** Remediate `I686-R5-2` in `i686rt` and verify with tests.
+- [ ] **I686-R5-3:** Remediate `I686-R5-3` in `i686rt` and verify with tests.
+- [ ] **I686-R5-4:** Remediate `I686-R5-4` in `i686rt` and verify with tests.
+- [ ] **I686-R5-5:** Remediate `I686-R5-5` in `i686rt` and verify with tests.
+- [ ] **I686-R5-6:** Remediate `I686-R5-6` in `i686rt` and verify with tests.
+- [ ] **I686-R5-7:** Remediate `I686-R5-7` in `i686rt` and verify with tests.
+- [ ] **I686-R5-8:** Remediate `I686-R5-8` in `i686rt` and verify with tests.
+- [ ] **I686-R5-9:** Remediate `I686-R5-9` in `i686rt` and verify with tests.
+- [ ] **I686-R5-10:** Remediate `I686-R5-10` in `i686rt` and verify with tests.
+- [ ] **I686-R5-11:** Remediate `I686-R5-11` in `i686rt` and verify with tests.
+
+---
+
+## 3. `mips32rt` (`aa2eb8e`) — 11 Round-5 Findings (`0 / 11` Resolved)
+
+**Round 5 found 11 actionable issues.** Used exactly eight shell commands for static inspection. No Markdown files, builds, tests, Docker, or QEMU were read or run. Findings below are code-based; suggested reproductions remain unexecuted.
+
+1. **[M32-R5-1] BUG — DBT bypasses guest subpage permissions on A2 hosts. High.**
+
+   **Evidence:** [a64_emit.c:419](/Users/angerman/Projects/zw3rk/mips32rt/src/rt32/a64_emit.c:419), [trampoline_a64.S:52](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/trampoline_a64.S:52), [dbt.c:772](/Users/angerman/Projects/zw3rk/mips32rt/src/dbt/dbt.c:772).
+
+   Generated loads/stores always access `[G, wAddr, uxtw]`; the trampoline always installs `guest_base`, and DBT dispatch does not gate execution on `vm_regime`. The A2 permission validator is used by interpreter accessors, not these generated accesses.
+
+   On Darwin, a writable 4 KiB guest page can therefore make an adjacent read-only or `PROT_NONE` guest page accessible through their shared 16 KiB host page. Existing permission probes at [test_p6_perms.c:300](/Users/angerman/Projects/zw3rk/mips32rt/tests/test_p6_perms.c:300) cover a relevant layout.
+
+   **Fix:** Route A2 memory operations through validated helpers or interpreter fallback until generated accesses enforce guest-page permissions.
+
+2. **[M32-R5-2] BUG — Big-endian futex comparisons use little-endian host values. High.**
+
+   **Evidence:** [threads.c:506](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:506), [threads.c:527](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:527), [threads.c:564](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:564).
+
+   The preliminary load decodes guest endianness, but `FUTEX_WAIT` and `WAIT_BITSET` then pass the unswapped numeric `val` to the host kernel. For a BE word containing `1`, the little-endian host observes `0x01000000`, so the kernel rejects a valid wait with `EAGAIN`. `CMP_REQUEUE` has the same comparison problem. Native `WAKE_OP` arithmetic also operates on the wrong representation.
+
+   **Fix:** Convert comparison operands to host memory representation. Implement an endian-aware atomic path for BE `WAKE_OP`, or explicitly reject unsupported operations. Add raw BE futex tests using nonzero, non-byte-symmetric values.
+
+3. **[M32-R5-3] BUG — Futex requeue and wake-op discard argument four. High.**
+
+   **Evidence:** [threads.c:481](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:481), [threads.c:563](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:563), [threads.c:578](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:578).
+
+   Argument four is decoded into `to_va`, but both requeue operations and `WAKE_OP` pass `NULL` in its place. For these operations, that argument is a count, not a timeout pointer. Consequently, requeue moves zero waiters and wake-op cannot perform the requested second-address wake count.
+
+   **Fix:** Forward the operation-specific integer count. Add tests that require moving waiters between addresses and waking waiters on both addresses.
+
+4. **[M32-R5-4] DEFECT — Successful guest threads permanently retain host resources. High.**
+
+   **Evidence:** [threads.c:320](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:320), [threads.c:328](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:328), [threads.c:207](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:207), [threads.c:403](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:403).
+
+   Each successful clone allocates a record and a 2 MiB host stack. Cleanup exists only on creation failure. Successful threads exit through raw `SYS_exit`, bypassing pthread teardown, and no implemented reaper owns the retained record or stack. Detached status does not reclaim a caller-provided stack.
+
+   **Fix:** Establish explicit completion ownership: terminate through pthread machinery and reclaim caller-owned stacks only after host-thread termination, using a reaper or equivalent lifecycle. Include repeated create/join coverage.
+
+5. **[M32-R5-5] BUG — Robust-list registration succeeds without owner-death processing. High.**
+
+   **Evidence:** [syscalls_meta.c:813](/Users/angerman/Projects/zw3rk/mips32rt/src/os/syscalls_meta.c:813), [threads.c:207](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:207).
+
+   `set_robust_list` records the guest head and returns success. Thread teardown only clears `clear_child_tid`; it never traverses the guest robust list, marks abandoned futexes `OWNER_DIED`, or wakes their waiters. The host kernel cannot process this guest O32 list through the host pthread’s independent robust-list registration.
+
+   **Fix:** Implement bounded, fault-tolerant O32 robust-list teardown, including the pending-operation entry and BE conversion. Until supported, do not report successful registration. Test a thread exiting while holding a robust mutex.
+
+6. **[M32-R5-6] BUG — Round 4 read/readv epoch updates still permit invalid SC success. High.**
+
+   **Evidence:** [syscall_min.c:150](/Users/angerman/Projects/zw3rk/mips32rt/src/os/syscall_min.c:150), [syscalls.c:677](/Users/angerman/Projects/zw3rk/mips32rt/src/os/syscalls.c:677), [mem.c:800](/Users/angerman/Projects/zw3rk/mips32rt/src/os/mem.c:800).
+
+   Host I/O writes directly into guest memory before acquiring LL/SC exclusion and advancing epochs. Another thread can perform LL, observe a same-value I/O store, and complete SC before the delayed epoch update. Both the epoch check and value comparison then pass despite an intervening write.
+
+   **Fix:** Read into host staging storage, then validate and commit transferred bytes under the established VM/LL locking order. Preserve partial-transfer and iovec ordering semantics; do not hold the LL lock across blocking I/O.
+
+7. **[M32-R5-7] DEFECT — Darwin file synchronization still suppresses errors and destroys mapping contents. High.**
+
+   **Evidence:** [vm_mmap.c:665](/Users/angerman/Projects/zw3rk/mips32rt/src/rt32/vm_mmap.c:665), [vm_mmap.c:699](/Users/angerman/Projects/zw3rk/mips32rt/src/rt32/vm_mmap.c:699), [vm_file.c:78](/Users/angerman/Projects/zw3rk/mips32rt/src/vm/vm_file.c:78).
+
+   `rt32_vm_flush_shared_fd()` discards writeback failures. Write and truncate callers continue, then synchronization zeroes each entire shadow mapping and issues one unchecked `pread`. A failed preflush can lose dirty mapped bytes during refresh; an interrupted, failed, or short refresh can replace valid contents with zeros. Round 4 error propagation therefore does not cover these fd-based paths.
+
+   **Fix:** Return and propagate flush errors. Populate temporary storage using checked, EINTR-aware reads, zero only the verified EOF remainder, and commit only after successful population.
+
+8. **[M32-R5-8] BUG — Reserved FP conversion encodings consume an uninitialized result. Medium.**
+
+   **Evidence:** [fp.c:711](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:711), [fp.c:750](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:750), [fp.c:770](/Users/angerman/Projects/zw3rk/mips32rt/src/interp/fp.c:770).
+
+   `v` is uninitialized. Function 32 with S format and function 33 with D format execute `break`, reaching the shared result-write tail without assigning `v`. These reserved same-format conversions consequently invoke undefined C behavior and mutate guest state instead of taking the reserved-instruction path.
+
+   **Fix:** Reject both combinations before result writeback. Add raw-instruction tests checking the trap and unchanged destination/FCSR state.
+
+9. **[M32-R5-9] DEFECT — Differential testing can certify two failed launches. High for validation.**
+
+   **Evidence:** [run_difftest.sh:71](/Users/angerman/Projects/zw3rk/mips32rt/tests/difftest/run_difftest.sh:71), [run_difftest.sh:84](/Users/angerman/Projects/zw3rk/mips32rt/tests/difftest/run_difftest.sh:84), [run_difftest.sh:115](/Users/angerman/Projects/zw3rk/mips32rt/tests/difftest/run_difftest.sh:115).
+
+   The harness accepts equal exit statuses and permits empty trace/register files. If both launches fail before guest execution—for example, `setarch -R` is installed but denied—both empty outputs compare equal and produce `DIFFTEST: 0 divergences`. Matching timeouts can likewise pass when captured evidence matches.
+
+   **Fix:** Reject infrastructure failures and timeouts, require evidence of guest execution and complete expected state records, and explicitly configure expected guest termination where nonzero exits are intentional.
+
+10. **[M32-R5-10] YAGNI / CLEAN — Thread lifecycle bookkeeping has no consumer. Low.**
+
+    **Evidence:** [threads.c:122](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:122), [threads.c:153](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:153), [threads.c:439](/Users/angerman/Projects/zw3rk/mips32rt/src/os/threads.c:439).
+
+    `host_stack` is assigned but never read. `mips_live_clones` is modified but never used to make a decision. Comments promise a reaper that is absent. Moreover, the counter increments after the child can already exit, and a parent-TID write failure skips that increment entirely.
+
+    **Fix:** Integrate these fields into the real lifecycle repair in M32-R5-4, with publication and rollback ordering, or remove unused bookkeeping and obsolete claims.
+
+11. **[M32-R5-11] DRY — Truncate variants duplicate O32 length decoding. Low.**
+
+    **Evidence:** [vm_file.c:109](/Users/angerman/Projects/zw3rk/mips32rt/src/vm/vm_file.c:109), [vm_file.c:151](/Users/angerman/Projects/zw3rk/mips32rt/src/vm/vm_file.c:151).
+
+    Path-based and fd-based truncate independently implement the same signed 32-bit validation, padded 64-bit argument extraction, and BE/LE assembly. This creates two maintenance points for one ABI rule.
+
+    **Fix:** Extract a file-local length decoder returning a validated length or error; retain separate path/fd handling. This is strictly intra-repository consolidation.
+
+**Cross-runtime propagation checks**
+
+Sibling sources were not inspected; these are targeted checks, not confirmed sibling findings.
+
+| Findings | Siblings/patterns to check |
+|---|---|
+| R5-1, R5-7 | `a32rt`, `i686rt`: copied Class-A substrate, Darwin subpage protection and shadow-file synchronization |
+| R5-2, R5-3 | Any sibling with futex forwarding; endian handling especially in BE-capable runtimes |
+| R5-4, R5-5, R5-10 | Siblings implementing guest clone through host pthreads and emulated robust lists |
+| R5-6 | `a32rt` and other LL/SC runtimes using post-I/O reservation invalidation |
+| R5-8 | Other MIPS runtimes sharing COP1 decoding or conversion logic |
+| R5-9 | All siblings using this differential-harness pattern |
+| R5-11 | No automatic propagation needed; local maintenance issue |
+
+**CLEAN coverage:** The source line-count inspection found no `.c`, `.h`, or `.S` file above 900 lines; the largest inspected source was `src/dbt/emit_int.c` at 899. The FP uninitialized read and misleading lifecycle comments are concrete hygiene findings above. ELF loading was inspected, but this bounded review established no additional ELF finding.
+
+- [ ] **M32-R5-1:** Remediate `M32-R5-1` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-2:** Remediate `M32-R5-2` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-3:** Remediate `M32-R5-3` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-4:** Remediate `M32-R5-4` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-5:** Remediate `M32-R5-5` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-6:** Remediate `M32-R5-6` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-7:** Remediate `M32-R5-7` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-8:** Remediate `M32-R5-8` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-9:** Remediate `M32-R5-9` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-10:** Remediate `M32-R5-10` in `mips32rt` and verify with tests.
+- [ ] **M32-R5-11:** Remediate `M32-R5-11` in `mips32rt` and verify with tests.
+
+---
+
+## 4. `ppc32rt` (`a091b8f`) — 11 Round-5 Findings (`0 / 11` Resolved)
+
+Found **11 issues**, including incomplete Round 4 copyout/coherence fixes. Used **eight shell commands**; no Markdown files, builds, tests, Docker, or QEMU. Findings are static conclusions, not runtime reproductions.
+
+1. **[P32-R5-1] BUG — `clone(CLONE_VM)` blocks the parent until the child exits.**  
+   **Evidence:** [syscalls.c:760](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls.c:760), [syscalls.c:771](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls.c:771).  
+   The dispatcher creates the child without a runner, then executes it synchronously before returning the child TID. A child waiting for the parent to release a mutex or publish a flag deadlocks inside `clone`. The existing [thread counter test:613](/Users/angerman/Projects/zw3rk/ppc32rt/tests/test_p4_threads_signals.c:613) permits sequential completion and cannot detect this.  
+   **Fix:** Schedule parent and child independently, including yielding on blocking operations. Add a parent/child handshake regression.
+
+2. **[P32-R5-2] BUG — FP memory faults commit register and PC changes.**  
+   **Evidence:** [fp.c:75](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:75), [fp.c:95](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/fp.c:95), [interp.h:286](/Users/angerman/Projects/zw3rk/ppc32rt/src/interp/interp.h:286), [emit_fp.c:260](/Users/angerman/Projects/zw3rk/ppc32rt/src/dbt/emit_fp.c:260).  
+   `ld32` returns zero after recording a permission fault. `fp_memop` nevertheless writes the destination FPR and advances `nip`. Update forms also overwrite RA before attempting the access; the DBT explicitly duplicates that ordering. A fault handler therefore sees partially committed instruction state, and retry can use the wrong address.  
+   **Fix:** Propagate access failure explicitly. Commit FPR, RA, and `nip` only after successful access; test protected-page faults for D-form and indexed update instructions.
+
+3. **[P32-R5-3] BUG/DEFECT — Raw syscall copyouts bypass Round 4 permission checks.**  
+   **Evidence:** [syscalls_dyn.c:414](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls_dyn.c:414), [syscalls_dyn.c:426](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls_dyn.c:426), [syscalls.c:395](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls.c:395).  
+   `getcwd` uses raw `memcpy`; `getrandom` passes the guest pointer directly to the host. Both check address range but omit guest write permissions and landed-store bookkeeping. On A2, a writable neighboring subpage can allow writes into a guest read-only page. `getcwd` can also fault in host code instead of returning `EFAULT`.  
+   **Fix:** Route output through checked copyout and common SMC, reservation, and shared-file coherence handling. Test read-only subpages sharing a writable host page.
+
+4. **[P32-R5-4] BUG — `readv` rereads descriptors that its own output can overwrite.**  
+   **Evidence:** [syscalls.c:213](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls.c:213), [syscalls.c:239](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls.c:239).  
+   Host iovecs are captured before `readv`, but invalidation rereads `base` and `len` from guest memory afterward. A valid destination overlapping the guest iovec array changes those descriptors. Bookkeeping then targets incorrect ranges, leaving the actual destination without reservation, code-cache, or staged-alias updates. Later chunks can also consume overwritten descriptors.  
+   **Fix:** Snapshot the complete descriptor array before I/O and retain its guest addresses for all post-I/O processing.
+
+5. **[P32-R5-5] BUG — Chunking vectored I/O changes syscall semantics.**  
+   **Evidence:** [syscalls.c:204](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls.c:204), [syscalls.c:230](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls.c:230).  
+   More than 16 vectors produce multiple host syscalls. A 17-vector datagram `writev` becomes two datagrams. A small pipe write loses whole-request atomicity, and a read can block again after an earlier chunk completed. Correct partial-byte accounting does not repair these semantic changes.  
+   **Fix:** Allocate a bounded host array for the accepted vector count and issue one host `readv`/`writev`.
+
+6. **[P32-R5-6] BUG — Reading into staged `MAP_SHARED` memory does not update its backing file.**  
+   **Evidence:** [syscalls.c:113](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls.c:113), [vm_file_stage.c:633](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm_file_stage.c:633), [vm_file_stage.c:507](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm_file_stage.c:507).  
+   `sys_read_landed` selects `cohere_read`, which passes `write_file=false`. Reading pipe bytes into a writable shared mapping changes destination memory just like any other store, but this path updates only staging objects. The backing file and direct file mappings retain old bytes.  
+   **Fix:** Treat successful syscall output as a store to the destination mapping, including backing-file propagation. Keep refresh-from-file operations separate.
+
+7. **[P32-R5-7] BUG — Staged write-through can select a read-only descriptor.**  
+   **Evidence:** [vm_file_stage.c:303](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm_file_stage.c:303), [vm_file_stage.c:510](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm_file_stage.c:510), [vm_file_stage.c:531](/Users/angerman/Projects/zw3rk/ppc32rt/src/vm/vm_file_stage.c:531).  
+   Groups retain a duplicate of their original descriptor. Write-through chooses the first same-inode group without checking access mode. If a read-only mapping was created first, a later writable mapping can send its writeback through that read-only descriptor. `pwrite` fails, and the failure is silently discarded.  
+   **Fix:** Retain or select a writable descriptor from an authorized writable mapping. Handle writeback failure explicitly. Add mixed `O_RDONLY`/`O_RDWR` alias coverage.
+
+8. **[P32-R5-8] BUG — Self-directed signals ignore the blocked mask.**  
+   **Evidence:** [signals.c:720](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/signals.c:720), [signals.c:451](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/signals.c:451), [signals.c:616](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/signals.c:616).  
+   `kill` immediately enters an installed handler through `ppc32_sig_deliver_sync`, without testing `ctx->sig_mask` or queuing a pending signal. Blocking `SIGUSR1` and sending it to self therefore runs the handler immediately instead of making it pending.  
+   **Fix:** Separate asynchronous signal enqueueing from synchronous fault delivery. Deliver queued signals at eligible execution boundaries after unmasking.
+
+9. **[P32-R5-9] DEFECT — Callback thread exit races handle publication and destroys joinability.**  
+   **Evidence:** [threads.c:582](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/threads.c:582), [threads.c:615](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/threads.c:615), [threads.c:654](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/threads.c:654).  
+   In the callback-backed pthread path, the child can exit before the parent records its handle. Exit clears the slot and frees the context; subsequent join returns `ESRCH`, and the joinable pthread resources remain unreaped. The embedded test also dereferences that potentially freed context at [threads.c:790](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/threads.c:790). This is distinct from the currently synchronous syscall path.  
+   **Fix:** Publish the handle before releasing a child startup barrier; retain completed-thread records until reaping. Give returned contexts explicit ownership.
+
+10. **[P32-R5-10] DRY/YAGNI/CLEAN — The unused minimal syscall implementation duplicates obsolete behavior.**  
+    **Evidence:** [syscalls_min.c:50](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls_min.c:50), [syscalls_min.c:161](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/syscalls_min.c:161), [main.c:481](/Users/angerman/Projects/zw3rk/ppc32rt/src/main.c:481).  
+    Repository reference searches found declarations and definitions but no callers of `ppc32_syscall_min`. It duplicates dispatch, return conversion, and memory handling while retaining a different low-address guard (`0x1000`) and unchecked direct buffers. This is an existing source of implementation drift.  
+    **Fix:** Remove the unused implementation/header, or make any required compatibility entry points delegate to the maintained dispatcher. Keep consolidation within this repository.
+
+11. **[P32-R5-11] YAGNI — `sig_installed` is write-only state.**  
+    **Evidence:** [signals.c:48](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/signals.c:48), [signals.c:115](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/signals.c:115), [signals.c:141](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/signals.c:141), [signals.c:162](/Users/angerman/Projects/zw3rk/ppc32rt/src/os/signals.c:162).  
+    All references initialize or assign the array; none reads it. It adds a second apparent disposition state without influencing behavior.  
+    **Fix:** Remove the array and its assignments.
+
+**Cross-runtime propagation notes**
+
+| Patterns | Sibling runtimes to inspect |
+|---|---|
+| Copyout permissions, vectored I/O, staged-file coherence | `a32rt`, `i686rt`, especially copied Class-A VM and syscall code |
+| Clone scheduling, pthread lifecycle, blocked-signal delivery | `a32rt`, `i686rt` wherever equivalent guest-thread/signal layers exist |
+| FP fault commit ordering | Sibling interpreter/JIT memory handlers, translated to each ISA’s precise exception rules |
+| Legacy dispatchers and write-only state | Sibling repositories containing copied phase-era implementations |
+
+These are propagation targets, **not confirmed sibling findings**; sibling source was not inspected.
+
+**CLEAN check:** Static line counts found no `.c`, `.h`, or `.S` file above 900 lines under `src`, `include`, or `tests`; the largest was `src/os/threads.c` at 884. ELF loading was inspected, but no additional ELF finding met the evidence threshold within this budget.
+
+- [ ] **P32-R5-1:** Remediate `P32-R5-1` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-2:** Remediate `P32-R5-2` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-3:** Remediate `P32-R5-3` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-4:** Remediate `P32-R5-4` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-5:** Remediate `P32-R5-5` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-6:** Remediate `P32-R5-6` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-7:** Remediate `P32-R5-7` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-8:** Remediate `P32-R5-8` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-9:** Remediate `P32-R5-9` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-10:** Remediate `P32-R5-10` in `ppc32rt` and verify with tests.
+- [ ] **P32-R5-11:** Remediate `P32-R5-11` in `ppc32rt` and verify with tests.
+
+---
+
+## 5. `sparc32rt` (`edfcf6f`) — 12 Round-5 Findings (`0 / 12` Resolved)
+
+**Round 5 found 12 actionable issues.** These are static findings, not runtime reproductions. I used eight shell commands; read no Markdown; ran no builds, tests, Docker, or QEMU; and changed no files. Inspection covered selected interpreter, DBT, VM, syscall, ELF, and test paths. This checkout has no `src/rt32/family/` directory; related bookkeeping resides in `src/vm/vm_file.c`.
+
+1. **[S32-R5-1] BUG — FP doubleword alignment differs between engines.**  
+   **Evidence:** [interp/fp.c:230](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/fp.c:230), [dbt/emit_fpmem.c:83](/Users/angerman/Projects/zw3rk/sparc32rt/src/dbt/emit_fpmem.c:83).  
+   The interpreter executes `LDDF`/`STDF` as two four-byte accesses, accepting an address congruent to four modulo eight. The DBT explicitly faults that address. Additionally, [interp_signal.c:643](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:643) excludes FP doublewords from alignment-fault classification, so the DBT fault becomes SIGSEGV.  
+   **Fix:** Make alignment checks and fault classification consistent across both engines. Add mapped `base+4` load/store cases alongside the existing [FP round-trip test:311](/Users/angerman/Projects/zw3rk/sparc32rt/tests/test_p3_fp_simd.c:311).
+
+2. **[S32-R5-2] BUG — Byte and halfword mapping faults can become SIGBUS.**  
+   **Evidence:** [interp_signal.c:654](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:654), [interp_mem.c:74](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_mem.c:74).  
+   Classification immediately returns SIGBUS whenever `fault_addr & 3` is nonzero. An unmapped byte load at `page+1`, or an aligned halfword load at `page+2`, therefore gets classified as an alignment fault despite satisfying its instruction’s alignment requirement.  
+   **Fix:** Record the fault cause at the access site, or determine the instruction’s required alignment before classifying it.
+
+3. **[S32-R5-3] DEFECT — Fault classification bypasses VM reader protection.**  
+   **Evidence:** [interp_signal.c:621](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:621), [main.c:259](/Users/angerman/Projects/zw3rk/sparc32rt/src/main.c:259).  
+   `sparc32_fault_insn_word()` checks permissions and directly dereferences guest memory without `sparc32_vm_access_enter()`. A sibling can unmap or revoke access between those operations, causing a host fault while the runtime is classifying a guest fault. Ordinary accessors already protect this interval.  
+   **Fix:** Hold the VM reader guard across validation and instruction copying, preserving the original guest fault state.
+
+4. **[S32-R5-4] BUG — Signal queues still consume each other’s pending bits.**  
+   **Evidence:** [threads_sig.c:107](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/threads_sig.c:107), [threads_sig.c:123](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/threads_sig.c:123), [interp_signal.c:418](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:418).  
+   `rt_sigsuspend` consumes a process bit while delivering a thread bit. Its process loop also claims and discards a process signal if any thread has that number pending. Separately, the common async commit always clears the current thread’s bit—even when invoked for a process delivery—so a thread signal arriving during frame construction can disappear.  
+   **Fix:** Carry queue ownership through selection and delivery; consume only the selected queue. Remove the remaining cross-queue deduplication. Extend the [single-signal suspend test:125](/Users/angerman/Projects/zw3rk/sparc32rt/tests/test_p4_async.c:125) with simultaneous process/thread pending cases.
+
+5. **[S32-R5-5] BUG — `rt_sigsuspend` discards queued default-fatal signals.**  
+   **Evidence:** [threads_sig.c:100](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/threads_sig.c:100), [threads_sig.c:126](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/threads_sig.c:126).  
+   Both loops treat “no installed handler” as permission to discard the signal. Round 4 explicitly queues default-disposition signals while blocked at [threads_kill.c:197](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/threads_kill.c:197). If `sigsuspend` unmasks one, it can consume the pending fatal signal and sleep instead of applying its default action.  
+   **Fix:** Share disposition handling with normal polling, distinguishing ignored, caught, and default-action signals.
+
+6. **[S32-R5-6] DEFECT — Concurrent disposition changes expose uninitialized handler addresses.**  
+   **Evidence:** [interp_signal.c:296](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:296), [interp_signal.c:410](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:410), [syscalls_sig.c:162](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/syscalls_sig.c:162).  
+   Frame construction snapshots one action, then commit fetches it again. If another thread changes the disposition to DFL or IGN between those calls, `sparc32_signal_get_action()` fails without initializing `handler` or `restorer`. Commit ignores that failure and uses both locals. The syscall-delivery path repeats this pattern.  
+   **Fix:** Pass one validated action snapshot through construction and commit, with an explicit policy for disposition changes.
+
+7. **[S32-R5-7] BUG — Suspend delivery corrupts `SA_SIGINFO` fields.**  
+   **Evidence:** [interp_signal.c:365](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:365), [interp_signal.c:471](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:471).  
+   Normal async construction writes legacy PC/NPC mirrors only without `SA_SIGINFO`, because offsets 100 and 104 overlap `si_errno` and `si_code`. `interp_deliver_async_for_syscall()` overwrites those offsets unconditionally. An `SA_SIGINFO` handler entered through `sigsuspend` receives instruction addresses as signal metadata.  
+   **Fix:** Apply the same flag guard using the action snapshot; update the real saved PC/NPC independently.
+
+8. **[S32-R5-8] DEFECT — New file mappings start with the wrong tracked size.**  
+   **Evidence:** [vm_mmap.c:83](/Users/angerman/Projects/zw3rk/sparc32rt/src/rt32/vm_mmap.c:83), [vm_file.c:109](/Users/angerman/Projects/zw3rk/sparc32rt/src/vm/vm_file.c:109), [vm_file.c:232](/Users/angerman/Projects/zw3rk/sparc32rt/src/vm/vm_file.c:232).  
+   Mapping registration publishes the file’s size **before** interning the new mapping. The new entry subsequently initializes `file_size` to zero. Its first truncation therefore compares the new size against zero and skips shrink handling.  
+   **Fix:** Initialize the mapping entry with the `fstat` size during registration. Test the first shrink immediately after mapping, without an intervening write or second mmap.
+
+9. **[S32-R5-9] DEFECT — File-mapping records outlive their mappings.**  
+   **Evidence:** [vm_file.c:90](/Users/angerman/Projects/zw3rk/sparc32rt/src/vm/vm_file.c:90), [vm_file.c:202](/Users/angerman/Projects/zw3rk/sparc32rt/src/vm/vm_file.c:202), [vm_mmap.c:357](/Users/angerman/Projects/zw3rk/sparc32rt/src/rt32/vm_mmap.c:357).  
+   Entries become permanently live; unmap and exec reset do not retire them. After file A is unmapped and file B occupies its address, shrinking A can clear B’s dirty-page state through the stale range. Moved private mappings copy only pages marked dirty, making this capable of losing B’s private modifications. After 128 distinct records, registration also silently stops.  
+   **Fix:** Implement range retirement/splitting for unmap, replacement, remap, and exec. Recycle entries and report registration failure rather than silently dropping tracking.
+
+10. **[S32-R5-10] DEFECT — Futex emulation exhausts slots permanently.**  
+    **Evidence:** [futex.c:61](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/futex.c:61), [futex.c:147](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/futex.c:147), [futex.c:160](/Users/angerman/Projects/zw3rk/sparc32rt/src/os/futex.c:160).  
+    The emulation table has 64 slots. Allocation sets `in_use`, but completion only decrements `waiters`; nothing releases a slot. After waits on 64 distinct addresses, waits on new addresses return EAGAIN even when the value matches and all earlier waiters have finished.  
+    **Fix:** Recycle zero-waiter slots under `futex_emu_lock`, preserving safe condition-variable lifetime. Add a sequential test over more than 64 addresses.
+
+11. **[S32-R5-11] DRY — Difftest duplicates production fault classification.**  
+    **Evidence:** [difftest.c:159](/Users/angerman/Projects/zw3rk/sparc32rt/src/dbt/difftest.c:159), [interp_signal.c:617](/Users/angerman/Projects/zw3rk/sparc32rt/src/interp/interp_signal.c:617), [difftest.c:433](/Users/angerman/Projects/zw3rk/sparc32rt/src/dbt/difftest.c:433).  
+    Difftest contains another instruction fetch and classifier, including the same erroneous address heuristic. It then delivers that single classification to both contexts. This adds maintenance drift without providing an independent signal oracle.  
+    **Fix:** Reuse the repository’s production classifier and validate expected signal numbers in focused guest tests.
+
+12. **[S32-R5-12] YAGNI / CLEAN — Unused file-state machinery overstates implemented behavior.**  
+    **Evidence:** [vm_file.c:48](/Users/angerman/Projects/zw3rk/sparc32rt/src/vm/vm_file.c:48), [vm_file.c:126](/Users/angerman/Projects/zw3rk/sparc32rt/src/vm/vm_file.c:126), [vm_file.c:248](/Users/angerman/Projects/zw3rk/sparc32rt/src/vm/vm_file.c:248).  
+    Repository searches found no callers for `vm_file_promote_cow`, `vm_file_apply_shrink`, `vm_file_generation`, or `vm_file_shared_direct_ok`. The descriptor type supports only these unused helpers; `resize_seq` and `min_shrunk` have no readers. Meanwhile, the opening comment describes family-shared storage surviving fork, but `g_inodes` is an ordinary static array.  
+    **Fix:** Remove unused alternate machinery or connect it to a concrete required path. Correct the comments to distinguish implemented behavior from intended behavior.
+
+**Cross-runtime propagation**
+
+| Findings | Sibling checks |
+|---|---|
+| 1–2 | Any SPARC sibling: FP alignment, access-width-aware fault causes. |
+| 3–7 | `a32rt`, `i686rt`, and siblings with copied signal/VM helpers: reader guards, queue ownership, disposition snapshots, suspend-frame updates. |
+| 8–9, 12 | `a32rt`, `i686rt`, and runtimes carrying Provider-A file tracking: registration order, mapping lifetime, generation consumers, actual fork sharing. |
+| 10 | Darwin-capable siblings using the same condition-variable futex table. |
+| 11 | Siblings with duplicated difftest fault-delivery logic. |
+
+These are propagation candidates; sibling repositories were not inspected. No inspected `.c`, `.h`, or `.S` file exceeded 900 lines—the largest was `src/rt32/vm.c` at 883. No additional concrete ELF-loader finding was established within this inspection budget.
+
+- [ ] **S32-R5-1:** Remediate `S32-R5-1` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-2:** Remediate `S32-R5-2` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-3:** Remediate `S32-R5-3` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-4:** Remediate `S32-R5-4` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-5:** Remediate `S32-R5-5` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-6:** Remediate `S32-R5-6` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-7:** Remediate `S32-R5-7` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-8:** Remediate `S32-R5-8` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-9:** Remediate `S32-R5-9` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-10:** Remediate `S32-R5-10` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-11:** Remediate `S32-R5-11` in `sparc32rt` and verify with tests.
+- [ ] **S32-R5-12:** Remediate `S32-R5-12` in `sparc32rt` and verify with tests.
+
+---
+
+## 6. `rvrt` (`841d562`) — 7 Round-5 Findings (`0 / 7` Resolved)
+
+**Round 5 found seven actionable issues.** The strongest are incorrect accepted inputs in the Soft-TLB emitter and byte-range corruption in the VM mapping helper. Their integration limits are noted below.
+
+Used exactly **8 shell invocations**, all read-only. No Markdown files, builds, tests, Docker, or QEMU were run. Inspected selected interpreter/FP, DBT, VM, OS, ELF32, signal, family, and test paths; this is a bounded static audit, not whole-repository qualification.
+
+1. **[RV-R5-1] BUG — Soft-TLB stores accept registers that the lookup destroys**
+
+   **Location:** [src/dbt/emit_mem.c:137](/Users/angerman/Projects/zw3rk/rvrt/src/dbt/emit_mem.c:137), [src/dbt/emit_mem.h:19](/Users/angerman/Projects/zw3rk/rvrt/src/dbt/emit_mem.h:19).
+
+   `rv_dbt_reg_usable()` accepts x2, x3, and x4 as store-value registers. The emitted lookup overwrites all three before executing the store. For example, `is_store=true, val_reg=2` passes validation but stores lookup state instead of the incoming value. Loads into x20 can also destroy the pinned TLB base.
+
+   **Fix:** Enforce the documented x0 value/destination convention, or define operation-specific register exclusions. Add negative cases for scratch registers and x20. Existing shape tests exercise `val_reg=0`.
+
+   **Impact limit:** Repository searches found test callers of this emitter, not a production call path.
+
+2. **[RV-R5-2] DEFECT — Emitter silently truncates site offsets**
+
+   **Location:** [src/dbt/emit_mem.c:135](/Users/angerman/Projects/zw3rk/rvrt/src/dbt/emit_mem.c:135), [src/dbt/emit_mem.c:152](/Users/angerman/Projects/zw3rk/rvrt/src/dbt/emit_mem.c:152).
+
+   Validation bounds `guest_pc_delta`, but not the host offsets subsequently cast to `uint16_t`. For example, `base_offset=65536, stub_offset=65568` is accepted, yet `seq_start_offset` becomes zero. A sequence starting below 65536 can also overflow its continuation offset. Unaligned offsets are accepted even though branch encoding divides the displacement by four.
+
+   **Fix:** Before emitting anything, validate alignment, checked offset addition, and representability of every stored offset. Add boundary tests around the last representable continuation.
+
+   **Impact limit:** This is a demonstrated API defect; current production reachability was not established.
+
+3. **[RV-R5-3] BUG — Partial-page file replacement overwrites surviving bytes**
+
+   **Location:** [src/vm/vm64.c:603](/Users/angerman/Projects/zw3rk/rvrt/src/vm/vm64.c:603), [src/vm/vm64.c:618](/Users/angerman/Projects/zw3rk/rvrt/src/vm/vm64.c:618).
+
+   On a 4 KiB host, matching low address/offset bits select `MAP_FIXED`, even when the requested range covers only part of a host page. The code expands backward by `head`; the kernel also rounds the mapped length upward. VMA removal, however, covers only the original byte range.
+
+   For example, replacing `[4097,4098)` with file offset 1 remaps the whole page beginning at 4096. Bytes outside the requested range change while their surviving VMA metadata remains.
+
+   **Fix:** Use direct file mapping only when the replacement covers complete host pages. Otherwise preserve surrounding bytes through the staged-copy path, or explicitly reject unsupported alignment. Test sentinels before and after a one-byte replacement.
+
+   **Impact limit:** Runtime integration labels this VM a **best-effort shadow** at [src/runtime/runtime_main_exec_wait.c:20](/Users/angerman/Projects/zw3rk/rvrt/src/runtime/runtime_main_exec_wait.c:20); this finding does not establish corruption of authoritative guest memory.
+
+4. **[RV-R5-4] DEFECT / CLEAN — EOF rounding guard uses an impossible threshold**
+
+   **Location:** [src/vm/vm64.c:703](/Users/angerman/Projects/zw3rk/rvrt/src/vm/vm64.c:703).
+
+   The overflow guard compares `new_size / 4096` with `0xffffffffffffff`. That quotient cannot exceed `0xfffffffffffff`. Consequently, `new_size=UINT64_MAX` bypasses the guard and rounds to zero, making ordinary mapped pages appear beyond EOF.
+
+   **Fix:** Replace the literal with checked rounding based on `UINT64_MAX` and `RV_VM64_GUEST_PAGE_SIZE`, or reject sizes outside the supported signed file-offset range.
+
+   **Impact limit:** Normal signed host file sizes do not reach this case; the exposed `uint64_t` callback accepts it.
+
+5. **[RV-R5-5] DEFECT — “Bounded” parity execution becomes unbounded without `timeout`**
+
+   **Location:** [tests/parity_suite.sh:56](/Users/angerman/Projects/zw3rk/rvrt/tests/parity_suite.sh:56), [tests/parity_suite.sh:202](/Users/angerman/Projects/zw3rk/rvrt/tests/parity_suite.sh:202).
+
+   When `timeout` is unavailable, the runner sets an empty prefix and executes guests directly. A looping guest hangs the suite indefinitely. The AOT cold/warm paths use the same fallback.
+
+   **Fix:** Require a supported timeout implementation and report GAP when unavailable, or provide a bounded watchdog that terminates and reaps the child. Test timeout-tool absence and a deliberately nonterminating fixture.
+
+6. **[RV-R5-6] DRY — Family mutation paths duplicate exact identity comparison**
+
+   **Location:** [src/runtime/family_file_pwrite.c:17](/Users/angerman/Projects/zw3rk/rvrt/src/runtime/family_file_pwrite.c:17), [src/runtime/family_file_truncate.c:269](/Users/angerman/Projects/zw3rk/rvrt/src/runtime/family_file_truncate.c:269).
+
+   Both define identical `same_identity()` implementations for validating staged mutation records. Future identity-field changes can update one validation path without the other.
+
+   **Fix:** Extract one repository-local helper named for exact snapshot equality. **Do not substitute `rv_file_identity_equal()` unchanged:** it validates identities, compares only `length` bytes, and omits `mapped_key_eligible`, so its semantics differ.
+
+7. **[RV-R5-7] YAGNI / CLEAN — Dormant commit-window field claims synchronization it never performs**
+
+   **Location:** [src/os/backend.h:59](/Users/angerman/Projects/zw3rk/rvrt/src/os/backend.h:59), [src/os/backend_linux.c:204](/Users/angerman/Projects/zw3rk/rvrt/src/os/backend_linux.c:204), [src/os/backend_darwin.c:317](/Users/angerman/Projects/zw3rk/rvrt/src/os/backend_darwin.c:317).
+
+   The comment says `in_commit_window` guards the commit step. Searches across `src/`, `test/`, and `tests/` found only its declaration and zero initialization—no reads or transitions. It supplies no protection and misstates the implemented protocol.
+
+   **Fix:** Remove the unused field and claim, or explicitly document it as reserved if layout compatibility requires retention. Do not infer a working commit guard from this structure.
+
+**Cross-runtime propagation checks**
+
+| Findings | Sibling checks |
+|---|---|
+| RV-R5-1–2 | Check a32rt and other rt-series runtimes carrying equivalent Soft-TLB emitters for scratch-register acceptance and narrow site offsets. |
+| RV-R5-3–4 | Check corresponding arena/COW providers, especially 4 KiB direct-mapping paths and EOF rounding. |
+| RV-R5-5 | Check sibling `tests/parity_suite.sh` runners and the rt-series catalogue’s timeout assumptions. |
+| RV-R5-6 | Check equivalent family write/truncate validation pairs; consolidate only within each repository. |
+| RV-R5-7 | Check copied Darwin/Linux backend structures and their protocol comments. |
+
+These are propagation targets, not verified sibling defects. No inspected C source/header under `src/` or `tests/` exceeded 900 lines. No additional interpreter, FP, ELF32, or signal finding met the evidence threshold within this budget.
+
+- [ ] **RV-R5-1:** Remediate `RV-R5-1` in `rvrt` and verify with tests.
+- [ ] **RV-R5-2:** Remediate `RV-R5-2` in `rvrt` and verify with tests.
+- [ ] **RV-R5-3:** Remediate `RV-R5-3` in `rvrt` and verify with tests.
+- [ ] **RV-R5-4:** Remediate `RV-R5-4` in `rvrt` and verify with tests.
+- [ ] **RV-R5-5:** Remediate `RV-R5-5` in `rvrt` and verify with tests.
+- [ ] **RV-R5-6:** Remediate `RV-R5-6` in `rvrt` and verify with tests.
+- [ ] **RV-R5-7:** Remediate `RV-R5-7` in `rvrt` and verify with tests.
+
+---
+
+## 7. `loongarch64rt` (`1256d4b`) — 9 Round-5 Findings (`0 / 9` Resolved)
+
+Found **9 concrete issues**. This was a static audit using **eight shell invocations**; no Markdown files, builds, tests, Docker, or QEMU were run. No files changed. Local tooling is in `tests/`; shared tooling is in `../rt-series/tools/`.
+
+1. **[LA64-R5-1] BUG — Hole selection can overlap an existing arena mapping.**  
+   **Location:** [src/os/mem_min.c:707](/Users/angerman/Projects/zw3rk/loongarch64rt/src/os/mem_min.c:707), [src/os/syscalls_mem.c:322](/Users/angerman/Projects/zw3rk/loongarch64rt/src/os/syscalls_mem.c:322).  
+   `la64_mem_find_hole()` checks arena occupancy only at `cand`. If the first page is free but a later page overlaps an arena mapping, it returns the occupied span. `sys_mmap()` then falls through to `la64_mem_map()`, whose overlap checks cover only its own region table. A non-fixed hinted mapping can therefore create overlapping guest mappings with different backing stores.  
+   **Fix:** Check the entire candidate range against both ownership tables, advance past every intersecting mapping, and repeat the check under the mutation lock.
+
+2. **[LA64-R5-2] BUG / YAGNI — Shared-map store propagation is implemented but never called.**  
+   **Location:** [src/vm/vm_file_sync.c:208](/Users/angerman/Projects/zw3rk/loongarch64rt/src/vm/vm_file_sync.c:208), [src/interp/interp_mem.h:102](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/interp_mem.h:102), [src/dbt/dbt_mem.c:298](/Users/angerman/Projects/zw3rk/loongarch64rt/src/dbt/dbt_mem.c:298).  
+   The repository-wide C/header search finds only the declaration and definition of `vmfile_note_store()`. Interpreter stores never notify it, and DBT writable TLB entries bypass it too. On staged shared mappings, a store through one alias remains invisible through another until later synchronization. The dirty-tracking machinery consequently cannot distinguish guest stores from external file changes reliably.  
+   **Fix:** Connect post-store notification to scalar, vector, atomic, and syscall copyout paths. Keep staged shared pages off the unrestricted DBT store path unless emitted stores perform equivalent tracking.
+
+3. **[LA64-R5-3] BUG — Inode-level descriptor reuse substitutes the wrong access mode.**  
+   **Location:** [src/vm/vm_file.c:362](/Users/angerman/Projects/zw3rk/loongarch64rt/src/vm/vm_file.c:362), [src/vm/vm_file.c:512](/Users/angerman/Projects/zw3rk/loongarch64rt/src/vm/vm_file.c:512), [src/vm/vm_file.c:656](/Users/angerman/Projects/zw3rk/loongarch64rt/src/vm/vm_file.c:656).  
+   Registration retains the first process-local descriptor for an inode. Subsequent mappings prefer that descriptor over the descriptor supplied by the caller. If a write notification first registers an `O_WRONLY` descriptor, a later private mapping through a readable descriptor attempts `pread` on the cached write-only descriptor and fails. Conversely, a cached writable descriptor can bypass restrictions of a later read-only mapping descriptor.  
+   **Fix:** Validate mapping rights against the supplied descriptor and retain suitable descriptors per mapping or capability. Inode identity alone does not establish equivalent descriptor permissions.
+
+4. **[LA64-R5-4] BUG — Outside-arena file mappings incorrectly require read permission.**  
+   **Location:** [src/os/syscalls_mem.c:178](/Users/angerman/Projects/zw3rk/loongarch64rt/src/os/syscalls_mem.c:178), [src/os/syscalls_mem.c:186](/Users/angerman/Projects/zw3rk/loongarch64rt/src/os/syscalls_mem.c:186).  
+   `mmap_file_fill()` installs the final guest protection before tracking obtains the backing pointer using `la64_mem_ptr(..., 0)`. That lookup requires guest read permission. A valid private file mapping outside the arena with `PROT_NONE`, write-only, or execute-only protection is unmapped and reported as `ENOMEM`.  
+   **Fix:** Retain the backing pointer during population, or add an internal ownership lookup independent of guest access permission. Publish final protection after tracking succeeds.
+
+5. **[LA64-R5-5] BUG — DBT accumulates FCSR Cause across multiple instructions.**  
+   **Location:** [src/dbt/emit_fp_mem.c:145](/Users/angerman/Projects/zw3rk/loongarch64rt/src/dbt/emit_fp_mem.c:145), [src/dbt/emit_fp_mem.c:295](/Users/angerman/Projects/zw3rk/loongarch64rt/src/dbt/emit_fp_mem.c:295), [src/interp/fp_vec_priv.h:48](/Users/angerman/Projects/zw3rk/loongarch64rt/src/interp/fp_vec_priv.h:48).  
+   DBT clears FPSR once per accumulation interval and copies the accumulated exceptions into both guest sticky Flags and Cause. The interpreter replaces Cause after each operation. An exceptional FP operation followed by an exact FP operation and `MOVFCSR2GR` therefore exposes different Cause bits between engines.  
+   **Fix:** Track the latest operation’s exceptions separately from accumulated sticky flags. Preserve that distinction at FCSR reads and block exits; add a two-operation regression that reads the complete FCSR.
+
+6. **[LA64-R5-6] DEFECT — Shared file overlay installation occurs outside quiescence.**  
+   **Location:** [src/vm/vm_file.c:653](/Users/angerman/Projects/zw3rk/loongarch64rt/src/vm/vm_file.c:653), [src/vm/vm64.c:470](/Users/angerman/Projects/zw3rk/loongarch64rt/src/vm/vm64.c:470).  
+   The shared-map path calls `vm64_map()` with final permissions, which commits and releases quiescence. It then replaces the backing with `rt_host_map_file()`. The next `vm64_prepare_mutation()` happens only after replacement. A peer can observe accessible zero-filled staging bytes or access the HVA during backing replacement.  
+   **Fix:** Install backing and publish final page state in one transaction. Keep the range inaccessible until the host operation and tracking record succeed, and handle preparation failure before mutating backing.
+
+7. **[LA64-R5-7] DEFECT — Malformed `PT_INTERP` silently becomes “no interpreter.”**  
+   **Location:** [src/loader.c:279](/Users/angerman/Projects/zw3rk/loongarch64rt/src/loader.c:279), [src/loader.c:288](/Users/angerman/Projects/zw3rk/loongarch64rt/src/loader.c:288), [src/loader.c:657](/Users/angerman/Projects/zw3rk/loongarch64rt/src/loader.c:657).  
+   `read_interp_path()` returns the same result for absence, malformed length, and failed reads. Its caller treats every failure as a static executable and proceeds to the executable entry point. It also appends a terminator rather than requiring the interpreter record itself to contain one.  
+   **Fix:** Return distinct absent/present/error outcomes. Reject malformed or unreadable interpreter records with an executable-format error and validate their termination before loading.
+
+8. **[LA64-R5-8] BUG — CoreMark parity can pass when every execution fails.**  
+   **Location:** [tests/parity_suite.sh:538](/Users/angerman/Projects/zw3rk/loongarch64rt/tests/parity_suite.sh:538), [tests/parity_suite.sh:551](/Users/angerman/Projects/zw3rk/loongarch64rt/tests/parity_suite.sh:551).  
+   CRC extraction suppresses failure and permits empty files. The verdict requires only equal exit codes and equal extracted CRC files. If oracle, interpreter, and DBT all time out before producing CRCs, equal timeout statuses plus three empty files produce `PASS`. This branch also omits comparison with committed CoreMark goldens.  
+   **Fix:** Require successful execution, all expected CRC records, and agreement with committed CRC goldens. Treat timeout and setup failures explicitly.
+
+9. **[LA64-R5-9] DRY — Duplicate parity comparators have already diverged.**  
+   **Location:** [tests/parity_suite.sh:417](/Users/angerman/Projects/zw3rk/loongarch64rt/tests/parity_suite.sh:417), [tests/parity_suite.sh:505](/Users/angerman/Projects/zw3rk/loongarch64rt/tests/parity_suite.sh:505).  
+   The generic Docker comparator checks oracle output and committed goldens. The separately implemented dynamic-loader comparator checks only oracle agreement, despite writing goldens during refresh. A jointly changed oracle/runtime result can pass the dynamic case without matching its committed baseline.  
+   **Fix:** Factor result normalization and oracle/golden comparison into one helper within this repository. Keep case-specific execution separate.
+
+**Cross-runtime propagation:** Check `rvrt` first for the copied VM, file-provider, and mutation patterns in findings 1–4 and 6. Check sibling AArch64 DBTs that batch FPSR updates for finding 5, ELF loaders with separate interpreter-path probes for finding 7, and sibling `tests/parity_suite.sh` implementations for findings 8–9. These are propagation targets, not verified sibling defects.
+
+**CLEAN:** The counted source and test `.c`, `.h`, and `.S` files stayed within 900 lines. Targeted searches found no calls to `sprintf`, `strcpy`, or `strcat`. No standalone CLEAN finding warranted inclusion. Runtime reproduction and exhaustive ISA coverage remain unverified under the requested static-only budget.
+
+- [ ] **LA64-R5-1:** Remediate `LA64-R5-1` in `loongarch64rt` and verify with tests.
+- [ ] **LA64-R5-2:** Remediate `LA64-R5-2` in `loongarch64rt` and verify with tests.
+- [ ] **LA64-R5-3:** Remediate `LA64-R5-3` in `loongarch64rt` and verify with tests.
+- [ ] **LA64-R5-4:** Remediate `LA64-R5-4` in `loongarch64rt` and verify with tests.
+- [ ] **LA64-R5-5:** Remediate `LA64-R5-5` in `loongarch64rt` and verify with tests.
+- [ ] **LA64-R5-6:** Remediate `LA64-R5-6` in `loongarch64rt` and verify with tests.
+- [ ] **LA64-R5-7:** Remediate `LA64-R5-7` in `loongarch64rt` and verify with tests.
+- [ ] **LA64-R5-8:** Remediate `LA64-R5-8` in `loongarch64rt` and verify with tests.
+- [ ] **LA64-R5-9:** Remediate `LA64-R5-9` in `loongarch64rt` and verify with tests.
+
+---
+
+## 8. `ppc64rt` (`69d193a`) — 10 Round-5 Findings (`0 / 10` Resolved)
+
+Round 5 identified **10 findings** through static inspection. Used **8 shell commands**; read no Markdown and ran no builds, tests, Docker, or QEMU. No files changed.
+
+This checkout has no `tools/tests/` or `src/elf/`; inspected `tests/` and `src/run/load.c` instead. Findings below are code-derived, not execution-verified.
+
+1. **[P64-R5-1] DEFECT — ELF program-header bounds checks can overflow. High.**  
+   **Evidence:** [src/run/load.c:341](/Users/angerman/Projects/zw3rk/ppc64rt/src/run/load.c:341), [src/run/load.c:238](/Users/angerman/Projects/zw3rk/ppc64rt/src/run/load.c:238).  
+   Both checks calculate `phoff + phnum * 56` before comparing with the image length. A near-`UINT64_MAX` offset can wrap below `len`, allowing the subsequent header loop to form and dereference an out-of-bounds pointer.  
+   **Fix:** Require `phoff <= len`, then check `phnum <= (len - phoff) / 56` before any pointer arithmetic.
+
+2. **[P64-R5-2] BUG — PLHA zero-extends negative halfwords in both engines. High.**  
+   **Evidence:** [src/interp/prefix.c:151](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:151), [src/dbt/emit_mixed.c:297](/Users/angerman/Projects/zw3rk/ppc64rt/src/dbt/emit_mixed.c:297).  
+   The interpreter reads two bytes but sign-extends from bit 31. The DBT selects width two without setting `sext`. Thus `0x8000` becomes `32768` instead of `-32768`. Interpreter/DBT agreement masks the defect.  
+   **Fix:** Sign-extend the interpreter value from `n * 8` bits and set `sext = true` for emitted PLHA. Include negative halfwords in oracle coverage.
+
+3. **[P64-R5-3] BUG — Prefixed scalar FP accesses select the wrong register for odd RA. High.**  
+   **Evidence:** [src/interp/prefix.c:187](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:187), [src/interp/prefix.c:243](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:243), [src/interp/prefix.c:269](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:269).  
+   `xt` incorporates suffix bit 16, which belongs to RA. The scalar PLFS/PLFD/PSTFS/PSTFD paths then use this index. With RA odd, an access intended for FPR `rt` instead accesses VSR `rt + 32`.  
+   **Fix:** Use `rt` for scalar FPR forms; decode vector register extensions separately for their actual instruction forms.
+
+4. **[P64-R5-4] BUG — PLXSD executes as an integer halfword load. High.**  
+   **Evidence:** [src/interp/decode.c:641](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/decode.c:641), [src/interp/prefix.c:109](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:109).  
+   The decoder distinguishes MLS PLHA from 8LS PLXSD using the prefix form. Execution instead routes every suffix opcode 42 through the integer halfword path, reading two bytes and modifying a GPR.  
+   **Fix:** Dispatch execution using the decoded instruction identity, or validate the prefix form before selecting the integer path. Implement the scalar VSX operation or explicitly reject it before modifying state.
+
+5. **[P64-R5-5] BUG — Shared writable mmap accepts a read-only descriptor. High.**  
+   **Evidence:** [src/os/syscalls_mm_map.c:31](/Users/angerman/Projects/zw3rk/ppc64rt/src/os/syscalls_mm_map.c:31), [src/os/syscalls_mm_map.c:206](/Users/angerman/Projects/zw3rk/ppc64rt/src/os/syscalls_mm_map.c:206), [src/vm/vm_file.c:437](/Users/angerman/Projects/zw3rk/ppc64rt/src/vm/vm_file.c:437).  
+   File validation rejects `O_WRONLY` but never requires write access for `MAP_SHARED | PROT_WRITE`. Tracking also omits that check, so a mapping that should fail with `EACCES` succeeds.  
+   **Fix:** Validate the descriptor access mode against both mapping type and protection before staging or mutation. Preserve the permitted `MAP_PRIVATE | PROT_WRITE` case on readable descriptors.
+
+6. **[P64-R5-6] BUG — An earlier read-only mapping can silently break later shared writeback. High.**  
+   **Evidence:** [src/vm/vm_file.c:193](/Users/angerman/Projects/zw3rk/ppc64rt/src/vm/vm_file.c:193), [src/vm/vm_file.c:447](/Users/angerman/Projects/zw3rk/ppc64rt/src/vm/vm_file.c:447), [src/vm/vm_file.c:702](/Users/angerman/Projects/zw3rk/ppc64rt/src/vm/vm_file.c:702).  
+   `vm_file_hold` retains an existing descriptor whenever its inode matches, without checking its access mode. Map an inode through `O_RDONLY`, then map it shared/writable through `O_RDWR`: writeback still uses the retained read-only descriptor. `pwrite` fails, and the write hook silently abandons persistence.  
+   **Fix:** Retain suitable read and write capabilities separately, or upgrade the retained descriptor when a writable mapping arrives. Handle writeback failure explicitly.
+
+7. **[P64-R5-7] CLEAN / DEFECT — Branch decoding invokes signed-shift undefined behavior. Medium.**  
+   **Evidence:** [src/interp/decode.c:74](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/decode.c:74), [src/interp/decode.c:87](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/decode.c:87).  
+   `bd << 16` overflows signed `int32_t` for negative branch displacements. `li << 6` shifts a signed value that still includes the primary opcode, also exceeding the representable range. These operations violate the no-undefined-behavior invariant.  
+   **Fix:** Mask the displacement into an unsigned value, then sign-extend with representable arithmetic—for example, subtract the displacement modulus when its sign bit is set.
+
+8. **[P64-R5-8] BUG — Phase 6 scripts still compile deleted `src/rt64` sources. Medium.**  
+   **Evidence:** [tests/p6_host_contract.sh:84](/Users/angerman/Projects/zw3rk/ppc64rt/tests/p6_host_contract.sh:84), [tests/p6_run.sh:182](/Users/angerman/Projects/zw3rk/ppc64rt/tests/p6_run.sh:182).  
+   The host-contract script references `src/rt64/aot/{sha256,digest}.c` and `memory/file_identity.c`; the page probe references `memory/{space,space_p1}.c`. Those paths are absent from this checkout, making these compilation stages unusable.  
+   **Fix:** Port the harnesses to current APIs and source lists, preferably through maintained Make targets.
+
+9. **[P64-R5-9] DRY — VM atomic fallback logic is duplicated. Low.**  
+   **Evidence:** [src/vm/vm_atomic.c:227](/Users/angerman/Projects/zw3rk/ppc64rt/src/vm/vm_atomic.c:227), [src/vm/vm_atomic.c:274](/Users/angerman/Projects/zw3rk/ppc64rt/src/vm/vm_atomic.c:274).  
+   Cross-page and unaligned accesses duplicate the read, reservation creation, lookup, consumption, conditional write, and result handling. Both copies also return success without performing non-LR/SC RMW operations.  
+   **Fix:** Define the supported fallback behavior once in a repository-local helper, or reject unsupported alignment explicitly. Do not preserve silent successful no-ops.
+
+10. **[P64-R5-10] YAGNI — Obsolete reservation flag remains threaded through execution. Low.**  
+    **Evidence:** [src/interp/interp.c:26](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:26), [src/interp/interp.c:315](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/interp.c:315), [src/interp/prefix.c:160](/Users/angerman/Projects/zw3rk/ppc64rt/src/interp/prefix.c:160).  
+    `g_res_unused` is reset and passed to helpers that clear it, but its value does not govern reservation validity. The prefix-file comment nevertheless describes it as clearing the caller’s reservation, obscuring the actual mechanism.  
+    **Fix:** Remove the obsolete flag, parameters, and stores; update comments to identify the active reservation-invalidation path.
+
+**Cross-runtime propagation notes**
+
+These are suggested checks, not confirmed sibling defects:
+
+| Findings | Sibling checks |
+|---|---|
+| R5-1, R5-5, R5-6 | Check `rvrt`, `mips64rt`, `loongarch64rt`, and `sparc64rt` for copied ELF bounds checks, mmap access validation, and inode-level retained descriptors. |
+| R5-2–R5-4 | Primarily PPC64-specific. Check `ppc32rt` for analogous algebraic-load extension and FPR/VSR field confusion where applicable. |
+| R5-7 | Check `ppc32rt` branch decoding first; inspect other instruction decoders for signed left-shift sign extension. |
+| R5-8 | Check sibling phase scripts for stale `src/rt64` paths after source migrations. |
+| R5-9–R5-10 | Check runtimes carrying the same atomic fallback or obsolete reservation plumbing. Keep any deduplication within each repository. |
+
+The source-size scan found **no `.c`, `.h`, or `.S` file above 900 lines** under `src/` or `tests/`. This bounded audit does not establish exhaustive signal, threading, or Soft-TLB correctness.
+
+- [ ] **P64-R5-1:** Remediate `P64-R5-1` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-2:** Remediate `P64-R5-2` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-3:** Remediate `P64-R5-3` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-4:** Remediate `P64-R5-4` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-5:** Remediate `P64-R5-5` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-6:** Remediate `P64-R5-6` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-7:** Remediate `P64-R5-7` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-8:** Remediate `P64-R5-8` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-9:** Remediate `P64-R5-9` in `ppc64rt` and verify with tests.
+- [ ] **P64-R5-10:** Remediate `P64-R5-10` in `ppc64rt` and verify with tests.
+
+---
+
+## 9. `mips64rt` (`e8f6ffe`) — 11 Round-5 Findings (`0 / 11` Resolved)
+
+Found **11 issues** from static inspection. Used **8 shell commands**; read no Markdown files and ran no builds, tests, Docker, or QEMU. No files changed. The actual audit paths are `src/loader.c` and `tests/`; `src/elf/` and `tools/tests/` do not exist.
+
+1. **[M64-R5-1] BUG / DRY — `clock_nanosleep` dispatch uses the wrong argument layout. High.**
+
+   **Evidence:** [syscall_min.c:673](/Users/angerman/Projects/zw3rk/mips64rt/src/os/syscall_min.c:673), [syscalls_time.c:103](/Users/angerman/Projects/zw3rk/mips64rt/src/os/syscalls_time.c:103).
+
+   The dispatcher passes `(clock, flags, request)` into a helper expecting `(clock, request, remainder)`. A normal call with `flags == 0` therefore reads its timespec from guest address zero and ordinarily returns `EFAULT`. The N32 time64 route repeats this error. The old helper also handles `clock_nanosleep` errors through `errno`, although that host function returns the error number directly.
+
+   **Fix:** Route both variants through the existing four-argument helper at [syscalls_extra.c:128](/Users/angerman/Projects/zw3rk/mips64rt/src/os/syscalls_extra.c:128), passing `a0..a3`, and remove the duplicate clock path. Before enabling that helper, fix its absolute-sleep handling: it currently copies uninitialized `rm` after an interrupted `TIMER_ABSTIME` sleep, for which the host does not supply a remainder.
+
+2. **[M64-R5-2] DEFECT — Failed file refreshes become successful zero-filled updates. High.**
+
+   **Evidence:** [vm64.c:442](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm64.c:442), [vm_file.c:700](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm_file.c:700).
+
+   `mips_vm_inode_refresh_span` converts every negative `pread` result into zero, zero-fills the requested span, and returns success. Consequently, `vm_inode_apply_write_locked` advances `seen_write_seq` and `seen_resize_seq`. An interrupted or failed read can corrupt an alias and suppress the Round 4 reconciliation retry.
+
+   **Fix:** Retry `EINTR`, complete short reads, distinguish EOF from errors, and return failure after restoring protection. Prefer staging the read before modifying guest bytes.
+
+3. **[M64-R5-3] BUG — Floating-format conversions omit signaling-NaN exceptions. High.**
+
+   **Evidence:** [fp_cvt.c:117](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp_cvt.c:117), [fp_cvt.c:134](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fp_cvt.c:134).
+
+   `CVT.S.D` and `CVT.D.S` canonicalize every NaN and return without checking `fp_issn_d`/`fp_issn_s` or raising Invalid. A signaling NaN therefore neither updates the required exception state nor triggers an enabled Invalid trap. DBT NaN conversions fall back to this same interpreter behavior.
+
+   **Fix:** Classify the original source bits, raise `FP_EXC_V` for signaling NaNs, and retain the existing `fp_finish_trap` destination-restoration path.
+
+4. **[M64-R5-4] BUG — `CFC1` zero-extends FCSR instead of sign-extending it. Medium.**
+
+   **Evidence:** [fpmove.c:181](/Users/angerman/Projects/zw3rk/mips64rt/src/interp/fpmove.c:181).
+
+   Casting `ctx->fcsr` directly to `uint64_t` produces a zero-extended result. When FCC7 sets bit 31, `CFC1` must sign-extend its 32-bit control-register result into the 64-bit GPR. For example, `0x80000000` currently becomes `0x0000000080000000`.
+
+   **Fix:** Use `interp_sext32(ctx->fcsr)` and check other 32-bit control-register transfers for the same pattern.
+
+5. **[M64-R5-5] BUG — Raw `exit` from the thread-group leader kills surviving threads. High.**
+
+   **Evidence:** [syscall_min.c:550](/Users/angerman/Projects/zw3rk/mips64rt/src/os/syscall_min.c:550), [threads.c:480](/Users/angerman/Projects/zw3rk/mips64rt/src/os/threads.c:480).
+
+   Only contexts marked `is_thread_clone` receive thread-only exit handling. Raw guest `exit` from the original thread reaches host `_Exit`, terminating every worker. Linux thread-only exit semantics also apply to the leader; surviving threads must continue.
+
+   **Fix:** Separate thread termination from `exit_group` for every context. Handle leader context ownership explicitly—the current worker cleanup unconditionally frees its context—and preserve final-process exit status when the last thread terminates.
+
+6. **[M64-R5-6] DEFECT — Production `AT_RANDOM` uses predictable clock/PID state. High.**
+
+   **Evidence:** [loader.c:245](/Users/angerman/Projects/zw3rk/mips64rt/src/loader.c:245).
+
+   The loader derives its seed entirely from realtime and PID, then expands it with xorshift. This is not an OS entropy source, despite the comment claiming production entropy. Guest libc can use these bytes for stack canaries and pointer guards.
+
+   **Fix:** Obtain all 16 production bytes from the host OS random facility, handling interruptions and failures. Keep deterministic generation confined to the explicit test override.
+
+7. **[M64-R5-7] BUG — Provider region coalescing inserts duplicate overlapping records. Medium.**
+
+   **Evidence:** [vm64.c:74](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm64.c:74).
+
+   After extending the left neighbor, `u0_record` decrements `i` but falls through to insertion. Mapping adjacent equal-protection regions `[A,B)` and `[B,C)` creates two records covering `[A,C)`. Repeated adjacent mappings consume the bounded table despite being coalescible.
+
+   **Fix:** Finish the left merge without inserting another record; if the right neighbor also matches, absorb and remove it. Cover left-only and two-sided merges.
+
+   **Scope:** References inspected show this provider interface exercised by unit tests, rather than the live `mips_mem_*` mapping path.
+
+8. **[M64-R5-8] DEFECT — Provider capacity failures leave host mappings and metadata inconsistent. Medium.**
+
+   **Evidence:** [vm64.c:173](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm64.c:173), [vm64.c:113](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm64.c:113), [vm64.c:234](/Users/angerman/Projects/zw3rk/mips64rt/src/vm/vm64.c:234).
+
+   Mapping changes host memory before `u0_record` can reject table exhaustion. Conversely, unmapping a straddling region at capacity changes host memory to `PROT_NONE`, then `u0_forget` silently returns without updating metadata; the caller reports success.
+
+   **Fix:** Preflight the resulting region table before host mutation. Make bookkeeping operations return errors and commit metadata only after the corresponding host operation succeeds. This has the same provider-only scope as finding 7.
+
+9. **[M64-R5-9] BUG — Differential-test script can certify two failed executions. High for validation.**
+
+   **Evidence:** [run_difftest.sh:128](/Users/angerman/Projects/zw3rk/mips64rt/tests/difftest/run_difftest.sh:128), [run_difftest.sh:142](/Users/angerman/Projects/zw3rk/mips64rt/tests/difftest/run_difftest.sh:142), [run_difftest.sh:153](/Users/angerman/Projects/zw3rk/mips64rt/tests/difftest/run_difftest.sh:153).
+
+   The script requires only equal exit codes. Two loader failures with no instruction or register records produce equal empty streams and print `DIFFTEST: 0 divergences`. Sorting also discards instruction order, and captured stdout is never compared.
+
+   **Fix:** Reject infrastructure failures/timeouts, require expected completion evidence and nonempty captures, and compare stdout. Preserve instruction order per process; use explicit process identification when forked traces need separation.
+
+10. **[M64-R5-10] BUG — Implemented `clock_getres` has no syscall dispatch route. Medium.**
+
+    **Evidence:** [syscalls_extra.c:101](/Users/angerman/Projects/zw3rk/mips64rt/src/os/syscalls_extra.c:101), [syscall_nr.h:171](/Users/angerman/Projects/zw3rk/mips64rt/src/os/syscall_nr.h:171), [syscall_min.c:853](/Users/angerman/Projects/zw3rk/mips64rt/src/os/syscall_min.c:853).
+
+    The repository defines the syscall numbers and implementation, but no dispatcher calls the helper. Guest calls fall through to `ENOSYS`.
+
+    **Fix:** Wire the ABI-specific dispatch entries. Also fix the helper’s unconditional copyout: a valid clock query with a null result pointer must succeed without writing memory.
+
+11. **[M64-R5-11] DRY / YAGNI / CLEAN — FP emitter retains duplicate guards and obsolete rounding machinery. Low.**
+
+    **Evidence:** [emit_fp.c:200](/Users/angerman/Projects/zw3rk/mips64rt/src/dbt/emit_fp.c:200), [emit_fp.c:215](/Users/angerman/Projects/zw3rk/mips64rt/src/dbt/emit_fp.c:215), [emit_fp.c:130](/Users/angerman/Projects/zw3rk/mips64rt/src/dbt/emit_fp.c:130), [emit_fp.c:371](/Users/angerman/Projects/zw3rk/mips64rt/src/dbt/emit_fp.c:371).
+
+    `ef_mode_guard` and `ef_fs_guard` emit identical sequences using the same mask. `ef_fhalf` has no call sites; `(void)ef_fhalf` merely suppresses the unused-function warning. Comments still describe ties-away rounding although mode 4 now emits ties-to-even `FRINTN`.
+
+    **Fix:** Consolidate the identical guard implementation, remove the unused half-constant emitter and suppression, and correct the rounding comments. Keep this consolidation within the repository.
+
+**Cross-runtime propagation checks**
+
+These are suggested inspection targets, not confirmed sibling defects.
+
+| Findings | Sibling runtimes to check |
+|---|---|
+| 1, 5, 10 | `mips32rt` first; then `rvrt`, `a32rt`, `i686rt`, and other runtimes with copied syscall/thread dispatch |
+| 2, 7, 8 | `rvrt` and runtimes carrying the same file-alias reconciliation or provider region code |
+| 3, 4 | `mips32rt` first; inspect other FP engines for conversion exception handling |
+| 6 | All sibling ELF loaders supplying `AT_RANDOM` |
+| 9 | Sibling differential-test scripts, especially copied sorting and exit-comparison logic |
+| 11 | `mips32rt` and sibling AArch64 FP emitters with matching helpers |
+
+The source line-count scan found **no `.c`, `.h`, or `.S` file above 900 lines**; `src/os/mem_table.c` is exactly 900. Findings remain statically established paths and failure scenarios, without execution-based confirmation.
+
+- [ ] **M64-R5-1:** Remediate `M64-R5-1` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-2:** Remediate `M64-R5-2` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-3:** Remediate `M64-R5-3` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-4:** Remediate `M64-R5-4` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-5:** Remediate `M64-R5-5` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-6:** Remediate `M64-R5-6` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-7:** Remediate `M64-R5-7` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-8:** Remediate `M64-R5-8` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-9:** Remediate `M64-R5-9` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-10:** Remediate `M64-R5-10` in `mips64rt` and verify with tests.
+- [ ] **M64-R5-11:** Remediate `M64-R5-11` in `mips64rt` and verify with tests.
+
+---
+
+## 10. `sparc64rt` (`750b805`) — 9 Round-5 Findings (`0 / 9` Resolved)
+
+# Round 5 static audit
+
+Five read-only shell commands completed. No Markdown files, builds, tests, Docker, or QEMU were used. Findings below are static conclusions, not reproduced failures. Inspection covered selected interpreter, DBT, VM, OS, ELF-loading, and test paths; this is not exhaustive assurance.
+
+## Findings
+
+### [S64-R5-1] BUG — Composite open flags are decoded by partial matches
+**Priority: High**
+
+**Location:** [src/os/syscalls_ext.c:123](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_ext.c:123), lines 123–153.
+
+The conversion loop accepts any overlapping bit instead of requiring the complete flag. `SP_O_TMPFILE` includes `SP_O_DIRECTORY`, which an earlier entry consumes. A valid request happens to match the remaining bit, but that bit alone also incorrectly enables host `O_TMPFILE`. Likewise, `SP_O_NDELAY` loses its shared `O_NONBLOCK` bit first and is then recognized from its remaining bit alone.
+
+**Fix:** Decode composite flags before their constituent flags, require complete masks, and handle aliases explicitly. Add valid-composite and partial-mask rejection cases.
+
+### [S64-R5-2] BUG — Ordinary `F_GETFL`/`F_SETFL` usage fails
+**Priority: Medium**
+
+**Location:** [src/os/syscalls_ext.c:346](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_ext.c:346), lines 346–357.
+
+`F_SETFL` rejects every bit except `O_APPEND` and `O_NONBLOCK`. Consequently, the usual sequence `flags = fcntl(fd, F_GETFL); fcntl(fd, F_SETFL, flags | O_NONBLOCK)` fails for an `O_RDWR` descriptor because the returned access-mode bits remain present.
+
+**Fix:** Ignore access-mode and other immutable status bits according to the guest ABI; translate supported mutable flags. Test the round trip with read/write descriptors.
+
+### [S64-R5-3] BUG — Vectored I/O changes blocking and atomicity semantics
+**Priority: High**
+
+**Location:** [src/os/syscalls_ext.c:243](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_ext.c:243), lines 243–295.
+
+Each vector—and each 4 KiB chunk—is issued as a separate host `read` or `write`. For example, a pipe containing exactly enough data for the first vector can make the second `read` block even though one native `readv` could return the available prefix. Small multi-vector pipe writes also lose the single-operation atomicity guarantee.
+
+The inspected test uses only one short vector: [tests/test_h2_syscall.c:119](/Users/angerman/Projects/zw3rk/sparc64rt/tests/test_h2_syscall.c:119).
+
+**Fix:** Gather or pin validated buffers and issue one host vectored operation, then scatter read results. Validate aggregate lengths before side effects. Add multi-vector pipe tests.
+
+### [S64-R5-4] DEFECT — ELF load bias can wrap before address validation
+**Priority: High**
+
+**Location:** [src/os/guest_run.c:268](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/guest_run.c:268) and [src/os/guest_run.c:349](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/guest_run.c:349).
+
+Both `e_entry + bias` and `p_vaddr + bias` use unchecked unsigned addition. A crafted `ET_DYN` address near `UINT64_MAX` can wrap into a low address. The subsequent span validator receives the already-wrapped value, so it cannot detect the original overflow.
+
+**Fix:** Check addition against `UINT64_MAX` before applying the bias, then validate the resulting guest range. Apply checked arithmetic to program-header and file-span calculations too.
+
+### [S64-R5-5] BUG — `statx` silently changes pre-epoch timestamps
+**Priority: Medium**
+
+**Location:** [src/os/syscalls_stat.c:260](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_stat.c:260), lines 260–264.
+
+`put_statx_ts()` replaces every negative `tv_sec` with zero. The timestamp field is signed, so a valid file timestamp before 1970 becomes a different timestamp when returned to the guest.
+
+**Fix:** Serialize the signed value’s 64-bit representation directly. Add a negative-second timestamp case that checks both seconds and nanoseconds.
+
+### [S64-R5-6] DEFECT — The `statx` test passes an undersized, wrong-layout destination
+**Priority: High**
+
+**Location:** [tests/test_h2_syscall.c:86](/Users/angerman/Projects/zw3rk/sparc64rt/tests/test_h2_syscall.c:86) and [tests/test_h2_syscall.c:170](/Users/angerman/Projects/zw3rk/sparc64rt/tests/test_h2_syscall.c:170).
+
+The test passes `&st`, declared as `struct stat`, to raw `SYS_statx`. The runtime writes a 256-byte result, explicitly established at [src/os/syscalls_stat.c:239](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_stat.c:239) and copied at line 328. This can overwrite adjacent guest stack storage; checking only the return value also misses layout errors.
+
+**Fix:** Use `struct statx`, verify the returned mask and size, and add surrounding canaries if testing the raw ABI.
+
+### [S64-R5-7] DRY — Signal and ordinary syscall commits duplicate errno translation
+**Priority: Medium**
+
+**Location:** [src/os/syscalls_min.c:112](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_min.c:112) and [src/os/syscalls_sig.c:48](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_sig.c:48).
+
+Two separate switches translate host errors, followed by duplicate `%o0`/carry updates. Their coverage already differs: the ordinary table handles errors such as `ENXIO`, `ECHILD`, and `ELOOP` that the signal table omits.
+
+**Fix:** Keep one repository-local errno translator and result-commit helper. Leave signal-specific PC advancement in its wrapper. Verify guest errno values independently when consolidating.
+
+### [S64-R5-8] YAGNI — An unused signal-mask implementation retains disconnected global state
+**Priority: Low**
+
+**Location:** [src/os/syscalls_ext.c:109](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_ext.c:109), [src/os/syscalls_ext.c:543](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_ext.c:543), and [src/os/syscalls_ext.h:242](/Users/angerman/Projects/zw3rk/sparc64rt/src/os/syscalls_ext.h:242).
+
+The source/test reference search found no caller of `sparc64_l2a_rt_sigprocmask`. Dispatch uses `sparc64_sig_rt_sigprocmask` instead, at `src/os/syscalls_min.c:519`. The obsolete implementation maintains its own `l2a_blocked`, disconnected from actual signal delivery.
+
+**Fix:** Remove the unused implementation, declaration, private mask, and constants used only by this path.
+
+### [S64-R5-9] CLEAN — Interpreter memory documentation contradicts implemented alignment traps
+**Priority: Low**
+
+**Location:** [src/interp/interp_mem.c:10](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:10), versus [src/interp/interp_mem.c:167](/Users/angerman/Projects/zw3rk/sparc64rt/src/interp/interp_mem.c:167) and line 205.
+
+The file overview says unaligned multi-byte accesses never fault. Integer load/store helpers explicitly raise misalignment traps. This documents the opposite of an important ISA invariant and can mislead future DBT or memory-helper changes.
+
+**Fix:** Distinguish byte-oriented transport from instruction-level alignment enforcement in the overview.
+
+## Cross-runtime propagation
+
+These are inspection targets, **not confirmed sibling defects**:
+
+- **`rvrt` and sibling Linux-user runtimes:** Check copied vectored-I/O loops, `F_SETFL` filters, `statx` timestamp serialization, raw syscall test buffers, and obsolete signal helpers.
+- **Sibling ELF loaders, including `hyper-linux`:** Check bias addition before range validation and program-header/file-span arithmetic.
+- **Runtimes with non-generic guest ABIs:** Check composite flag translation and duplicated errno mappings using each guest’s own constants.
+- Keep the proposed DRY fixes **inside each repository**; no cross-repository shared library is needed.
+
+No inspected `.c`, `.h`, or `.S` file exceeded 900 lines; the largest was `src/os/threads.c` at 895. No additional interpreter/DBT/VM runtime defect is asserted from the limited slices inspected.
+
+- [ ] **S64-R5-1:** Remediate `S64-R5-1` in `sparc64rt` and verify with tests.
+- [ ] **S64-R5-2:** Remediate `S64-R5-2` in `sparc64rt` and verify with tests.
+- [ ] **S64-R5-3:** Remediate `S64-R5-3` in `sparc64rt` and verify with tests.
+- [ ] **S64-R5-4:** Remediate `S64-R5-4` in `sparc64rt` and verify with tests.
+- [ ] **S64-R5-5:** Remediate `S64-R5-5` in `sparc64rt` and verify with tests.
+- [ ] **S64-R5-6:** Remediate `S64-R5-6` in `sparc64rt` and verify with tests.
+- [ ] **S64-R5-7:** Remediate `S64-R5-7` in `sparc64rt` and verify with tests.
+- [ ] **S64-R5-8:** Remediate `S64-R5-8` in `sparc64rt` and verify with tests.
+- [ ] **S64-R5-9:** Remediate `S64-R5-9` in `sparc64rt` and verify with tests.
+
+---
+
+## 11. `rt-series` (`448a548`) — 8 Round-5 Findings (`0 / 8` Resolved)
+
+Found **8 issues** in the current checkout. There is no `src/` directory here, so this report covers `rt-series` tools and test fixtures—not sibling interpreter, DBT, VM, OS, or ELF implementations.
+
+Used **8 read-only shell invocations**. No Markdown files, builds, tests, Docker, or QEMU were run. Findings are based on static inspection; sibling propagation notes identify follow-up scope, not verified sibling defects.
+
+1. **[RTS-R5-1] BUG / DRY — Duplicate architecture lists omit RV32 from benchmark execution**
+
+   **Evidence:** [tools/bench_harness.sh:78](/Users/angerman/Projects/zw3rk/rt-series/tools/bench_harness.sh:78), [tools/bench_harness.sh:549](/Users/angerman/Projects/zw3rk/rt-series/tools/bench_harness.sh:549), [tools/remote_bench_common.sh:10](/Users/angerman/Projects/zw3rk/rt-series/tools/remote_bench_common.sh:10).
+
+   `arch_repo` accepts `riscv32`, and the builder contains an RV32 compilation path, but `ALL_ARCHES` excludes it. Consequently, `smoke --arch riscv32` matches zero jobs; `--arch all` silently omits RV32. The shared remote matrix includes it.
+
+   **Fix:** Derive local and remote execution matrices from one repository-local architecture definition. Ensure every accepted architecture filter either selects an executable matrix entry or is explicitly rejected.
+
+   **Propagation:** Check `rvrt` RV32 qualification and scripts consuming these benchmark results.
+
+2. **[RTS-R5-2] BUG — Throughput calculation overstates rates by truncating elapsed milliseconds**
+
+   **Evidence:** [tests/bench_suite.c:112](/Users/angerman/Projects/zw3rk/rt-series/tests/bench_suite.c:112).
+
+   For workloads exceeding 4,000 operations, the calculation divides by `floor(us / 1000)`. For example, 8,000 operations in 1,999 µs report 8,000,000 ops/s instead of approximately 4,002,001. This introduces a large discontinuity around millisecond boundaries.
+
+   **Fix:** Calculate `iters * 1000000 / us` with sufficiently wide arithmetic, including compatible division support for freestanding targets. Define handling for results exceeding the output type.
+
+   **Propagation:** All runtimes using `bench_suite.c`; previously reported `ops_sec` values may need recalculation from recorded microseconds.
+
+3. **[RTS-R5-3] DEFECT — VM restoration check can pass without issuing a load**
+
+   **Evidence:** [tests/p3_torture.c:620](/Users/angerman/Projects/zw3rk/rt-series/tests/p3_torture.c:620), [tests/p3_torture.c:637](/Users/angerman/Projects/zw3rk/rt-series/tests/p3_torture.c:637).
+
+   The RW restoration check writes `0xCC` through an ordinary pointer and immediately compares the same location against `0xCC`. The compiler may eliminate that comparison, so it does not establish that a subsequent guest load observes the restored mapping. The deliberately faulting RO store likewise lacks an explicit volatile access.
+
+   **Fix:** Use volatile-qualified accesses for deliberate memory probes, including initialization, faulting accesses, and post-restoration verification. Keep the expected value independently computed.
+
+   **Propagation:** Check equivalent Soft-TLB and permission-transition fixtures in all ten runtimes.
+
+4. **[RTS-R5-4] DEFECT — Cross-page test never creates the claimed protection-generation difference**
+
+   **Evidence:** [tests/p3_torture.c:497](/Users/angerman/Projects/zw3rk/rt-series/tests/p3_torture.c:497), [tests/p3_torture.c:507](/Users/angerman/Projects/zw3rk/rt-series/tests/p3_torture.c:507), [tests/p3_torture.c:528](/Users/angerman/Projects/zw3rk/rt-series/tests/p3_torture.c:528).
+
+   The test claims to cover a crossing access when the second page has a different protection generation. It maps both pages RW and never changes either page’s protection. It therefore cannot detect a crossing-access bug triggered specifically by independently invalidated page permissions.
+
+   **Fix:** Warm both pages, change the second page’s protection independently, then check crossing accesses with explicit expected success and fault outcomes. Retain the existing byte-order checks.
+
+   **Propagation:** All runtime Soft-TLB slow paths, especially independently protected sub-pages under `hyper-linux`.
+
+5. **[RTS-R5-5] BUG / YAGNI — `LTP_DIR` enables a branch that never runs LTP**
+
+   **Evidence:** [tools/run_grind.sh:600](/Users/angerman/Projects/zw3rk/rt-series/tools/run_grind.sh:600), [tools/run_grind.sh:608](/Users/angerman/Projects/zw3rk/rt-series/tools/run_grind.sh:608).
+
+   Without a manifest, either `LIBC_TEST_DIR` or `LTP_DIR` sets `_found`. The subsequent execution loop only constructs paths from `LIBC_TEST_DIR`. Setting `LTP_DIR` alone instead probes `/bin/functional`, `/bin/math`, and `/bin/pthread`; no LTP executable is selected.
+
+   **Fix:** Implement explicit LTP selection and invocation, or remove the ineffective `LTP_DIR` fallback and require an LTP manifest. Report libc and LTP coverage separately.
+
+   **Propagation:** All sibling nightly/weekly jobs relying on `LTP_DIR` for syscall coverage.
+
+6. **[RTS-R5-6] BUG — Cancellation traps remove working files without terminating the script**
+
+   **Evidence:** [tools/run_grind.sh:25](/Users/angerman/Projects/zw3rk/rt-series/tools/run_grind.sh:25), [tools/run_catalogue.sh:299](/Users/angerman/Projects/zw3rk/rt-series/tools/run_catalogue.sh:299).
+
+   Both scripts install cleanup-only handlers for `INT` and `TERM`. A trapped signal does not itself terminate the shell. Execution can resume after cleanup, potentially continuing suites with deleted inputs or starting additional work after cancellation.
+
+   **Fix:** Use separate signal handlers that exit with 130/143 and an EXIT handler that performs cleanup while preserving status. Ensure active owned child jobs terminate before their files are removed.
+
+   **Propagation:** Check sibling shell runners for the same `trap 'cleanup' EXIT INT TERM` pattern.
+
+7. **[RTS-R5-7] DEFECT — Benchmark extraction accepts lines excluded by validation**
+
+   **Evidence:** [tools/remote_bench_common.sh:147](/Users/angerman/Projects/zw3rk/rt-series/tools/remote_bench_common.sh:147), [tools/remote_bench_common.sh:172](/Users/angerman/Projects/zw3rk/rt-series/tools/remote_bench_common.sh:172).
+
+   Validation counts anchored, fully formatted records. Extraction subsequently matches unanchored substrings such as `/BENCH coremark/`. Output containing one valid record plus a diagnostic like `debug BENCH coremark us=123` passes validation but yields multiple values, corrupting the emitted TSV row.
+
+   **Fix:** Validate and extract using the same exact record grammar, preferably in one parser. Emit a result only after establishing one value per required field.
+
+   **Propagation:** All remote benchmark consumers and sibling wrappers that add diagnostic output.
+
+8. **[RTS-R5-8] CLEAN — Catalogue runner exceeds the requested size threshold**
+
+   **Evidence:** [tools/run_catalogue.sh:293](/Users/angerman/Projects/zw3rk/rt-series/tools/run_catalogue.sh:293), [tools/run_catalogue.sh:976](/Users/angerman/Projects/zw3rk/rt-series/tools/run_catalogue.sh:976).
+
+   The file contains **1,146 lines**, combining guest payloads, embedded programs, parity parsing, container checks, and host orchestration. These independently changing responsibilities make failure paths harder to review.
+
+   **Fix:** Preserve the public entry point while extracting repository-local guest payload and host-gate components. Keep the guest invocation self-contained or explicitly package its dependencies.
+
+   **Propagation:** No runtime implementation change required; preserve sibling callers’ existing command interface.
+
+- [ ] **RTS-R5-1:** Remediate `RTS-R5-1` in `rt-series` and verify with tests.
+- [ ] **RTS-R5-2:** Remediate `RTS-R5-2` in `rt-series` and verify with tests.
+- [ ] **RTS-R5-3:** Remediate `RTS-R5-3` in `rt-series` and verify with tests.
+- [ ] **RTS-R5-4:** Remediate `RTS-R5-4` in `rt-series` and verify with tests.
+- [ ] **RTS-R5-5:** Remediate `RTS-R5-5` in `rt-series` and verify with tests.
+- [ ] **RTS-R5-6:** Remediate `RTS-R5-6` in `rt-series` and verify with tests.
+- [ ] **RTS-R5-7:** Remediate `RTS-R5-7` in `rt-series` and verify with tests.
+- [ ] **RTS-R5-8:** Remediate `RTS-R5-8` in `rt-series` and verify with tests.
+
+---
+## Part II — Round-4 Audit Archive (125 Items Resolved & Verified by `fable`)
+
+### 0.1 Round 4 Audit Matrix (`125 / 125` Resolved & Verified by `fable`)
 
 Following complete remediation, `fable` (`claude-fable-5-1`) verification review, and `muse` post-review follow-up across Round 1 (`187` items), Round 2 (`145` items), and Round 3 (`85` items), Round 4 performed a fresh `gpt-6-astra` static audit of all 11 repositories at their post-Round-3 `HEAD` commits (`125` findings: `0 Critical`, `76 High`, `33 Medium`, `16 Low`).
 
@@ -54,7 +1186,7 @@ Following complete remediation, `fable` (`claude-fable-5-1`) verification review
 
 ---
 
-## 1. `a32rt` (`5561e7e`) — 9 Round-4 Findings (`0 / 9` Resolved)
+## 1. `a32rt` (`5561e7e`) — 9 Round-4 Findings (`9 / 9` Resolved)
 
 Found **9 actionable issues** at HEAD `5561e7e`. The Round-3 fixes are present, but several replacement, remapping, fork, and exec paths remain incomplete.
 
@@ -146,7 +1278,7 @@ The inspected source files satisfy the 900-line limit, and the targeted search f
 
 ---
 
-## 2. `i686rt` (`ca4c9a2`) — 12 Round-4 Findings (`0 / 12` Resolved)
+## 2. `i686rt` (`ca4c9a2`) — 12 Round-4 Findings (`12 / 12` Resolved)
 
 Found **12 actionable issues** at HEAD `ca4c9a2`. The Round-3 and follow-up changes are present, but fork locking, remap rollback, and file-backing paths remain incomplete.
 
@@ -263,7 +1395,7 @@ Used seven shell inspection commands, including the requested history commands. 
 
 ---
 
-## 3. `mips32rt` (`4cead69`) — 12 Round-4 Findings (`0 / 12` Resolved)
+## 3. `mips32rt` (`4cead69`) — 12 Round-4 Findings (`12 / 12` Resolved)
 
 Found **12 actionable issues** at HEAD `4cead69`. The Round-3 and post-fable fixes are present, but several paths remain incomplete.
 
@@ -382,7 +1514,7 @@ The CLEAN inspection found no source exceeding 900 lines; the largest is `src/db
 
 ---
 
-## 4. `ppc32rt` (`f083489`) — 13 Round-4 Findings (`0 / 13` Resolved)
+## 4. `ppc32rt` (`f083489`) — 13 Round-4 Findings (`13 / 13` Resolved)
 
 Found **13 actionable issues** at `f083489`, including data corruption, incorrect syscall results, and a fork deadlock.
 
@@ -510,7 +1642,7 @@ The source scan found no files exceeding 900 lines and no matches for prohibited
 
 ---
 
-## 5. `sparc32rt` (`f7d73db`) — 16 Round-4 Findings (`0 / 16` Resolved)
+## 5. `sparc32rt` (`f7d73db`) — 16 Round-4 Findings (`16 / 16` Resolved)
 
 Found **16 actionable issues** at `f7d73db`. The Round-3 and follow-up fixes are present, but thread retirement, signal routing, descriptor tracking, and VM publication still have incomplete paths.
 
@@ -665,7 +1797,7 @@ The CLEAN inspection found no oversized `.c`/`.h`/`.S` files, prohibited string-
 
 ---
 
-## 6. `rvrt` (`b1b08af`) — 9 Round-4 Findings (`0 / 9` Resolved)
+## 6. `rvrt` (`b1b08af`) — 9 Round-4 Findings (`9 / 9` Resolved)
 
 Found **nine actionable issues** at `b1b08af`. The Round-3 snapshot fields, VMA growth, and hygiene prerequisite are present, but several correctness gaps remain.
 
@@ -757,7 +1889,7 @@ The inspected source trees had no files exceeding 900 lines, prohibited string-f
 
 ---
 
-## 7. `loongarch64rt` (`1907d96`) — 18 Round-4 Findings (`0 / 18` Resolved)
+## 7. `loongarch64rt` (`1907d96`) — 18 Round-4 Findings (`18 / 18` Resolved)
 
 Found **18 actionable issues** at HEAD `1907d96`. The Round-3 and post-fable changes are present, but several fixes remain incomplete.
 
@@ -928,7 +2060,7 @@ Used seven shell inspection invocations. Read no Markdown documents; ran no proj
 
 ---
 
-## 8. `ppc64rt` (`56bec31`) — 8 Round-4 Findings (`0 / 8` Resolved)
+## 8. `ppc64rt` (`56bec31`) — 8 Round-4 Findings (`8 / 8` Resolved)
 
 Found **8 actionable issues** at `56bec31`. The Round-3 and follow-up commits are present; the `munmap` preflight now precedes table mutation, but exec inheritance and remap error handling still have gaps.
 
@@ -1011,7 +2143,7 @@ The CLEAN scan found no source files above 900 lines—the largest was 890—and
 
 ---
 
-## 9. `mips64rt` (`f7c6924`) — 10 Round-4 Findings (`0 / 10` Resolved)
+## 9. `mips64rt` (`f7c6924`) — 10 Round-4 Findings (`10 / 10` Resolved)
 
 Found **10 actionable issues** at `f7c6924`. The Round-3 staged-copyout changes, single-call vectored I/O, and post-fable CAS changes are present, but edge cases remain.
 
@@ -1112,7 +2244,7 @@ The CLEAN inspection found no over-900-line `.c`, `.h`, or `.S` files, prohibite
 
 ---
 
-## 10. `sparc64rt` (`5232650`) — 11 Round-4 Findings (`0 / 11` Resolved)
+## 10. `sparc64rt` (`5232650`) — 11 Round-4 Findings (`11 / 11` Resolved)
 
 Found **11 actionable issues** at HEAD `5232650`. The Round-3 fixes improve registry growth, worker registration, and cache invalidation, but leave important failure paths incomplete.
 
@@ -1222,7 +2354,7 @@ The source-length inspection found no `.c`, `.h`, or `.S` file above 900 lines; 
 
 ---
 
-## 11. `rt-series` (`5e6cbc0`) — 7 Round-4 Findings (`0 / 7` Resolved)
+## 11. `rt-series` (`5e6cbc0`) — 7 Round-4 Findings (`7 / 7` Resolved)
 
 Found **7 actionable issues** at `5e6cbc0`: **6 Medium, 1 Low**. Findings concern this repository’s harness and fixtures; there is no tracked `src/` translator implementation here.
 
@@ -1298,7 +2430,7 @@ All inspected C/header files are below 900 lines; the largest is `tests/p3_tortu
 
 ---
 
-## Part II — Round-3 Audit Archive (85 Items Resolved & Verified by `fable`)
+## Part III — Round-3 Audit Archive (85 Items Resolved & Verified by `fable`)
 
 ### 0.1 Round 3 Audit Matrix (`85 / 85` Resolved & Verified by `fable`)
 
@@ -2301,7 +3433,7 @@ The inspected C/H files satisfy the 900-line limit; the largest is `tests/p3_tor
 
 ---
 
-## Part III — Round-2 Audit Archive (145 Items Resolved & Verified by `fable`)
+## Part IV — Round-2 Audit Archive (145 Items Resolved & Verified by `fable`)
 
 > [!NOTE]
 > All 145 Round-2 `gpt-6-astra` findings and 9 Round-2 cross-cutting clusters below were remediated across all 11 repositories, independently reviewed by `fable` (`claude-fable-5-1`, transcripts in `lode/reviews/2026-11-02-defects-r2-*-fable.md`), and followed up via `muse exec` commits (`a76285b`, `4a759c6`, `a86a161`, `2c2a62e`, `b40924b`, `dab0b91`, `00ea803`, `205054f`, `45af6bf`, `001f2b1`, `37a9af0`).
@@ -3353,7 +4485,7 @@ The 900-line C/header ceiling is satisfied. The 1,059-line catalogue shell scrip
 
 ---
 
-## Part IV — Round-1 Audit Archive (187 Items Addressed in Round-1 Commits)
+## Part V — Round-1 Audit Archive (187 Items Addressed in Round-1 Commits)
 
 > [!NOTE]
 > The 187 items below record the Round-1 `gpt-6-astra` audit and the Round-1 commits (`a5f53b4`, `8db8727`, `366ca9b`, `abe6b0b`, `dad95da`, `8e207fb`, `026e87d`, `bd3e73f`, `32d5c9e`, `3ead4f9`, `96e1fe6`). Where Round-2 static inspection found that a Round-1 fix was incomplete or introduced a follow-up edge case, the corresponding open item is tracked in **Part I (Round 2)** above (`§0.1` and `§1..§11`).
