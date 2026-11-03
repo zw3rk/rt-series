@@ -11,45 +11,45 @@
 
 ---
 
-## Part I — Round-4 Active Checklist (`0 / 125` Resolved)
+## Part I — Round-4 Active Checklist (`125 / 125` Resolved)
 
-### 0.1 Round 4 Audit Matrix (Active Open Checklist — `0 / 125` Resolved)
+### 0.1 Round 4 Audit Matrix (`125 / 125` Resolved)
 
 Following complete remediation, `fable` (`claude-fable-5-1`) verification review, and `muse` post-review follow-up across Round 1 (`187` items), Round 2 (`145` items), and Round 3 (`85` items), Round 4 performed a fresh `gpt-6-astra` static audit of all 11 repositories at their post-Round-3 `HEAD` commits (`125` findings: `0 Critical`, `76 High`, `33 Medium`, `16 Low`).
 
-| # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R4 Open** | Raw Round-4 `astra` Transcript |
+| # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R4 Resolved** | Raw Round-4 `astra` Transcript |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | `a32rt` | Class A | `5561e7e` | 8 | 1 | 0 | 8 | 1 | 0 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r4-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-a32rt-astra.md) |
-| 2 | `i686rt` | Class A | `ca4c9a2` | 7 | 3 | 2 | 8 | 2 | 1 | 1 | 0 | **0 / 12** | [`2026-11-03-defects-r4-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r4-i686rt-astra.md) |
-| 3 | `mips32rt` | Class A | `4cead69` | 8 | 2 | 2 | 8 | 2 | 1 | 1 | 0 | **0 / 12** | [`2026-11-03-defects-r4-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-mips32rt-astra.md) |
-| 4 | `ppc32rt` | Class A | `f083489` | 12 | 0 | 1 | 11 | 1 | 0 | 1 | 0 | **0 / 13** | [`2026-11-03-defects-r4-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-ppc32rt-astra.md) |
-| 5 | `sparc32rt` | Class A | `f7d73db` | 11 | 3 | 2 | 12 | 2 | 1 | 1 | 0 | **0 / 16** | [`2026-11-03-defects-r4-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-sparc32rt-astra.md) |
-| 6 | `rvrt` | Class B | `b1b08af` | 3 | 5 | 1 | 6 | 2 | 1 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r4-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r4-rvrt-astra.md) |
-| 7 | `loongarch64rt` | Class B | `1907d96` | 12 | 4 | 2 | 13 | 2 | 1 | 1 | 1 | **0 / 18** | [`2026-11-03-defects-r4-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-loongarch64rt-astra.md) |
-| 8 | `ppc64rt` | Class B | `56bec31` | 3 | 3 | 2 | 6 | 1 | 1 | 0 | 0 | **0 / 8** | [`2026-11-03-defects-r4-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-ppc64rt-astra.md) |
-| 9 | `mips64rt` | Class B | `f7c6924` | 4 | 4 | 2 | 7 | 1 | 1 | 1 | 0 | **0 / 10** | [`2026-11-03-defects-r4-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-mips64rt-astra.md) |
-| 10 | `sparc64rt` | Class B | `5232650` | 8 | 2 | 1 | 9 | 1 | 1 | 0 | 0 | **0 / 11** | [`2026-11-03-defects-r4-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-sparc64rt-astra.md) |
-| 11 | `rt-series` | Harness | `5e6cbc0` | 0 | 6 | 1 | 2 | 4 | 1 | 0 | 0 | **0 / 7** | [`2026-11-03-defects-r4-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r4-rt-series-astra.md) |
-| | **Total (Round 4)** | | | **76** | **33** | **16** | **90** | **19** | **9** | **6** | **1** | **0 / 125** | |
+| 1 | `a32rt` | Class A | `5561e7e` | 8 | 1 | 0 | 8 | 1 | 0 | 0 | 0 | **9 / 9** | [`2026-11-03-defects-r4-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-a32rt-astra.md) |
+| 2 | `i686rt` | Class A | `ca4c9a2` | 7 | 3 | 2 | 8 | 2 | 1 | 1 | 0 | **12 / 12** | [`2026-11-03-defects-r4-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r4-i686rt-astra.md) |
+| 3 | `mips32rt` | Class A | `4cead69` | 8 | 2 | 2 | 8 | 2 | 1 | 1 | 0 | **12 / 12** | [`2026-11-03-defects-r4-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-mips32rt-astra.md) |
+| 4 | `ppc32rt` | Class A | `f083489` | 12 | 0 | 1 | 11 | 1 | 0 | 1 | 0 | **13 / 13** | [`2026-11-03-defects-r4-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-ppc32rt-astra.md) |
+| 5 | `sparc32rt` | Class A | `f7d73db` | 11 | 3 | 2 | 12 | 2 | 1 | 1 | 0 | **16 / 16** | [`2026-11-03-defects-r4-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r4-sparc32rt-astra.md) |
+| 6 | `rvrt` | Class B | `b1b08af` | 3 | 5 | 1 | 6 | 2 | 1 | 0 | 0 | **9 / 9** | [`2026-11-03-defects-r4-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r4-rvrt-astra.md) |
+| 7 | `loongarch64rt` | Class B | `1907d96` | 12 | 4 | 2 | 13 | 2 | 1 | 1 | 1 | **18 / 18** | [`2026-11-03-defects-r4-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-loongarch64rt-astra.md) |
+| 8 | `ppc64rt` | Class B | `56bec31` | 3 | 3 | 2 | 6 | 1 | 1 | 0 | 0 | **8 / 8** | [`2026-11-03-defects-r4-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-ppc64rt-astra.md) |
+| 9 | `mips64rt` | Class B | `f7c6924` | 4 | 4 | 2 | 7 | 1 | 1 | 1 | 0 | **10 / 10** | [`2026-11-03-defects-r4-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-mips64rt-astra.md) |
+| 10 | `sparc64rt` | Class B | `5232650` | 8 | 2 | 1 | 9 | 1 | 1 | 0 | 0 | **11 / 11** | [`2026-11-03-defects-r4-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r4-sparc64rt-astra.md) |
+| 11 | `rt-series` | Harness | `5e6cbc0` | 0 | 6 | 1 | 2 | 4 | 1 | 0 | 0 | **7 / 7** | [`2026-11-03-defects-r4-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r4-rt-series-astra.md) |
+| | **Total (Round 4)** | | | **76** | **33** | **16** | **90** | **19** | **9** | **6** | **1** | **125 / 125** | |
 
 ### 0.2 Round 4 Cross-Cutting Defect Clusters (Cross-Runtime Check Index)
 
-- [ ] **X-R4-1 — High — File-Mapping Coordinate vs Guest-VA Confusion, Truncate/EOF Handling & Staged `MAP_SHARED` Coherence**
+- [x] **X-R4-1 — High — File-Mapping Coordinate vs Guest-VA Confusion, Truncate/EOF Handling & Staged `MAP_SHARED` Coherence**
   - **Linked Items**: `A32-R4-4`, `I686-R4-3`, `M32-R4-5`, `M32-R4-9`, `M32-R4-10`, `P32-R4-2..5`, `P32-R4-7`, `P32-R4-9`, `P32-R4-10`, `S32-R4-12`, `LA64-R4-3`, `LA64-R4-5`, `LA64-R4-6`, `LA64-R4-9`, `LA64-R4-10`, `M64-R4-1`, `M64-R4-2`
   - **Summary**: Truncate discard (`LA64-R4-6`) and file-write invalidation (`M64-R4-1`) comparing file offsets against guest VAs instead of intersecting `[file_off, file_off + len)` and translating back to GVA; `ftruncate` hooks (`I686-R4-3`, `P32-R4-9`) calling `memset()` on read-only or beyond-EOF pages; fork snapshots (`A32-R4-4`), `ppc32rt` (`P32-R4-7`), and `sparc32rt` (`S32-R4-12`) reading/exposing zero pages beyond EOF; and staged `MAP_SHARED` writeback/refresh/EOF clamping (`M32-R4-9..10`, `P32-R4-2..5`, `LA64-R4-3`, `LA64-R4-5`, `LA64-R4-9..10`, `M64-R4-2`).
-- [ ] **X-R4-2 — High — Transactional VMA / File-Backing Splits, `mremap` Growth/Relocation Rollback & Darwin Anonymous Replacement**
+- [x] **X-R4-2 — High — Transactional VMA / File-Backing Splits, `mremap` Growth/Relocation Rollback & Darwin Anonymous Replacement**
   - **Linked Items**: `A32-R4-1`, `A32-R4-2`, `A32-R4-5`, `A32-R4-6`, `A32-R4-8`, `I686-R4-4`, `I686-R4-5`, `I686-R4-11`, `M32-R4-5`, `M32-R4-6`, `M32-R4-7`, `P32-R4-6`, `S32-R4-11`, `S32-R4-13`, `RV-R4-3..6`, `LA64-R4-4`, `P64-R4-3`, `M64-R4-3`, `M64-R4-4`, `S64-R4-3..6`
   - **Summary**: Darwin anonymous `MAP_FIXED` replacement (`PROT_NONE` or over shared-file sub-pages) retaining old bytes or shared-file backing (`A32-R4-2`, `M32-R4-5`, `S32-R4-11`); 16 KiB sub-page protection widening/restoration and shared-tail placement (`I686-R4-4`, `P32-R4-6`, `RV-R4-3`, `RV-R4-6`, `M64-R4-3`); and non-transactional VMA/file-backing splits, `mremap` growth/relocation rollback, and same-start prefix replacement (`A32-R4-1`, `A32-R4-5..6`, `A32-R4-8`, `I686-R4-5`, `M32-R4-6..7`, `S32-R4-13`, `RV-R4-4`, `LA64-R4-4`, `P64-R4-3`, `M64-R4-4`, `S64-R4-3..6`).
-- [ ] **X-R4-3 — High — `execve` Internal Signal Handoff Env Vars Leaking into Guest Stack & Signal/Exec/FD Lifecycle**
+- [x] **X-R4-3 — High — `execve` Internal Signal Handoff Env Vars Leaking into Guest Stack & Signal/Exec/FD Lifecycle**
   - **Linked Items**: `A32-R4-7`, `I686-R4-6`, `S32-R4-4..10`, `S32-R4-14`, `LA64-R4-12..14`, `P64-R4-4..7`, `M64-R4-8`, `S64-R4-7..8`
   - **Summary**: `A32RT_EXEC_SIG*` / `PPC64RT_EXEC_SIG*` handoff env vars copied onto the guest stack before `unsetenv()` or duplicated across repeated `execve` (`A32-R4-7`, `P64-R4-6`); worker `execve` pending-signal & default-disposition inheritance (`P64-R4-4..5`, `S32-R4-9`); `SA_RESETHAND` handler snapshotting before reset (`LA64-R4-12`), `sigaltstack` old-state snapshot before overwrite (`M64-R4-8`), thread-safe signal-action snapshots (`I686-R4-6`), SPARC↔host signal translation & per-thread signal state (`S32-R4-4..8`, `S64-R4-8`), and `CLOEXEC` deferral until exec commit (`S32-R4-10`, `S32-R4-14`, `S64-R4-7`).
-- [ ] **X-R4-4 — High — Multi-Threaded `fork()` / `clone()` Lock Ordering, Shared Metadata Privatization & DBT Quiescence**
+- [x] **X-R4-4 — High — Multi-Threaded `fork()` / `clone()` Lock Ordering, Shared Metadata Privatization & DBT Quiescence**
   - **Linked Items**: `A32-R4-3`, `I686-R4-1`, `I686-R4-2`, `M32-R4-8`, `P32-R4-8`, `S32-R4-1..3`, `LA64-R4-7..8`, `LA64-R4-11`, `S64-R4-9`
   - **Summary**: `a32rt` resuming parent threads before restoring guest protections after `fork` (`A32-R4-3`), `i686rt` `fork` vs A2 futex lock-order inversion (`I686-R4-1`) and `MAP_SHARED` `s_prot`/`s_state`/`s_flags` metadata (`I686-R4-2`), `ppc32rt` `fork` vs `ftruncate` lock-order inversion (`P32-R4-8`), `sparc32rt` `clone` startup struct UAF (`S32-R4-1`), retired thread copyout (`S32-R4-2`), and DBT invalidation before releasing `vm_lock` (`S32-R4-3`), `loongarch64rt` pre-fork inode refcount & process-local `dupfd` (`LA64-R4-7..8`) and file map/unmap under VM quiescence (`LA64-R4-11`), and `sparc64rt` futex deadline preservation across `-EINTR` retries (`S64-R4-9`).
-- [ ] **X-R4-5 — High — Syscall Copyout LL/SC Interior Bucket Invalidation, Sub-Page Permission Checks & Vectored I/O**
+- [x] **X-R4-5 — High — Syscall Copyout LL/SC Interior Bucket Invalidation, Sub-Page Permission Checks & Vectored I/O**
   - **Linked Items**: `A32-R4-9`, `I686-R4-8`, `I686-R4-9`, `M32-R4-1`, `M32-R4-2`, `P32-R4-1`, `P32-R4-11`, `P32-R4-12`
   - **Summary**: `mips32rt` bulk copyout bumping only the first and last 64-byte LL/SC buckets instead of all spanned buckets (`M32-R4-1`) and `read`/`readv` bypassing tracked copyout (`M32-R4-2`), `ppc32rt` `sys_vec` `readv` subtracting `total` during SMC invalidation and returning `0` (`P32-R4-1`) plus sub-page permission & LL/SC copyout (`P32-R4-11..12`), `a32rt` `epoll_wait` validating only 1 event (`A32-R4-9`), and `i686rt` `pread64`/`pwrite64` A2 marshalling (`I686-R4-8`).
-- [ ] **X-R4-6 — High — ISA / FPU Emulation, DBT Codegen & Intra-Repo DRY / YAGNI / Harness**
+- [x] **X-R4-6 — High — ISA / FPU Emulation, DBT Codegen & Intra-Repo DRY / YAGNI / Harness**
   - **Linked Items**: `I686-R4-7`, `I686-R4-10..12`, `M32-R4-3..4`, `M32-R4-11..12`, `P32-R4-13`, `S32-R4-15..16`, `RV-R4-1..2`, `RV-R4-7..9`, `LA64-R4-1..2`, `LA64-R4-15..18`, `P64-R4-1..2`, `P64-R4-8`, `M64-R4-5..7`, `M64-R4-9..10`, `S64-R4-1..2`, `S64-R4-10..11`, `RTS-R4-1..7`
 
 ---
@@ -134,15 +134,15 @@ Used exactly **7 shell inspection commands**, including the requested history co
 
 The inspected source files satisfy the 900-line limit, and the targeted search found no forbidden string functions, unity includes, or literal `x18` use. Warning policy includes the requested C11 flags. This was not compilation-based compliance verification. No sufficiently supported standalone DRY, YAGNI, or CLEAN finding emerged; ISA/FPU and concurrency coverage is not exhaustive within the inspection budget.
 
-- [ ] **A32-R4-1:** Preserve private backing across repeated remaps and propagate lookup errors.
-- [ ] **A32-R4-2:** Replace Darwin anonymous backing without retaining old bytes or file aliases.
-- [ ] **A32-R4-3:** Restore parent protections before reopening JIT execution.
-- [ ] **A32-R4-4:** Make fork snapshots and restoration respect EOF cuts.
-- [ ] **A32-R4-5:** Correct capacity accounting for same-start prefix replacements.
-- [ ] **A32-R4-6:** Reserve backing-split resources before mutation and propagate failures.
-- [ ] **A32-R4-7:** Remove stale exec signal transport entries from guest environments.
-- [ ] **A32-R4-8:** Reject partial protection changes when VMA splits cannot be represented.
-- [ ] **A32-R4-9:** Validate or safely copy out the complete epoll result.
+- [x] **A32-R4-1:** Preserve private backing across repeated remaps and propagate lookup errors.
+- [x] **A32-R4-2:** Replace Darwin anonymous backing without retaining old bytes or file aliases.
+- [x] **A32-R4-3:** Restore parent protections before reopening JIT execution.
+- [x] **A32-R4-4:** Make fork snapshots and restoration respect EOF cuts.
+- [x] **A32-R4-5:** Correct capacity accounting for same-start prefix replacements.
+- [x] **A32-R4-6:** Reserve backing-split resources before mutation and propagate failures.
+- [x] **A32-R4-7:** Remove stale exec signal transport entries from guest environments.
+- [x] **A32-R4-8:** Reject partial protection changes when VMA splits cannot be represented.
+- [x] **A32-R4-9:** Validate or safely copy out the complete epoll result.
 
 ---
 
@@ -248,18 +248,18 @@ Used seven shell inspection commands, including the requested history commands. 
 - **Evidence & Root Cause:** Round-3 removed the setter's call from `thread_entry()` in favor of the startup handshake. Source searches found only its declaration and definition, with no callers or public-header declaration. The compatibility comment now preserves unused mutation machinery.
 - **Concrete Fix:** Remove `i686_thread_registry_set_host_tid()` and its obsolete compatibility comment.
 
-- [ ] **I686-R4-1:** Unify fork and A2 futex lock ordering.
-- [ ] **I686-R4-2:** Make address-space metadata fork-private.
-- [ ] **I686-R4-3:** Repair truncate protection, EOF, and synchronization handling.
-- [ ] **I686-R4-4:** Copy A2 remaps through checked protection windows.
-- [ ] **I686-R4-5:** Make file-remap tracking replacement transactional.
-- [ ] **I686-R4-6:** Publish and consume coherent signal-action snapshots.
-- [ ] **I686-R4-7:** Correct x87 logarithm domain and exceptional results.
-- [ ] **I686-R4-8:** Marshal positioned-I/O guest buffers safely.
-- [ ] **I686-R4-9:** Honor Darwin file-copy output offsets.
-- [ ] **I686-R4-10:** Track headers in x86_64 incremental builds.
-- [ ] **I686-R4-11:** Unify file-map replacement planning.
-- [ ] **I686-R4-12:** Remove the unused registry setter.
+- [x] **I686-R4-1:** Unify fork and A2 futex lock ordering.
+- [x] **I686-R4-2:** Make address-space metadata fork-private.
+- [x] **I686-R4-3:** Repair truncate protection, EOF, and synchronization handling.
+- [x] **I686-R4-4:** Copy A2 remaps through checked protection windows.
+- [x] **I686-R4-5:** Make file-remap tracking replacement transactional.
+- [x] **I686-R4-6:** Publish and consume coherent signal-action snapshots.
+- [x] **I686-R4-7:** Correct x87 logarithm domain and exceptional results.
+- [x] **I686-R4-8:** Marshal positioned-I/O guest buffers safely.
+- [x] **I686-R4-9:** Honor Darwin file-copy output offsets.
+- [x] **I686-R4-10:** Track headers in x86_64 incremental builds.
+- [x] **I686-R4-11:** Unify file-map replacement planning.
+- [x] **I686-R4-12:** Remove the unused registry setter.
 
 ---
 
@@ -367,18 +367,18 @@ Used exactly **7 shell inspection commands**, including the requested history co
 
 The CLEAN inspection found no source exceeding 900 lines; the largest is `src/dbt/emit_int.c` at 899. Searches found no forbidden string functions, `atoi`, or `.c` includes, and textual `x18`/`w18` matches were comments. Makefile warning flags match the requested set. These checks do not establish full C11 compliance or validate encoded register operands.
 
-- [ ] **M32-R4-1:** Update every reservation bucket affected by bulk copyout.
-- [ ] **M32-R4-2:** Route read/readv results through tracked copyout.
-- [ ] **M32-R4-3:** Preserve the low word of DBT 64-bit conversion results.
-- [ ] **M32-R4-4:** Preserve conversion Inexact state.
-- [ ] **M32-R4-5:** Replace Darwin sub-pages without retaining old file backing.
-- [ ] **M32-R4-6:** Validate backing continuity before mremap.
-- [ ] **M32-R4-7:** Make Darwin population failure paths consistent.
-- [ ] **M32-R4-8:** Honor `CLONE_CHILD_SETTID` independently of CLEARTID.
-- [ ] **M32-R4-9:** Abort shadow writeback on baseline read errors.
-- [ ] **M32-R4-10:** Fix mixed direct/shadow shared-mapping coherence.
-- [ ] **M32-R4-11:** Centralize FPR cache indexing locally.
-- [ ] **M32-R4-12:** Remove unreachable kill fallback and unused macro.
+- [x] **M32-R4-1:** Update every reservation bucket affected by bulk copyout.
+- [x] **M32-R4-2:** Route read/readv results through tracked copyout.
+- [x] **M32-R4-3:** Preserve the low word of DBT 64-bit conversion results.
+- [x] **M32-R4-4:** Preserve conversion Inexact state.
+- [x] **M32-R4-5:** Replace Darwin sub-pages without retaining old file backing.
+- [x] **M32-R4-6:** Validate backing continuity before mremap.
+- [x] **M32-R4-7:** Make Darwin population failure paths consistent.
+- [x] **M32-R4-8:** Honor `CLONE_CHILD_SETTID` independently of CLEARTID.
+- [x] **M32-R4-9:** Abort shadow writeback on baseline read errors.
+- [x] **M32-R4-10:** Fix mixed direct/shadow shared-mapping coherence.
+- [x] **M32-R4-11:** Centralize FPR cache indexing locally.
+- [x] **M32-R4-12:** Remove unreachable kill fallback and unused macro.
 
 ---
 
@@ -494,19 +494,19 @@ Used seven shell inspection commands. No Markdown documents, builds, tests, Dock
 
 The source scan found no files exceeding 900 lines and no matches for prohibited string functions, `atoi`, or `.c` includes. Textual `x18`/`w18` matches were comments; encoded register usage and full C11 compliance were not exhaustively verified. No separate DRY or CLEAN finding is asserted.
 
-- [ ] **P32-R4-1:** Preserve `readv` results and invalidate completed transfers.
-- [ ] **P32-R4-2:** Correct staging-extension source offsets.
-- [ ] **P32-R4-3:** Unify backing for overlapping shared aliases.
-- [ ] **P32-R4-4:** Prevent stale staging writeback from overwriting file updates.
-- [ ] **P32-R4-5:** Preserve backing identity across VMA splits.
-- [ ] **P32-R4-6:** Guard shared host-page tails during automatic placement.
-- [ ] **P32-R4-7:** Correct empty-file and beyond-EOF trapping.
-- [ ] **P32-R4-8:** Remove the fork/truncate lock-order inversion.
-- [ ] **P32-R4-9:** Make truncate updates safe for inaccessible mappings.
-- [ ] **P32-R4-10:** Track all aliases independently of fd numbers.
-- [ ] **P32-R4-11:** Enforce guest permissions for syscall memory access.
-- [ ] **P32-R4-12:** Invalidate peer reservations on copyout.
-- [ ] **P32-R4-13:** Remove the unused broadcast truncate API.
+- [x] **P32-R4-1:** Preserve `readv` results and invalidate completed transfers.
+- [x] **P32-R4-2:** Correct staging-extension source offsets.
+- [x] **P32-R4-3:** Unify backing for overlapping shared aliases.
+- [x] **P32-R4-4:** Prevent stale staging writeback from overwriting file updates.
+- [x] **P32-R4-5:** Preserve backing identity across VMA splits.
+- [x] **P32-R4-6:** Guard shared host-page tails during automatic placement.
+- [x] **P32-R4-7:** Correct empty-file and beyond-EOF trapping.
+- [x] **P32-R4-8:** Remove the fork/truncate lock-order inversion.
+- [x] **P32-R4-9:** Make truncate updates safe for inaccessible mappings.
+- [x] **P32-R4-10:** Track all aliases independently of fd numbers.
+- [x] **P32-R4-11:** Enforce guest permissions for syscall memory access.
+- [x] **P32-R4-12:** Invalidate peer reservations on copyout.
+- [x] **P32-R4-13:** Remove the unused broadcast truncate API.
 
 ---
 
@@ -646,22 +646,22 @@ Used **seven shell inspection commands**, including the requested history comman
 
 The CLEAN inspection found no oversized `.c`/`.h`/`.S` files, prohibited string-call matches, `.c` includes, or production assembly references to `x18` in the searched paths. The Makefile retains the prescribed warning flags. This was not a compiler-based compliance verification, and the bounded audit does not certify the unreported ISA/FPU paths.
 
-- [ ] **S32-R4-1:** Fix clone startup-object ownership.
-- [ ] **S32-R4-2:** Complete sibling shutdown before exec replacement.
-- [ ] **S32-R4-3:** Invalidate translations before reopening DBT admission.
-- [ ] **S32-R4-4:** Translate signal numbers at host boundaries.
-- [ ] **S32-R4-5:** Honor guest masks for default-action signals.
-- [ ] **S32-R4-6:** Separate internal wakeups from guest signal queues.
-- [ ] **S32-R4-7:** Validate `tgkill` thread-group IDs.
-- [ ] **S32-R4-8:** Use pthread handles for Darwin thread signals.
-- [ ] **S32-R4-9:** Preserve masks and pending signals across exec.
-- [ ] **S32-R4-10:** Make FD operations and bookkeeping atomic.
-- [ ] **S32-R4-11:** Zero anonymous Darwin remaps regardless of initial protection.
-- [ ] **S32-R4-12:** Enforce EOF faults for copied file mappings.
-- [ ] **S32-R4-13:** Make VMA registration failures transactional.
-- [ ] **S32-R4-14:** Track every accepted guest descriptor.
-- [ ] **S32-R4-15:** Unify checked BE32 syscall access helpers locally.
-- [ ] **S32-R4-16:** Remove write-only retirement state.
+- [x] **S32-R4-1:** Fix clone startup-object ownership.
+- [x] **S32-R4-2:** Complete sibling shutdown before exec replacement.
+- [x] **S32-R4-3:** Invalidate translations before reopening DBT admission.
+- [x] **S32-R4-4:** Translate signal numbers at host boundaries.
+- [x] **S32-R4-5:** Honor guest masks for default-action signals.
+- [x] **S32-R4-6:** Separate internal wakeups from guest signal queues.
+- [x] **S32-R4-7:** Validate `tgkill` thread-group IDs.
+- [x] **S32-R4-8:** Use pthread handles for Darwin thread signals.
+- [x] **S32-R4-9:** Preserve masks and pending signals across exec.
+- [x] **S32-R4-10:** Make FD operations and bookkeeping atomic.
+- [x] **S32-R4-11:** Zero anonymous Darwin remaps regardless of initial protection.
+- [x] **S32-R4-12:** Enforce EOF faults for copied file mappings.
+- [x] **S32-R4-13:** Make VMA registration failures transactional.
+- [x] **S32-R4-14:** Track every accepted guest descriptor.
+- [x] **S32-R4-15:** Unify checked BE32 syscall access helpers locally.
+- [x] **S32-R4-16:** Remove write-only retirement state.
 
 ---
 
@@ -745,15 +745,15 @@ Used **seven shell inspection calls**. Read no Markdown documents and ran no bui
 
 The inspected source trees had no files exceeding 900 lines, prohibited string-function calls, or textual `.c` includes. The `x18` search found comments and a RISC-V guest fixture, not an AArch64 violation. No sufficiently supported standalone YAGNI or CLEAN finding emerged.
 
-- [ ] **RV-R4-1:** Preserve architectural FP bits in FSW/FSD after operand unboxing.
-- [ ] **RV-R4-2:** Preserve sticky FP flags across inline self-loop backedges.
-- [ ] **RV-R4-3:** Preserve neighboring subpage permissions on large-page hosts.
-- [ ] **RV-R4-4:** Make failed file replacement preserve existing mapping state.
-- [ ] **RV-R4-5:** Resolve nonzero-offset alignment divergence and its regression.
-- [ ] **RV-R4-6:** Propagate zeroing protection failures before writing.
-- [ ] **RV-R4-7:** Emit sign-extending signed-byte loads.
-- [ ] **RV-R4-8:** Reject or fully implement 16-byte memory emission.
-- [ ] **RV-R4-9:** Unify slow-path register-cache reload emission.
+- [x] **RV-R4-1:** Preserve architectural FP bits in FSW/FSD after operand unboxing.
+- [x] **RV-R4-2:** Preserve sticky FP flags across inline self-loop backedges.
+- [x] **RV-R4-3:** Preserve neighboring subpage permissions on large-page hosts.
+- [x] **RV-R4-4:** Make failed file replacement preserve existing mapping state.
+- [x] **RV-R4-5:** Resolve nonzero-offset alignment divergence and its regression.
+- [x] **RV-R4-6:** Propagate zeroing protection failures before writing.
+- [x] **RV-R4-7:** Emit sign-extending signed-byte loads.
+- [x] **RV-R4-8:** Reject or fully implement 16-byte memory emission.
+- [x] **RV-R4-9:** Unify slow-path register-cache reload emission.
 
 ---
 
@@ -907,24 +907,24 @@ Used seven shell inspection invocations. Read no Markdown documents; ran no proj
 - **Evidence & Root Cause:** `U0_LINUX_SRCS` has no consumers. `U0_LINUX_BACKEND` separately lists the same C files plus assembly, leaving two apparent definitions of the Linux backend source set.
 - **Concrete Fix:** Delete the unused variable and retain one authoritative backend source list.
 
-- [ ] **LA64-R4-1:** Correct masked FCSR emission.
-- [ ] **LA64-R4-2:** Validate rounded FP conversion results before casting.
-- [ ] **LA64-R4-3:** Provide coherent shared-file backing.
-- [ ] **LA64-R4-4:** Preserve both survivors of middle unmaps.
-- [ ] **LA64-R4-5:** Separate protection boundaries from dirty tracking.
-- [ ] **LA64-R4-6:** Translate truncate offsets into mapping coordinates.
-- [ ] **LA64-R4-7:** Reserve inherited references before fork.
-- [ ] **LA64-R4-8:** Keep retained descriptors process-local.
-- [ ] **LA64-R4-9:** Preserve dirty data during invalidation.
-- [ ] **LA64-R4-10:** Correct guest-to-host `msync` handling.
-- [ ] **LA64-R4-11:** Keep complete backing mutations under quiescence.
-- [ ] **LA64-R4-12:** Snapshot handlers before `SA_RESETHAND`.
-- [ ] **LA64-R4-13:** Fix pending-source consumption and async publication.
-- [ ] **LA64-R4-14:** Clean up signal state after failed clone.
-- [ ] **LA64-R4-15:** Fix the fixture’s out-of-bounds write source.
-- [ ] **LA64-R4-16:** Wire target backend selection into tests.
-- [ ] **LA64-R4-17:** Unify DBT FP-memory classification.
-- [ ] **LA64-R4-18:** Remove the unused Linux source-list variable.
+- [x] **LA64-R4-1:** Correct masked FCSR emission.
+- [x] **LA64-R4-2:** Validate rounded FP conversion results before casting.
+- [x] **LA64-R4-3:** Provide coherent shared-file backing.
+- [x] **LA64-R4-4:** Preserve both survivors of middle unmaps.
+- [x] **LA64-R4-5:** Separate protection boundaries from dirty tracking.
+- [x] **LA64-R4-6:** Translate truncate offsets into mapping coordinates.
+- [x] **LA64-R4-7:** Reserve inherited references before fork.
+- [x] **LA64-R4-8:** Keep retained descriptors process-local.
+- [x] **LA64-R4-9:** Preserve dirty data during invalidation.
+- [x] **LA64-R4-10:** Correct guest-to-host `msync` handling.
+- [x] **LA64-R4-11:** Keep complete backing mutations under quiescence.
+- [x] **LA64-R4-12:** Snapshot handlers before `SA_RESETHAND`.
+- [x] **LA64-R4-13:** Fix pending-source consumption and async publication.
+- [x] **LA64-R4-14:** Clean up signal state after failed clone.
+- [x] **LA64-R4-15:** Fix the fixture’s out-of-bounds write source.
+- [x] **LA64-R4-16:** Wire target backend selection into tests.
+- [x] **LA64-R4-17:** Unify DBT FP-memory classification.
+- [x] **LA64-R4-18:** Remove the unused Linux source-list variable.
 
 ---
 
@@ -1000,14 +1000,14 @@ Used seven shell inspection calls. No Markdown documents, builds, tests, contain
 
 The CLEAN scan found no source files above 900 lines—the largest was 890—and no prohibited string-function calls or `.c` includes in the searched trees. Literal `x18` matches were comments; that scan does not establish correctness of encoded JIT register operands. No sufficiently supported YAGNI finding emerged from this bounded inspection.
 
-- [ ] **P64-R4-1:** Correct single-precision operand and result rounding.
-- [ ] **P64-R4-2:** Record integer-conversion FPSCR exceptions.
-- [ ] **P64-R4-3:** Propagate file-remap refill failures.
-- [ ] **P64-R4-4:** Preserve the executing task’s pending signals.
-- [ ] **P64-R4-5:** Preserve the distinction between default and ignored dispositions.
-- [ ] **P64-R4-6:** Remove internal handoff variables before guest-stack construction.
-- [ ] **P64-R4-7:** Free every injected environment entry after failed exec.
-- [ ] **P64-R4-8:** Unify staged file reads in a repository-local helper.
+- [x] **P64-R4-1:** Correct single-precision operand and result rounding.
+- [x] **P64-R4-2:** Record integer-conversion FPSCR exceptions.
+- [x] **P64-R4-3:** Propagate file-remap refill failures.
+- [x] **P64-R4-4:** Preserve the executing task’s pending signals.
+- [x] **P64-R4-5:** Preserve the distinction between default and ignored dispositions.
+- [x] **P64-R4-6:** Remove internal handoff variables before guest-stack construction.
+- [x] **P64-R4-7:** Free every injected environment entry after failed exec.
+- [x] **P64-R4-8:** Unify staged file reads in a repository-local helper.
 
 ---
 
@@ -1099,16 +1099,16 @@ Used exactly **seven shell inspection commands**, including the requested `git l
 
 The CLEAN inspection found no over-900-line `.c`, `.h`, or `.S` files, prohibited string functions, source-file includes, or literal `x18` assembly use. `Makefile:22` contains the required warning flags. This is not compiler validation or a complete audit of generated register encodings. The requested `include/` and `tools/` directories do not exist at this HEAD.
 
-- [ ] **M64-R4-1:** Translate file offsets to guest addresses before DBT invalidation.
-- [ ] **M64-R4-2:** Bound shared writeback by EOF and handle write failures.
-- [ ] **M64-R4-3:** Make refresh/zero helpers respect 16 KiB host-page coverage.
-- [ ] **M64-R4-4:** Preserve backing metadata on capacity or descriptor exhaustion.
-- [ ] **M64-R4-5:** Correct absorbed operands in both operand orders.
-- [ ] **M64-R4-6:** Honor FCSR rounding in paired-single arithmetic.
-- [ ] **M64-R4-7:** Raise Invalid for signaling NaNs in quiet comparisons.
-- [ ] **M64-R4-8:** Return a complete old alternate-stack snapshot.
-- [ ] **M64-R4-9:** Unify syscall copyout commit logic.
-- [ ] **M64-R4-10:** Remove superseded mask and deferred-copyout scaffolding.
+- [x] **M64-R4-1:** Translate file offsets to guest addresses before DBT invalidation.
+- [x] **M64-R4-2:** Bound shared writeback by EOF and handle write failures.
+- [x] **M64-R4-3:** Make refresh/zero helpers respect 16 KiB host-page coverage.
+- [x] **M64-R4-4:** Preserve backing metadata on capacity or descriptor exhaustion.
+- [x] **M64-R4-5:** Correct absorbed operands in both operand orders.
+- [x] **M64-R4-6:** Honor FCSR rounding in paired-single arithmetic.
+- [x] **M64-R4-7:** Raise Invalid for signaling NaNs in quiet comparisons.
+- [x] **M64-R4-8:** Return a complete old alternate-stack snapshot.
+- [x] **M64-R4-9:** Unify syscall copyout commit logic.
+- [x] **M64-R4-10:** Remove superseded mask and deferred-copyout scaffolding.
 
 ---
 
@@ -1208,17 +1208,17 @@ Used **seven shell inspection commands**, including `git log -n 5 --oneline`, `g
 
 The source-length inspection found no `.c`, `.h`, or `.S` file above 900 lines; the largest was `src/os/threads.c` at 897. The prohibited-call scan found `strcpy`/`strcat` in the libc string test, including intentional coverage of those functions. No confirmed YAGNI finding emerged from the bounded inspection. These checks do not establish complete C11 compliance or prove that encoded JIT instructions avoid `x18`.
 
-- [ ] **S64-R4-1:** Correct negative 32-bit conversion magnitudes.
-- [ ] **S64-R4-2:** Gate directed-rounding increments on inexactness.
-- [ ] **S64-R4-3:** Make failed mremap relocation fully transactional.
-- [ ] **S64-R4-4:** Handle retained-descriptor acquisition failures.
-- [ ] **S64-R4-5:** Preserve surviving mapping metadata on allocation failure.
-- [ ] **S64-R4-6:** Preserve current permissions across truncate transitions.
-- [ ] **S64-R4-7:** Defer CLOEXEC closure until successful exec commit.
-- [ ] **S64-R4-8:** Make signal masks, pending state, and alternate stacks thread-specific.
-- [ ] **S64-R4-9:** Preserve futex deadlines across retries.
-- [ ] **S64-R4-10:** Test actual syscall transaction and failure paths.
-- [ ] **S64-R4-11:** Unify FP exception commit logic locally.
+- [x] **S64-R4-1:** Correct negative 32-bit conversion magnitudes.
+- [x] **S64-R4-2:** Gate directed-rounding increments on inexactness.
+- [x] **S64-R4-3:** Make failed mremap relocation fully transactional.
+- [x] **S64-R4-4:** Handle retained-descriptor acquisition failures.
+- [x] **S64-R4-5:** Preserve surviving mapping metadata on allocation failure.
+- [x] **S64-R4-6:** Preserve current permissions across truncate transitions.
+- [x] **S64-R4-7:** Defer CLOEXEC closure until successful exec commit.
+- [x] **S64-R4-8:** Make signal masks, pending state, and alternate stacks thread-specific.
+- [x] **S64-R4-9:** Preserve futex deadlines across retries.
+- [x] **S64-R4-10:** Test actual syscall transaction and failure paths.
+- [x] **S64-R4-11:** Unify FP exception commit logic locally.
 
 ---
 
@@ -1288,13 +1288,13 @@ Seven shell inspection invocations were used, including the requested history co
 
 All inspected C/header files are below 900 lines; the largest is `tests/p3_torture.c` at 750. The targeted scan found no prohibited string calls, `.c` inclusions, or explicit `x18`/`w18` operands. No additional CLEAN or YAGNI finding was sufficiently established. These static checks do not qualify sibling translator semantics.
 
-- [ ] **RTS-R4-1:** Match LL/SC capability guards to implemented probes.
-- [ ] **RTS-R4-2:** Rebuild uniform guests when included headers or recipes change.
-- [ ] **RTS-R4-3:** Fail cleanup verification when container state cannot be established.
-- [ ] **RTS-R4-4:** Test RX/RO write rejection and adjacent-page isolation.
-- [ ] **RTS-R4-5:** Bound grind generators and compiler invocations.
-- [ ] **RTS-R4-6:** Validate remote benchmark records and propagate failure.
-- [ ] **RTS-R4-7:** Unify the signal-safe fault-address bridge.
+- [x] **RTS-R4-1:** Match LL/SC capability guards to implemented probes.
+- [x] **RTS-R4-2:** Rebuild uniform guests when included headers or recipes change.
+- [x] **RTS-R4-3:** Fail cleanup verification when container state cannot be established.
+- [x] **RTS-R4-4:** Test RX/RO write rejection and adjacent-page isolation.
+- [x] **RTS-R4-5:** Bound grind generators and compiler invocations.
+- [x] **RTS-R4-6:** Validate remote benchmark records and propagate failure.
+- [x] **RTS-R4-7:** Unify the signal-safe fault-address bridge.
 
 ---
 
