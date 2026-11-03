@@ -579,15 +579,14 @@ static void t_unaligned_cross_page(void)
     g_segv_code = 0;
     store_segv_addr(0);
     if (sigsetjmp(g_segv_jmp, 1) == 0) {
-        volatile unsigned char *vedge =
-            (volatile unsigned char *)(base + (size_t)ps - 5);
+        static void *volatile torture_sink;
+        unsigned char *edge = base + (size_t)ps - 5;
         uint64_t bad = 0xFEDCBA9876543210ULL;
-        unsigned char bad_bytes[sizeof(bad)];
-        memcpy(bad_bytes, &bad, sizeof(bad));
-        for (size_t k = 0; k < sizeof(bad); k++) {
-            vedge[k] = bad_bytes[k];
-        }
+        torture_sink = (void *)edge;
+        memcpy(edge, &bad, sizeof(bad));
+        torture_sink = (void *)edge;
         atomic_signal_fence(memory_order_seq_cst);
+        (void)torture_sink;
         g_segv_armed = 0;
         report_fail("unaligned-cross-page", "RO cross-page store did not trap");
         mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
