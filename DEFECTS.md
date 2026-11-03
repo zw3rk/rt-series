@@ -1,166 +1,248 @@
-# `rt-series` Master Defect, Curated-C11 & Subsystem Deep-Dive Checklist (Round 8 + Rounds 1–7 Archives)
+# `rt-series` Master Defect, Curated-C11 & Subsystem Deep-Dive Checklist (Rounds 1–12 Complete)
 
-**Audit Date:** 2026-11-03 (Rounds 4–8; Rounds 1–3 on 2026-11-02)  
+**Audit Date:** 2026-11-03 (Rounds 4–12; Rounds 1–3 on 2026-11-02)  
 **Process Specification:** [`docs/CONVERGENCE-AUDIT-PROCESS.md`](docs/CONVERGENCE-AUDIT-PROCESS.md) (Parabola Oscillation Model, Step-Size Annealing, and 6-Subsystem Deep-Dive Schedule)  
-**Static Auditor ("Hunting"):** `gpt-6-astra` (`codex exec -m gpt-6-astra --sandbox read-only`) across 11 concurrent read-only static audit lanes  
+**Static Auditor ("Hunting"):** `gpt-6-astra` / `muse exec` read-only static audit across 11 concurrent read-only static audit lanes  
 **Remediation Engine ("Fixing"):** `muse` (`muse exec --yolo --parallel-tool-calls`)  
-**Post-Remediation Verifier ("Review"):** `claude-fable-5-1` (`claude -p --model claude-fable-5-1 --effort high`)  
+**Post-Remediation Verifier ("Review"):** `claude-fable-5-1` (`claude -p --model claude-fable-5-1 --effort high`) & `claude-opus-4-6`  
 **Architectural & Convergence Invariants Enforced:**
 1. **Standalone Zero-Dependency Repositories (`AGENTS.md` §2.1):** Each `<arch>rt` repository is standalone; **never extract a shared cross-repo `librt32` or `librt64` C library**.
 2. **Curated C11 (`AGENTS.md` §2.2):** `-std=c11 -Werror=vla -pedantic -Wall -Wextra -Werror`, no VLAs, no banned libc functions (`strcpy`, `strcat`, `sprintf`, `atoi`), `x18` permanently reserved on AArch64, no textual `#include "*.c"` unity includes, and every `.c`/`.h`/`.S` file $\le 900$ lines.
-3. **Step-Size Annealing (`docs/CONVERGENCE-AUDIT-PROCESS.md` §2.2):** Narrow orthogonal subsystem deep-dives (Rounds 7–12), minimal surgical diffs, zero `DRY`/`YAGNI`/`CLEAN` cosmetic churn in annealed rounds (Rounds 10+), and `0` findings permitted when a subsystem has converged.
+3. **Step-Size Annealing (`docs/CONVERGENCE-AUDIT-PROCESS.md` §2.2):** Narrow orthogonal subsystem deep-dives (Rounds 7–12), minimal surgical diffs, zero `DRY`/`YAGNI`/`CLEAN` cosmetic churn in annealed rounds (Rounds 10–12), and `0` findings permitted when a subsystem has converged.
 
 ---
 
-## Part I — Round-8 Active Checklist: Subsystem Deep-Dive 2 of 6 (AArch64 DBT / JIT Emitters, Code Cache, IBTC/RAS & Dispatcher, `0 / 55` Resolved)
+## Part I — Round-12 Checklist: Subsystem Deep-Dive 6 of 6 — Step-Size Annealed (Syscall ABI, Struct/Flag/Errno Marshaling, `/proc/self` Synthesis & Linux/Darwin Backends, `23 / 23` Resolved)
 
-### 0.1 Round 8 Audit Matrix (`0 / 55` Resolved)
+| # | Repository | Class | R12 Items | R12 Commit(s) | R12 Audit Report | R12 Verification Review |
+|---:|---|---|---:|---|---|---|
+| 1 | `a32rt` | Class A | **3 / 3** (`A32-R12-1..3`) | `c5e5f7e` | [`2026-11-03-defects-r12-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r12-a32rt-astra.md) | [`2026-11-03-defects-r12-a32rt-fable.md`](lode/reviews/2026-11-03-defects-r12-a32rt-fable.md) (`3 / 3 VERIFIED`) |
+| 2 | `i686rt` | Class A | **3 / 3** (`I686-R12-3..5`; `R12-1..2` false positive on `aarch64-linux`) | `bfa270a`, `b60f524` | [`2026-11-03-defects-r12-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r12-i686rt-astra.md) | [`2026-11-03-defects-r12-i686rt-fable.md`](lode/reviews/2026-11-03-defects-r12-i686rt-fable.md) (`3 / 3 VERIFIED`) |
+| 3 | `mips32rt` | Class A | **2 / 2** (`M32-R12-1..2`) | `d521faf` | [`2026-11-03-defects-r12-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r12-mips32rt-astra.md) | [`2026-11-03-defects-r12-mips32rt-fable.md`](lode/reviews/2026-11-03-defects-r12-mips32rt-fable.md) (`2 / 2 VERIFIED`) |
+| 4 | `ppc32rt` | Class A | **2 / 2** (`P32-R12-1..2`) | `04cfaab` | [`2026-11-03-defects-r12-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r12-ppc32rt-astra.md) | [`2026-11-03-defects-r12-ppc32rt-fable.md`](lode/reviews/2026-11-03-defects-r12-ppc32rt-fable.md) (`2 / 2 VERIFIED`) |
+| 5 | `sparc32rt` | Class A | **3 / 3** (`S32-R12-1..3`) | `3fb9976`, `130b0b8` | [`2026-11-03-defects-r12-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r12-sparc32rt-astra.md) | [`2026-11-03-defects-r12-sparc32rt-fable.md`](lode/reviews/2026-11-03-defects-r12-sparc32rt-fable.md) (`3 / 3 VERIFIED`) |
+| 6 | `rvrt` | Class B | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r12-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r12-rvrt-astra.md) | Converged (`0` defects) |
+| 7 | `loongarch64rt` | Class B | **3 / 3** (`LA64-R12-1..3`) | `83baf28` | [`2026-11-03-defects-r12-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r12-loongarch64rt-astra.md) | [`2026-11-03-defects-r12-loongarch64rt-fable.md`](lode/reviews/2026-11-03-defects-r12-loongarch64rt-fable.md) (`3 / 3 VERIFIED`) |
+| 8 | `ppc64rt` | Class B | **2 / 2** (`P64-R12-1..2`) | `ec20e87` | [`2026-11-03-defects-r12-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r12-ppc64rt-astra.md) | [`2026-11-03-defects-r12-ppc64rt-fable.md`](lode/reviews/2026-11-03-defects-r12-ppc64rt-fable.md) (`2 / 2 VERIFIED`) |
+| 9 | `mips64rt` | Class B | **1 / 1** (`M64-R12-1`) | `a2c9cb1`, `dfaed93` | [`2026-11-03-defects-r12-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r12-mips64rt-astra.md) | [`2026-11-03-defects-r12-mips64rt-fable.md`](lode/reviews/2026-11-03-defects-r12-mips64rt-fable.md) (`1 / 1 VERIFIED`) |
+| 10 | `sparc64rt` | Class B | **7 / 7** (`S64-R12-1..7`) | `f00c8c2`, `15c6eca` | [`2026-11-03-defects-r12-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r12-sparc64rt-astra.md) | [`2026-11-03-defects-r12-sparc64rt-fable.md`](lode/reviews/2026-11-03-defects-r12-sparc64rt-fable.md) (`7 / 7 VERIFIED`) |
+| 11 | `rt-series` | Harness | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r12-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r12-rt-series-astra.md) | Converged (`0` defects) |
+
+- [x] **A32-R12-1..3 (`c5e5f7e`)**: `a32rt` `fstatat64`/`statx` `AT_EMPTY_PATH` empty-path handling, `pread64`/`pwrite64` negative offset `-EINVAL`, and `/proc/self/stat` comm field escaping.
+- [x] **I686-R12-3..5 (`bfa270a`, `b60f524`)**: `i686rt` `execve("/proc/self/exe")` redirect to `ctx->exec_path`, Darwin `rt_host_socketpair`/`rt_host_accept4` `SOCK_CLOEXEC`/`SOCK_NONBLOCK` application, and `/proc` path canonicalization (`//`, `/./`, `/../`) in `canon_proc_leaf`.
+- [x] **M32-R12-1..2 (`d521faf`)**: `mips32rt` `F_GETLK64`/`F_SETLK64`/`F_SETLKW64` (`33/34/35`) in `fcntl` (NR 4055) and `/proc/self/{maps,cmdline,stat,auxv}` `O_CLOEXEC` propagation.
+- [x] **P32-R12-1..2 (`04cfaab`)**: `ppc32rt` `statx` reserved/spare hole zeroing (`dyn_put_statx` / `dyn_put_stat_fallback`), PowerPC `EDEADLK` (`35 -> 58`) errno translation, and DBT/hostfault `fault_is_store` classification (`P32-R11-6`).
+- [x] **S32-R12-1..3 (`3fb9976`, `130b0b8`)**: `sparc32rt` SunOS/SPARC `ENOSYS=90`, `ENAMETOOLONG=63`, `ELOOP=62`, `EOVERFLOW=92` mapping, `TCGETS` (`0x40245408`) BE `struct termios` + `c_cc`/`c_lflag` marshaling, and `/proc/self/{maps,cmdline,stat,auxv}` `O_CLOEXEC` propagation.
+- [x] **LA64-R12-1..3 (`83baf28`)**: `loongarch64rt` `readlinkat("/proc/self/fd/N")` synthesis, `ioctl(TIOCGWINSZ)` terminal probe before returning `24x80` fallback, and `ppoll` `sigmask_size != 8` `-EINVAL` validation.
+- [x] **P64-R12-1..2 (`ec20e87`)**: `ppc64rt` PowerPC `EDEADLK` (`35 -> 58`) translation in `ppc64_host_errno_to_guest` and non-synthetic `/proc/self/*` host-leak guard (`-ENOENT`).
+- [x] **M64-R12-1 (`a2c9cb1`, `dfaed93`)**: `mips64rt` full MIPS errno translation (`EDEADLK=45`, `ENAMETOOLONG=78`, `ENOSYS=89`, `ENOTEMPTY=93`, `ELOOP=90`, `EOVERFLOW=79`, `EOPNOTSUPP=122`, `EDQUOT=1133`) across Linux and Darwin in `src/os/errno_map.h`.
+- [x] **S64-R12-1..7 (`f00c8c2`, `15c6eca`)**: `sparc64rt` full SPARC errno table (`35..133`) in `sparc64_errno_from_host`, `O_NDELAY` (`0x0004 | 0x4000`), `MAP_LOCKED=0x100` / `MAP_POPULATE=0x8000` / `MAP_NONBLOCK=0x10000` / `MAP_STACK=0x20000` / `MAP_HUGETLB=0x40000`, `fcntl` `F_GETLK`/`F_SETLK`/`F_SETLKW` (`7/8/9`) + `F_DUPFD_CLOEXEC` (`1030`), `MSG_DONTWAIT`/`MSG_NOSIGNAL`/`MSG_CMSG_CLOEXEC` translation, `/proc/self/*` host-leak guard across `openat`/`fstatat`/`readlinkat`, and Darwin `AT_FDCWD`/`AT_*` translation in `faccessat`/`fchmodat`/`fchownat`/`utimensat`/`renameat2`.
+
+---
+
+## Part II — Round-11 Archive: Subsystem Deep-Dive 5 of 6 — Step-Size Annealed (Signal Multiplexing, Host Fault Recovery, `sigaltstack` & RT Signal Frames, `24 / 24` Resolved — Verified by `claude-fable-5-1` & `claude-opus-4-6`)
+
+| # | Repository | Class | R11 Items | R11 Commit | R11 Audit Report | R11 Verification Review |
+|---:|---|---|---:|---|---|---|
+| 1 | `a32rt` | Class A | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r11-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r11-a32rt-astra.md) | Converged (`0` defects) |
+| 2 | `i686rt` | Class A | **7 / 7** (`I686-R11-1..7`) | `ed8943d` | [`2026-11-03-defects-r11-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r11-i686rt-astra.md) | [`2026-11-03-defects-r11-i686rt-fable.md`](lode/reviews/2026-11-03-defects-r11-i686rt-fable.md) (`7 / 7 VERIFIED`) |
+| 3 | `mips32rt` | Class A | **4 / 4** (`M32-R11-1..4`) | `5c8a583` | [`2026-11-03-defects-r11-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r11-mips32rt-astra.md) | [`2026-11-03-defects-r11-mips32rt-fable.md`](lode/reviews/2026-11-03-defects-r11-mips32rt-fable.md) (`4 / 4 VERIFIED`) |
+| 4 | `ppc32rt` | Class A | **6 / 6** (`P32-R11-1..6`) | `568286d` | [`2026-11-03-defects-r11-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r11-ppc32rt-astra.md) | [`2026-11-03-defects-r11-ppc32rt-fable.md`](lode/reviews/2026-11-03-defects-r11-ppc32rt-fable.md) (`6 / 6 VERIFIED`) |
+| 5 | `sparc32rt` | Class A | **4 / 4** (`S32-R11-1..4`) | `d9ac2db` | [`2026-11-03-defects-r11-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r11-sparc32rt-astra.md) | [`2026-11-03-defects-r11-sparc32rt-fable.md`](lode/reviews/2026-11-03-defects-r11-sparc32rt-fable.md) (`4 / 4 VERIFIED`) |
+| 6 | `rvrt` | Class B | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r11-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r11-rvrt-astra.md) | Converged (`0` defects) |
+| 7 | `loongarch64rt` | Class B | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r11-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r11-loongarch64rt-astra.md) | Converged (`0` defects) |
+| 8 | `ppc64rt` | Class B | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r11-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r11-ppc64rt-astra.md) | Converged (`0` defects) |
+| 9 | `mips64rt` | Class B | **1 / 1** (`M64-R11-1`) | `9d47bc3` | [`2026-11-03-defects-r11-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r11-mips64rt-astra.md) | [`2026-11-03-defects-r11-mips64rt-fable.md`](lode/reviews/2026-11-03-defects-r11-mips64rt-fable.md) (`1 / 1 VERIFIED`) |
+| 10 | `sparc64rt` | Class B | **1 / 1** (`S64-R11-1`) | `a78b02b` | [`2026-11-03-defects-r11-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r11-sparc64rt-astra.md) | [`2026-11-03-defects-r11-sparc64rt-fable.md`](lode/reviews/2026-11-03-defects-r11-sparc64rt-fable.md) (`1 / 1 VERIFIED`) |
+| 11 | `rt-series` | Harness | **1 / 1** (`RTS-R11-1`) | `ea01633` | [`2026-11-03-defects-r11-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r11-rt-series-astra.md) | [`2026-11-03-defects-r11-rt-series-fable.md`](lode/reviews/2026-11-03-defects-r11-rt-series-fable.md) (`1 / 1 VERIFIED`) |
+
+---
+
+## Part III — Round-10 Archive: Subsystem Deep-Dive 4 of 6 — Step-Size Annealed (Threading, `clone`/`fork`/`execve`, `atfork` Locks & Futex / Turn Scheduler, `19 / 19` Resolved — Verified by `claude-fable-5-1` & `claude-opus-4-6`)
+
+| # | Repository | Class | R10 Items | R10 Commit | R10 Audit Report | R10 Verification Review |
+|---:|---|---|---:|---|---|---|
+| 1 | `a32rt` | Class A | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r10-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r10-a32rt-astra.md) | Converged (`0` defects) |
+| 2 | `i686rt` | Class A | **4 / 4** (`I686-R10-1..4`) | `3c383a3` | [`2026-11-03-defects-r10-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r10-i686rt-astra.md) | [`2026-11-03-defects-r10-i686rt-fable.md`](lode/reviews/2026-11-03-defects-r10-i686rt-fable.md) (`4 / 4 VERIFIED`) |
+| 3 | `mips32rt` | Class A | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r10-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r10-mips32rt-astra.md) | Converged (`0` defects) |
+| 4 | `ppc32rt` | Class A | **7 / 7** (`P32-R10-1..7`) | `b72db16` | [`2026-11-03-defects-r10-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r10-ppc32rt-astra.md) | [`2026-11-03-defects-r10-ppc32rt-fable.md`](lode/reviews/2026-11-03-defects-r10-ppc32rt-fable.md) (`7 / 7 VERIFIED`) |
+| 5 | `sparc32rt` | Class A | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r10-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r10-sparc32rt-astra.md) | Converged (`0` defects) |
+| 6 | `rvrt` | Class B | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r10-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r10-rvrt-astra.md) | Converged (`0` defects) |
+| 7 | `loongarch64rt` | Class B | **2 / 2** (`LA64-R10-1..2`) | `4882cbb` | [`2026-11-03-defects-r10-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r10-loongarch64rt-astra.md) | [`2026-11-03-defects-r10-loongarch64rt-fable.md`](lode/reviews/2026-11-03-defects-r10-loongarch64rt-fable.md) (`2 / 2 VERIFIED`) |
+| 8 | `ppc64rt` | Class B | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r10-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r10-ppc64rt-astra.md) | Converged (`0` defects) |
+| 9 | `mips64rt` | Class B | **2 / 2** (`M64-R10-1..2`) | `694e6d8` | [`2026-11-03-defects-r10-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r10-mips64rt-astra.md) | [`2026-11-03-defects-r10-mips64rt-fable.md`](lode/reviews/2026-11-03-defects-r10-mips64rt-fable.md) (`2 / 2 VERIFIED`) |
+| 10 | `sparc64rt` | Class B | **4 / 4** (`S64-R10-1..4`) | `bb78b2d` | [`2026-11-03-defects-r10-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r10-sparc64rt-astra.md) | [`2026-11-03-defects-r10-sparc64rt-fable.md`](lode/reviews/2026-11-03-defects-r10-sparc64rt-fable.md) (`4 / 4 VERIFIED`) |
+| 11 | `rt-series` | Harness | **0 / 0 (Converged)** | — | [`2026-11-03-defects-r10-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r10-rt-series-astra.md) | Converged (`0` defects) |
+
+---
+
+## Part IV — Round-9 Archive: Subsystem Deep-Dive 3 of 6 (Virtual Memory, Soft-TLB, Checked Guest Copy, `fork()` COW & ELF/Auxv Loader, `96 / 96` Resolved — Verified by `claude-fable-5-1` & `claude-opus-4-6`)
+
+| # | Repository | Class | R9 Items | R9 Primary Commit | R9 Follow-Up | R9 Audit Report | R9 Verification Review |
+|---:|---|---|---:|---|---|---|---|
+| 1 | `a32rt` | Class A | **15 / 15** (`A32-R9-1..15`) | `746bb65` | `f7bffd6` | [`2026-11-03-defects-r9-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r9-a32rt-astra.md) | [`2026-11-03-defects-r9-a32rt-fable.md`](lode/reviews/2026-11-03-defects-r9-a32rt-fable.md) (`15 / 15 VERIFIED`) |
+| 2 | `i686rt` | Class A | **9 / 9** (`I686-R9-1..9`) | `6740a71` | `ca12c59` | [`2026-11-03-defects-r9-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r9-i686rt-astra.md) | [`2026-11-03-defects-r9-i686rt-fable.md`](lode/reviews/2026-11-03-defects-r9-i686rt-fable.md) (`9 / 9 VERIFIED`) |
+| 3 | `mips32rt` | Class A | **5 / 5** (`M32-R9-1..5`) | `e95314c` | — | [`2026-11-03-defects-r9-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r9-mips32rt-astra.md) | [`2026-11-03-defects-r9-mips32rt-fable.md`](lode/reviews/2026-11-03-defects-r9-mips32rt-fable.md) (`5 / 5 VERIFIED`) |
+| 4 | `ppc32rt` | Class A | **10 / 10** (`P32-R9-1..10`) | `a738212` | `b28f919` | [`2026-11-03-defects-r9-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r9-ppc32rt-astra.md) | [`2026-11-03-defects-r9-ppc32rt-fable.md`](lode/reviews/2026-11-03-defects-r9-ppc32rt-fable.md) (`10 / 10 VERIFIED`) |
+| 5 | `sparc32rt` | Class A | **8 / 8** (`S32-R9-1..8`) | `0fdcb4c` | `35fea25` | [`2026-11-03-defects-r9-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r9-sparc32rt-astra.md) | [`2026-11-03-defects-r9-sparc32rt-fable.md`](lode/reviews/2026-11-03-defects-r9-sparc32rt-fable.md) (`8 / 8 VERIFIED`) |
+| 6 | `rvrt` | Class B | **2 / 2** (`RV-R9-1..2`) | `f644ddd` | — | [`2026-11-03-defects-r9-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r9-rvrt-astra.md) | [`2026-11-03-defects-r9-rvrt-fable.md`](lode/reviews/2026-11-03-defects-r9-rvrt-fable.md) (`2 / 2 VERIFIED`) |
+| 7 | `loongarch64rt` | Class B | **11 / 11** (`LA64-R9-1..11`) | `7ce3b53` | `4882cbb` | [`2026-11-03-defects-r9-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r9-loongarch64rt-astra.md) | [`2026-11-03-defects-r9-loongarch64rt-fable.md`](lode/reviews/2026-11-03-defects-r9-loongarch64rt-fable.md) (`11 / 11 VERIFIED`) |
+| 8 | `ppc64rt` | Class B | **13 / 13** (`P64-R9-1..13`) | `0231928` | — | [`2026-11-03-defects-r9-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r9-ppc64rt-astra.md) | [`2026-11-03-defects-r9-ppc64rt-fable.md`](lode/reviews/2026-11-03-defects-r9-ppc64rt-fable.md) (`13 / 13 VERIFIED`) |
+| 9 | `mips64rt` | Class B | **7 / 7** (`M64-R9-1..7`) | `1b7808e` | — | [`2026-11-03-defects-r9-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r9-mips64rt-astra.md) | [`2026-11-03-defects-r9-mips64rt-fable.md`](lode/reviews/2026-11-03-defects-r9-mips64rt-fable.md) (`7 / 7 VERIFIED`) |
+| 10 | `sparc64rt` | Class B | **8 / 8** (`S64-R9-1..8`) | `3754389` | — | [`2026-11-03-defects-r9-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r9-sparc64rt-astra.md) | [`2026-11-03-defects-r9-sparc64rt-fable.md`](lode/reviews/2026-11-03-defects-r9-sparc64rt-fable.md) (`8 / 8 VERIFIED`) |
+| 11 | `rt-series` | Harness | **8 / 8** (`RTS-R9-1..8`) | `fd1fa05` | — | [`2026-11-03-defects-r9-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r9-rt-series-astra.md) | [`2026-11-03-defects-r9-rt-series-fable.md`](lode/reviews/2026-11-03-defects-r9-rt-series-fable.md) (`8 / 8 VERIFIED`) |
+
+---
+
+## Part V — Round-8 Archive: Subsystem Deep-Dive 2 of 6 (AArch64 DBT / JIT Emitters, Code Cache, IBTC/RAS & Dispatcher, `55 / 55` Resolved — Verified by `claude-fable-5-1` & `claude-opus-4-6`)
+
+### 0.1 Round 8 Audit Matrix (`55 / 55` Resolved)
 
 Following complete remediation, verification review (`claude-fable-5-1` / `claude-opus-4-6`), and `muse` post-review follow-up across Rounds 1–7 (`1,016` per-repo items + `49` clusters = `1,065` checkboxes resolved), Round 8 executed **Subsystem Deep-Dive 2 of 6: AArch64 DBT / JIT Emitters, Code Cache, IBTC/RAS, Soft-TLB Inline Sequence & Dispatcher (`src/dbt/*`, `src/*a64*`, `src/jit/*`, `src/*trampoline*`)** across all 11 repositories (`55` concrete behavioral findings, `0` `DRY`/`YAGNI`/`CLEAN` filler, and **`rvrt` converging to `0` defects across all 23 DBT/JIT files**).
 
 | # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R8 Total** | Raw Round-8 Static Audit Report |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | `a32rt` | Class A | `2ccfe8b` | 2 | 1 | 0 | 3 | 0 | 0 | 0 | 0 | **0 / 3** | [`2026-11-03-defects-r8-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-a32rt-astra.md) |
-| 2 | `i686rt` | Class A | `fa49319` | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 0 | **0 / 2** | [`2026-11-03-defects-r8-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r8-i686rt-astra.md) |
-| 3 | `mips32rt` | Class A | `3aea198` | 3 | 2 | 2 | 7 | 0 | 0 | 0 | 0 | **0 / 7** | [`2026-11-03-defects-r8-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-mips32rt-astra.md) |
-| 4 | `ppc32rt` | Class A | `e8ecc7e` | 3 | 3 | 0 | 6 | 0 | 0 | 0 | 0 | **0 / 6** | [`2026-11-03-defects-r8-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-ppc32rt-astra.md) |
-| 5 | `sparc32rt` | Class A | `8b12acb` | 4 | 2 | 1 | 7 | 0 | 0 | 0 | 0 | **0 / 7** | [`2026-11-03-defects-r8-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-sparc32rt-astra.md) |
+| 1 | `a32rt` | Class A | `2ccfe8b` | 2 | 1 | 0 | 3 | 0 | 0 | 0 | 0 | **3 / 3** | [`2026-11-03-defects-r8-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-a32rt-astra.md) |
+| 2 | `i686rt` | Class A | `fa49319` | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 0 | **2 / 2** | [`2026-11-03-defects-r8-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r8-i686rt-astra.md) |
+| 3 | `mips32rt` | Class A | `3aea198` | 3 | 2 | 2 | 7 | 0 | 0 | 0 | 0 | **7 / 7** | [`2026-11-03-defects-r8-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-mips32rt-astra.md) |
+| 4 | `ppc32rt` | Class A | `e8ecc7e` | 3 | 3 | 0 | 6 | 0 | 0 | 0 | 0 | **6 / 6** | [`2026-11-03-defects-r8-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-ppc32rt-astra.md) |
+| 5 | `sparc32rt` | Class A | `8b12acb` | 4 | 2 | 1 | 7 | 0 | 0 | 0 | 0 | **7 / 7** | [`2026-11-03-defects-r8-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r8-sparc32rt-astra.md) |
 | 6 | `rvrt` | Class B | `55ad5c0` | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **0 / 0** | [`2026-11-03-defects-r8-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r8-rvrt-astra.md) |
-| 7 | `loongarch64rt` | Class B | `8820bff` | 5 | 3 | 0 | 8 | 0 | 0 | 0 | 0 | **0 / 8** | [`2026-11-03-defects-r8-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-loongarch64rt-astra.md) |
-| 8 | `ppc64rt` | Class B | `ab44029` | 2 | 1 | 0 | 3 | 0 | 0 | 0 | 0 | **0 / 3** | [`2026-11-03-defects-r8-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-ppc64rt-astra.md) |
-| 9 | `mips64rt` | Class B | `fb9ff82` | 4 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | **0 / 4** | [`2026-11-03-defects-r8-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-mips64rt-astra.md) |
-| 10 | `sparc64rt` | Class B | `57fe404` | 4 | 2 | 0 | 6 | 0 | 0 | 0 | 0 | **0 / 6** | [`2026-11-03-defects-r8-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-sparc64rt-astra.md) |
-| 11 | `rt-series` | Harness | `5ae9fe7` | 3 | 6 | 0 | 4 | 5 | 0 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r8-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r8-rt-series-astra.md) |
-| | **Total (Round 8)** | | | **31** | **21** | **3** | **49** | **6** | **0** | **0** | **0** | **0 / 55** | |
+| 7 | `loongarch64rt` | Class B | `8820bff` | 5 | 3 | 0 | 8 | 0 | 0 | 0 | 0 | **8 / 8** | [`2026-11-03-defects-r8-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-loongarch64rt-astra.md) |
+| 8 | `ppc64rt` | Class B | `ab44029` | 2 | 1 | 0 | 3 | 0 | 0 | 0 | 0 | **3 / 3** | [`2026-11-03-defects-r8-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-ppc64rt-astra.md) |
+| 9 | `mips64rt` | Class B | `fb9ff82` | 4 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | **4 / 4** | [`2026-11-03-defects-r8-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-mips64rt-astra.md) |
+| 10 | `sparc64rt` | Class B | `57fe404` | 4 | 2 | 0 | 6 | 0 | 0 | 0 | 0 | **6 / 6** | [`2026-11-03-defects-r8-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r8-sparc64rt-astra.md) |
+| 11 | `rt-series` | Harness | `5ae9fe7` | 3 | 6 | 0 | 4 | 5 | 0 | 0 | 0 | **9 / 9** | [`2026-11-03-defects-r8-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r8-rt-series-astra.md) |
+| | **Total (Round 8)** | | | **31** | **21** | **3** | **49** | **6** | **0** | **0** | **0** | **55 / 55** | |
 
 ### 0.2 Round 8 Cross-Cutting DBT / JIT Defect Clusters (Cross-Runtime Check Index)
 
-- [ ] **X-R8-1 — High — Delay-Slot, Link-Register (`JAL`/`JALR`, `JMPL`, `BLX`) & IT-Block Fault/Trap PC Recovery in DBT**
+- [x] **X-R8-1 — High — Delay-Slot, Link-Register (`JAL`/`JALR`, `JMPL`, `BLX`) & IT-Block Fault/Trap PC Recovery in DBT**
   - **Linked Items:** `A32-R8-2..3`, `M32-R8-3..4`, `M32-R8-6`, `S32-R8-3..4`, `M64-R8-1..4`, `P32-R8-1`
   - **Summary:** Precise PC/`npc`/delay-slot/IT-block state on faults and traps inside DBT blocks: `a32rt` Regime-A2 Soft-TLB miss losing `ctx->itstate` (`A32-R8-3`) and `RAS` key using callee `is_thumb` instead of `LR[0]` (`A32-R8-2`), `mips32rt`/`mips64rt` `JALR rd==rs` link ordering and delay-slot trap PC (`M32-R8-3..4`, `M64-R8-1..4`), `sparc32rt` branch/call/fbranch delay-slot fault reporting CTI PC and losing taken target `npc` (`S32-R8-3..4`), and `ppc32rt` `bclr`/`bcctr` missing `& ~3` target masking (`P32-R8-1`).
-- [ ] **X-R8-2 — High — DBT Condition-Code, Shift-Mask, Carry/Overflow & FPU Status Register (`FPSCR`/`FSR`/`FCSR`) Parity with Interpreter Oracle**
+- [x] **X-R8-2 — High — DBT Condition-Code, Shift-Mask, Carry/Overflow & FPU Status Register (`FPSCR`/`FSR`/`FCSR`) Parity with Interpreter Oracle**
   - **Linked Items:** `M32-R8-1..2`, `M32-R8-7`, `P32-R8-2..6`, `S32-R8-1..2`, `S32-R8-5..6`, `LA64-R8-2..8`, `P64-R8-1..2`, `S64-R8-1..4`
   - **Summary:** DBT emitter divergences from interpreter oracle semantics: `mips32rt` `TLTIU`/`TEQI` condition table entries (`M32-R8-1..2`), `ppc32rt` `frsp` missing `FCVT S0, D0` narrowing (`P32-R8-3`) and `FPSCR` `FPRF`/`FPCC`/`FR`/`VX*` updates (`P32-R8-2,4..6`), `sparc32rt` `FBO` mask `0x8` vs `0x7`, `TA` `SW_BIT`, logic-cc `C`/`V` clearing, and `FTT` clearing (`S32-R8-1..2,5..6`), `loongarch64rt` `REVB_2W`/`REVB_4H`/`REVB_2H`, `MULW.D.WU`, `FMOV.S` NaN-boxing, and `MOVGR2FRH.W` (`LA64-R8-2..8`), `ppc64rt` 6/7-bit shift amounts and `SUBFO` `OV` (`P64-R8-1..2`), and `sparc64rt` `Tcc` immediate `rs1`, `ADDXCC` `icc`, `WR %asi`, and `ALIGNADDRL` (`S64-R8-1..4`).
-- [ ] **X-R8-3 — High — SIMD / Vector Lane Moves (`SSE`, `LSX`) & Immediate Range Checks in DBT Emitters**
+- [x] **X-R8-3 — High — SIMD / Vector Lane Moves (`SSE`, `LSX`) & Immediate Range Checks in DBT Emitters**
   - **Linked Items:** `I686-R8-1`, `LA64-R8-1`, `LA64-R8-9`, `P64-R8-3`, `S64-R8-5`
   - **Summary:** `i686rt` register-form `MOVHLPS`/`MOVLHPS` transposed lanes (`I686-R8-1`), `loongarch64rt` `LDPTR`/`STPTR` wide `si14<<2` offset overflowing `a64e_add_imm` (`LA64-R8-1`) and `VAND.V`/`VORN.V` passing `vk = 0` (`LA64-R8-9`), `ppc64rt` prefixed instruction at `PC % 64 == 60` not rejected in `fetch.c` (`P64-R8-3`), and `sparc64rt` `regasi` lost in `s64_jrt_mem` (`S64-R8-5`).
-- [ ] **X-R8-4 — Medium — I-Cache Coherence (`DC CVAU` on `ICACHE_TRAP_IALLU`), TSO Barriers, Multi-Threaded IBTC Epoch & Single-Step Chaining**
+- [x] **X-R8-4 — Medium — I-Cache Coherence (`DC CVAU` on `ICACHE_TRAP_IALLU`), TSO Barriers, Multi-Threaded IBTC Epoch & Single-Step Chaining**
   - **Linked Items:** `A32-R8-1`, `I686-R8-2`, `M32-R8-5`, `S32-R8-7`, `S64-R8-6`
   - **Summary:** `a32rt` missing `DC CVAU` loop before trapped `IC IVAU` when `A32H_CAP_ICACHE_TRAP_IALLU` is set (`A32-R8-1`), `i686rt` `emit_branch.c` missing TSO barriers in `e->tso` mode (`I686-R8-2`), `mips32rt` inline IBTC probe checking `smc_version` (`M32-R8-5`), `sparc32rt` `thread_entry.S` loading `x25` `g_vm32_prot` base (`S32-R8-7`), and `sparc64rt` `dbt_step_one` disabling block chaining (`S64-R8-6`).
-- [ ] **X-R8-5 — Medium — `rt-series` Host-Contract & Unification Docs + Dual-Engine (`interp` vs `dbt`) & SMC Torture Coverage**
+- [x] **X-R8-5 — Medium — `rt-series` Host-Contract & Unification Docs + Dual-Engine (`interp` vs `dbt`) & SMC Torture Coverage**
   - **Linked Items:** `RTS-R8-1..9`
   - **Summary:** Align `docs/HOST-CONTRACT.md` and `SPEC.md` with `sparc64rt` `AT_PAGESZ = 8192`, `A32H_CAP_FIXADE`/`A32H_CAP_SOFT_TLB_256M`, Regime A1/A2 `x20` dual meaning, epoch-gated IBTC invalidation, and Darwin `sys_icache_invalidate` (`RTS-R8-1..5`), add `--` separator in `remote_bench_common.sh` (`RTS-R8-6`), run both `interp` and `dbt` in `run_grind.sh` (`RTS-R8-7..8`), and add self-modifying code (`SMC` + cache flush) differential test to `tests/p3_torture.c` (`RTS-R8-9`).
 
 ---
 
-## 1. `a32rt` (`2ccfe8b` / `4e62a9c`) — 3 Round-8 Findings (`0 / 3` Resolved)
+## 1. `a32rt` (`2ccfe8b` -> `9b36b84`) — 3 Round-8 Findings (`3 / 3` Resolved)
 
-- [ ] **A32-R8-1 — BUG — HIGH — `src/vm/vm_jit_mem.c:84-92` — Missing `DC CVAU` loop on `A32H_CAP_ICACHE_TRAP_IALLU` path**: Clean D-cache lines (`dc cvau` + `dsb ish`) before the single trapped `ic ivau` so freshly emitted instructions in dirty D-cache lines are pushed to PoU before I-cache invalidation.
-- [ ] **A32-R8-2 — BUG — MEDIUM — `src/dbt/dbt_jit_run.c:392` — RAS return key uses callee `is_thumb` instead of caller `LR[0]`**: Compute `bool ret_thumb = (ctx->regs[14] & 1U) != 0U;` when building `ret_key = a32_make_key(lr_pc, ret_thumb)` so `BLX` interworking calls push the caller's return mode.
-- [ ] **A32-R8-3 — BUG — HIGH — `src/core/core_emit_mem.c:104-150` — Regime-A2 Soft-TLB fault exit loses `ctx->itstate` in Thumb IT blocks**: Store the pre-instruction `itstate` before returning `A32_EXIT_FAULT` on the Soft-TLB miss path (matching `UNDEF`/`BKPT`/`SVC` exits).
-
----
-
-## 2. `i686rt` (`fa49319`) — 2 Round-8 Findings (`0 / 2` Resolved)
-
-- [ ] **I686-R8-1 — BUG — HIGH — `src/dbt/emit_sse.c:173-177` — Register-form `MOVHLPS`/`MOVLHPS` lane moves are transposed**: In `sse_emit_movlp_hp` (`modrm_mod == 3`), swap the `hi != 0U` (`MOVLHPS`: `sse_ins_d_elt(b, 0U, 1U, 1U, 0U)` vs `MOVHLPS`: `sse_ins_d_elt(b, 0U, 0U, 1U, 1U)`) arms so `MOVLHPS` (`0F 16` reg-reg) copies low-to-high (`d[1] <- s[0]`) and `MOVHLPS` (`0F 12` reg-reg) copies high-to-low (`d[0] <- s[1]`), matching `interp`.
-- [ ] **I686-R8-2 — DEFECT — MEDIUM — `src/dbt/emit_branch.c:326-530` — Branch-module guest memory accesses lack TSO barriers when `e->tso` is active**: Emit `dmb ishld` (`0xD50339BFU`) after guest loads and `dmb ish` (`0xD5033BBFU`) after guest stores in `emit_branch.c` (`CALL`, `RET`, indirect `JMP`) when `e->tso` is set.
+- [x] **A32-R8-1 — BUG — HIGH — `src/vm/vm_jit_mem.c:84-92` — Missing `DC CVAU` loop on `A32H_CAP_ICACHE_TRAP_IALLU` path**: Clean D-cache lines (`dc cvau` + `dsb ish`) before the single trapped `ic ivau` so freshly emitted instructions in dirty D-cache lines are pushed to PoU before I-cache invalidation.
+- [x] **A32-R8-2 — BUG — MEDIUM — `src/dbt/dbt_jit_run.c:392` — RAS return key uses callee `is_thumb` instead of caller `LR[0]`**: Compute `bool ret_thumb = (ctx->regs[14] & 1U) != 0U;` when building `ret_key = a32_make_key(lr_pc, ret_thumb)` so `BLX` interworking calls push the caller's return mode.
+- [x] **A32-R8-3 — BUG — HIGH — `src/core/core_emit_mem.c:104-150` — Regime-A2 Soft-TLB fault exit loses `ctx->itstate` in Thumb IT blocks**: Store the pre-instruction `itstate` before returning `A32_EXIT_FAULT` on the Soft-TLB miss path (matching `UNDEF`/`BKPT`/`SVC` exits).
 
 ---
 
-## 3. `mips32rt` (`3aea198`) — 7 Round-8 Findings (`0 / 7` Resolved)
+## 2. `i686rt` (`fa49319` -> `c7dc379`) — 2 Round-8 Findings (`2 / 2` Resolved)
 
-- [ ] **M32-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:546` — `TLTIU` uses `A64_COND_GT` (`12U`) instead of `A64_COND_CC` (`3U`)**: Change `kCond[3]` (`TLTIU`) to `3U` (`A64_COND_CC`, unsigned `<`).
-- [ ] **M32-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:546` — `TEQI` uses `A64_COND_LE` (`13U`) instead of `A64_COND_EQ` (`0U`)**: Change `kCond[4]` (`TEQI`) to `0U` (`A64_COND_EQ`, `==`).
-- [ ] **M32-R8-3 — BUG — HIGH — `src/dbt/emit_fp.c:830` — FP trap exits inside delay slots commit the slot PC instead of the branch PC**: Thread `ind_slot` / branch PC into `dbt_emit_fp` (or decline trapping FP in delay slots) so enabled FCSR traps inside a delay slot commit `pc = branch`, `npc = delay_target` matching integer traps.
-- [ ] **M32-R8-4 — BUG — MEDIUM — `src/dbt/emit_int.c:668` — `JALR` with `rd == rs` defers link write past delay slot**: Write `link_rd` before executing the delay slot (preserving original target in `delay_target` and restoring `ctx->r[rs]` on fault exits if needed) so the delay slot observes `rd = pc + 8` and a slot write to `rd` wins.
-- [ ] **M32-R8-5 — BUG — MEDIUM — `src/dbt/trampoline_a64.S:67` — Inline IBTC probe does not validate `entry.smc_version`**: Check `entry.smc_version` (or global SMC epoch) in the inline IBTC probe so a concurrent thread's SMC invalidation cannot hit a stale IBTC entry.
-- [ ] **M32-R8-6 — BUG — LOW — `src/dbt/trace.c:77` — `has_delay_slot` misses `BLTZAL`/`BGEZAL`/`BLTZALL`/`BGEZALL` (`rt` `0x10..0x13`)**: Accept `rt <= 3U || (rt >= 0x10U && rt <= 0x13U)` in `has_delay_slot`.
-- [ ] **M32-R8-7 — BUG — LOW — `src/dbt/emit_fp.c:557` — Deferred FP batch skips intermediate enabled-exception traps if `CTC1` enables traps after block compilation**: Check runtime `FCSR` enable bits at `fp_batch_begin` (or flush/trap per op when any enable bit is set).
+- [x] **I686-R8-1 — BUG — HIGH — `src/dbt/emit_sse.c:173-177` — Register-form `MOVHLPS`/`MOVLHPS` lane moves are transposed**: In `sse_emit_movlp_hp` (`modrm_mod == 3`), swap the `hi != 0U` (`MOVLHPS`: `sse_ins_d_elt(b, 0U, 1U, 1U, 0U)` vs `MOVHLPS`: `sse_ins_d_elt(b, 0U, 0U, 1U, 1U)`) arms so `MOVLHPS` (`0F 16` reg-reg) copies low-to-high (`d[1] <- s[0]`) and `MOVHLPS` (`0F 12` reg-reg) copies high-to-low (`d[0] <- s[1]`), matching `interp`.
+- [x] **I686-R8-2 — DEFECT — MEDIUM — `src/dbt/emit_branch.c:326-530` — Branch-module guest memory accesses lack TSO barriers when `e->tso` is active**: Emit `dmb ishld` (`0xD50339BFU`) after guest loads and `dmb ish` (`0xD5033BBFU`) after guest stores in `emit_branch.c` (`CALL`, `RET`, indirect `JMP`) when `e->tso` is set.
 
 ---
 
-## 4. `ppc32rt` (`e8ecc7e`) — 6 Round-8 Findings (`0 / 6` Resolved)
+## 3. `mips32rt` (`3aea198` -> `a7254bd`) — 7 Round-8 Findings (`7 / 7` Resolved)
 
-- [ ] **P32-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:527` — `bclr`/`bcctr` target not masked with `& ~3U`**: Mask `A64_TMP0` with `0xFFFFFFFCU` before `a64_emit_exit_branch_reg` in `ei_bcxr`.
-- [ ] **P32-R8-2 — BUG — MEDIUM — `src/dbt/emit_fp_class.c:42` — `fp_fprf` `C`-bit misclassifies `±Inf`, `-0.0`, and `QNaN`**: Set `C = isQNaN | isDenorm | (isZero & sign)` and clear `C` for `±Inf`, matching `fp_fprf64` in `src/interp/fp.h`.
-- [ ] **P32-R8-3 — BUG — HIGH — `src/dbt/emit_fp.c:555` — `frsp` (`in == 2U`) omits `FCVT S0, D0` before `FCVT D0, S0`**: Emit `FCVT S0, D0` (`0x1E624000`) before widening `FCVT D0, S0` (`0x1E22C000`).
-- [ ] **P32-R8-4 — BUG — HIGH — `src/dbt/emit_fp.c:382` — `fcmpu`/`fcmpo` never updates `FPSCR[FPCC]` (bits 15:12)**: Merge the 4-bit condition result `EI_R << 12` into `ctx->fpscr` under mask `0xF000U` (preserving `C` bit 16), matching the interpreter oracle.
-- [ ] **P32-R8-5 — BUG — MEDIUM — `src/dbt/emit_fp.c:198` — `FPSCR[FR]` (bit 18) never cleared or updated**: Clear `FPSCR_FR` (`0x40000U`) alongside `FI` per operation (or decline to interpreter when `FR` tracking is needed) so stale `FR` bits do not persist.
-- [ ] **P32-R8-6 — BUG — MEDIUM — `src/dbt/emit_fp.c:311` — Invalid-operation sub-bits (`VXISI`, `VXIMZ`, `VXZDZ`, `VXIDI`) folded into `VXSNAN`**: Classify invalid inputs (`Inf-Inf`, `0*Inf`, `0/0`, `Inf/Inf`) to set the architectural `VX*` sub-bit matching `fp_inv2` in `src/interp/fp.h`.
-
----
-
-## 5. `sparc32rt` (`8b12acb`) — 7 Round-8 Findings (`0 / 7` Resolved)
-
-- [ ] **S32-R8-1 — BUG — HIGH — `src/dbt/emit_fpbranch.c:36` — `FBfcc` condition 15 (`FBO`) mask is `0x8` instead of `0x7`**: Change `fp_taken_mask[15]` from `0x8U` to `0x7U` (ordered: `fcc in {0,1,2}`).
-- [ ] **S32-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:405` — Taken `Ticc` `exit_arg` omits `SPARC32_TRAP_SW_BIT` (`0x100`)**: OR `0x100U` into `EKEEP` before storing `exit_arg` so `sparc32_trap_signo` delivers `SIGTRAP`/`SIGILL` instead of `SIGFPE`.
-- [ ] **S32-R8-3 — BUG — HIGH — `src/dbt/emit_cti.c:160` & `src/dbt/emit_fpbranch.c` — Delay-slot faults in `Bicc`/`CALL`/`FBfcc` report CTI `pc` instead of delay `npc`**: Set `ec->fault_pc = npc` before emitting the delay slot (matching `JMPL`).
-- [ ] **S32-R8-4 — BUG — HIGH — `src/dbt/emit_cti.c:214` & `src/dbt/dbt.c:307` — Taken CTI delay-slot fault commits `npc = dest + 4` instead of branch `target`**: Record the branch target via `a64_jmpl_record` before the taken-path delay slot so a fault inside the delay slot commits `npc = target`.
-- [ ] **S32-R8-5 — BUG — MEDIUM — `src/dbt/emit_int.c:238` — Logical `-cc` ops (`ANDcc`/`ORcc`/`XORcc`/`ANDNcc`/`ORNcc`/`XNORcc`) preserve stale host `C` and `V` in `psr.icc`**: Clear `C` and `V` in the committed `icc` nibble for logical `-cc` operations (`op3` `0x11..0x17`).
-- [ ] **S32-R8-6 — BUG — MEDIUM — `src/dbt/emit_fp.c:355` — Inline FP arithmetic and `FCMP` preserve stale `FSR.ftt` bits (bits 16:14)**: Clear bits 16:14 (`0xFFFF83E0U` / `0xFFFE3FE0U`) when committing `FSR` on successful inline FP operations.
-- [ ] **S32-R8-7 — BUG — LOW — `src/rt32/thread_entry.S:107` — `THREAD_CORE` omits loading `x25` (`g_vm32_prot` base)**: Load `g_vm32_prot` into `x25` in `THREAD_CORE` matching `trampoline_a64.S:40-49`.
+- [x] **M32-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:546` — `TLTIU` uses `A64_COND_GT` (`12U`) instead of `A64_COND_CC` (`3U`)**: Change `kCond[3]` (`TLTIU`) to `3U` (`A64_COND_CC`, unsigned `<`).
+- [x] **M32-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:546` — `TEQI` uses `A64_COND_LE` (`13U`) instead of `A64_COND_EQ` (`0U`)**: Change `kCond[4]` (`TEQI`) to `0U` (`A64_COND_EQ`, `==`).
+- [x] **M32-R8-3 — BUG — HIGH — `src/dbt/emit_fp.c:830` — FP trap exits inside delay slots commit the slot PC instead of the branch PC**: Thread `ind_slot` / branch PC into `dbt_emit_fp` (or decline trapping FP in delay slots) so enabled FCSR traps inside a delay slot commit `pc = branch`, `npc = delay_target` matching integer traps.
+- [x] **M32-R8-4 — BUG — MEDIUM — `src/dbt/emit_int.c:668` — `JALR` with `rd == rs` defers link write past delay slot**: Write `link_rd` before executing the delay slot (preserving original target in `delay_target` and restoring `ctx->r[rs]` on fault exits if needed) so the delay slot observes `rd = pc + 8` and a slot write to `rd` wins.
+- [x] **M32-R8-5 — BUG — MEDIUM — `src/dbt/trampoline_a64.S:67` — Inline IBTC probe does not validate `entry.smc_version`**: Check `entry.smc_version` (or global SMC epoch) in the inline IBTC probe so a concurrent thread's SMC invalidation cannot hit a stale IBTC entry.
+- [x] **M32-R8-6 — BUG — LOW — `src/dbt/trace.c:77` — `has_delay_slot` misses `BLTZAL`/`BGEZAL`/`BLTZALL`/`BGEZALL` (`rt` `0x10..0x13`)**: Accept `rt <= 3U || (rt >= 0x10U && rt <= 0x13U)` in `has_delay_slot`.
+- [x] **M32-R8-7 — BUG — LOW — `src/dbt/emit_fp.c:557` — Deferred FP batch skips intermediate enabled-exception traps if `CTC1` enables traps after block compilation**: Check runtime `FCSR` enable bits at `fp_batch_begin` (or flush/trap per op when any enable bit is set).
 
 ---
 
-## 6. `rvrt` (`55ad5c0`) — 0 Round-8 Findings (`0 / 0` Resolved — Subsystem Converged)
+## 4. `ppc32rt` (`e8ecc7e` -> `e4c4a46`) — 6 Round-8 Findings (`6 / 6` Resolved)
 
-All 23 files in `src/dbt/*`, `src/jit/*`, `src/darwin_dbt*`, `src/dbt_emit_fp.*`, `src/dbt_emit_m.c`, and `src/runtime/safe_syscall_a64.S` were audited line-by-line with **0 concrete behavioral bugs found** ([`2026-11-03-defects-r8-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r8-rvrt-astra.md)).
-
----
-
-## 7. `loongarch64rt` (`8820bff`) — 8 Round-8 Findings (`0 / 8` Resolved)
-
-- [ ] **LA64-R8-1 — BUG — HIGH — `src/dbt/emit_ldst.c:106` — `LDPTR`/`STPTR` wide offset (`si14 << 2` outside `±4095`) overflows `a64e_add_imm` mid-sequence**: Check offset range (`off < -4095 || off > 4095`) before emitting any instructions in `la64_emit_ldst` and decline to interpreter when out of 12-bit range.
-- [ ] **LA64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:636` — `REVB.2W` emits `EXTR` (word swap) instead of `REV32 X`**: Emit `REV32 X` (`0xDAC00800U`) so bytes are reversed within each 32-bit word.
-- [ ] **LA64-R8-3 — BUG — HIGH — `src/dbt/emit_int.c:631` — `REVB.4H` emits `REV32 X` instead of `REV16 X`**: Emit `REV16 X` (`0xDAC00400U`) so bytes are swapped within each 16-bit halfword.
-- [ ] **LA64-R8-4 — BUG — HIGH — `src/dbt/emit_int.c:629` — `REVB.2H` omits 32-bit sign extension (`SXTW`)**: Emit `REV16 W` (`0x5AC00400U`) followed by `SXTW`.
-- [ ] **LA64-R8-5 — BUG — HIGH — `src/dbt/emit_int.c:486` — `MULW.D.WU` sign-extends `rj` (`SXTW`) instead of zero-extending**: Zero-extend `rj` (`MOV W, Wj`) before 64-bit `MUL`.
-- [ ] **LA64-R8-7 — BUG — MEDIUM — `src/dbt/emit_fp.c:253` — `FMOV.S` copies 64 bits without NaN-boxing upper 32 bits**: NaN-box `.S` moves (`ORR` upper 32 bits with `0xFFFFFFFF00000000ULL`) and tag the FPR cache slot accordingly.
-- [ ] **LA64-R8-8 — BUG — MEDIUM — `src/dbt/emit_fp.c:299` — `MOVGR2FRH.W` emits `UBFM #32, #63` (`LSR #32`) instead of `LSL #32` / `BFI`**: Deposit the low 32 bits of `rj` into bits `[63:32]` of the target FPR while preserving bits `[31:0]`.
-- [ ] **LA64-R8-9 — BUG — MEDIUM — `src/dbt/emit_fp.c:694` — Vector bitwise ops (`VAND.V`/`VOR.V`/`VXOR.V`/`VANDN.V`/`VORN.V`) pass `vk = 0` to `v_halves3`**: Pass the decoded `vk` register instead of `0`.
+- [x] **P32-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:527` — `bclr`/`bcctr` target not masked with `& ~3U`**: Mask `A64_TMP0` with `0xFFFFFFFCU` before `a64_emit_exit_branch_reg` in `ei_bcxr`.
+- [x] **P32-R8-2 — BUG — MEDIUM — `src/dbt/emit_fp_class.c:42` — `fp_fprf` `C`-bit misclassifies `±Inf`, `-0.0`, and `QNaN`**: Set `C = isQNaN | isDenorm | (isZero & sign)` and clear `C` for `±Inf`, matching `fp_fprf64` in `src/interp/fp.h`.
+- [x] **P32-R8-3 — BUG — HIGH — `src/dbt/emit_fp.c:555` — `frsp` (`in == 2U`) omits `FCVT S0, D0` before `FCVT D0, S0`**: Emit `FCVT S0, D0` (`0x1E624000`) before widening `FCVT D0, S0` (`0x1E22C000`).
+- [x] **P32-R8-4 — BUG — HIGH — `src/dbt/emit_fp.c:382` — `fcmpu`/`fcmpo` never updates `FPSCR[FPCC]` (bits 15:12)**: Merge the 4-bit condition result `EI_R << 12` into `ctx->fpscr` under mask `0xF000U` (preserving `C` bit 16), matching the interpreter oracle.
+- [x] **P32-R8-5 — BUG — MEDIUM — `src/dbt/emit_fp.c:198` — `FPSCR[FR]` (bit 18) never cleared or updated**: Clear `FPSCR_FR` (`0x40000U`) alongside `FI` per operation (or decline to interpreter when `FR` tracking is needed) so stale `FR` bits do not persist.
+- [x] **P32-R8-6 — BUG — MEDIUM — `src/dbt/emit_fp.c:311` — Invalid-operation sub-bits (`VXISI`, `VXIMZ`, `VXZDZ`, `VXIDI`) folded into `VXSNAN`**: Classify invalid inputs (`Inf-Inf`, `0*Inf`, `0/0`, `Inf/Inf`) to set the architectural `VX*` sub-bit matching `fp_inv2` in `src/interp/fp.h`.
 
 ---
 
-## 8. `ppc64rt` (`ab44029`) — 3 Round-8 Findings (`0 / 3` Resolved)
+## 5. `sparc32rt` (`8b12acb` -> `786c5ab`) — 7 Round-8 Findings (`7 / 7` Resolved)
 
-- [ ] **P64-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:339` — Register shifts (`SLW`/`SRW`/`SRAW`/`SLD`/`SRD`/`SRAD`) mask shift amount to 5/6 bits instead of 6/7 bits**: Mask word shifts with `63` (zeroing or sign-filling when `n >= 32`) and doubleword shifts with `127` (zeroing or sign-filling when `n >= 64`), matching `src/interp/interp.h`.
-- [ ] **P64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:155` — `SUBFO` (`PPC64_OP_SUBF` with `OE=1`) omits `XER[OV,OV32,SO]` update**: Compute overflow for `SUBFO` (`RB - RA`, `s1 = RB ^ RA`, `s2 = RB ^ RT`) via `e_ov2()` alongside `ADDO`.
-- [ ] **P64-R8-3 — BUG — MEDIUM — `src/dbt/fetch.c:109` — `ppc64_dbt_fetch` does not reject 8-byte prefixed instructions crossing a 64-byte boundary (`(pc & 63) == 60`)**: Return `false` when `(w0 >> 26u) == 1u && (pc & UINT64_C(63)) == UINT64_C(60)` so `ppc64_step()` raises `PPC64_TRAP_INST_MISALIGNED`.
-
----
-
-## 9. `mips64rt` (`fb9ff82`) — 4 Round-8 Findings (`0 / 4` Resolved)
-
-- [ ] **M64-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:391` — `JR`/`JALR` misaligned target faults before executing the delay slot and reports branch PC**: Execute the link and delay slot before checking target alignment, then fault at the misaligned target address matching `src/interp/interp.c:800`.
-- [ ] **M64-R8-2 — BUG — HIGH — `src/dbt/emit_alu.c:261` & `src/dbt/emit_int.c:524` — Trapping ALU/trap instructions in a delay slot do not set `in_delay_slot`**: Decline trapping instructions (`ADD`, `DADD`, `SUB`, `DSUB`, `ADDI`, `DADDI`, `TGE*`, `TLT*`, `TEQ*`, `TNE*`) when `slot != 0` so `interp_step` handles the delay-slot trap with `in_delay_slot = 1`.
-- [ ] **M64-R8-3 — BUG — HIGH — `src/dbt/emit_int.c:385` & `src/dbt/emit_fpmem.c:367` — Deferred `JAL` link write breaks `COP1`/`COP1X` delay slots**: Decline linking branches whose `COP1`/`COP1X` delay slot writes the link register (`$ra`) or performs a memory access that can fault/miss.
-- [ ] **M64-R8-4 — BUG — HIGH — `src/dbt/emit_int.c:394` & `src/dbt/mem_recover.c:202` — `JALR` with `rd == rs` overwrites `ctx->gpr[rs]` before a faulting delay-slot load/store**: Decline indirect linking branches (`JALR`) when `d->rd == d->rs` (or when the delay slot is a memory operation) so fault recovery never reads a link-clobbered `rs`.
+- [x] **S32-R8-1 — BUG — HIGH — `src/dbt/emit_fpbranch.c:36` — `FBfcc` condition 15 (`FBO`) mask is `0x8` instead of `0x7`**: Change `fp_taken_mask[15]` from `0x8U` to `0x7U` (ordered: `fcc in {0,1,2}`).
+- [x] **S32-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:405` — Taken `Ticc` `exit_arg` omits `SPARC32_TRAP_SW_BIT` (`0x100`)**: OR `0x100U` into `EKEEP` before storing `exit_arg` so `sparc32_trap_signo` delivers `SIGTRAP`/`SIGILL` instead of `SIGFPE`.
+- [x] **S32-R8-3 — BUG — HIGH — `src/dbt/emit_cti.c:160` & `src/dbt/emit_fpbranch.c` — Delay-slot faults in `Bicc`/`CALL`/`FBfcc` report CTI `pc` instead of delay `npc`**: Set `ec->fault_pc = npc` before emitting the delay slot (matching `JMPL`).
+- [x] **S32-R8-4 — BUG — HIGH — `src/dbt/emit_cti.c:214` & `src/dbt/dbt.c:307` — Taken CTI delay-slot fault commits `npc = dest + 4` instead of branch `target`**: Record the branch target via `a64_jmpl_record` before the taken-path delay slot so a fault inside the delay slot commits `npc = target`.
+- [x] **S32-R8-5 — BUG — MEDIUM — `src/dbt/emit_int.c:238` — Logical `-cc` ops (`ANDcc`/`ORcc`/`XORcc`/`ANDNcc`/`ORNcc`/`XNORcc`) preserve stale host `C` and `V` in `psr.icc`**: Clear `C` and `V` in the committed `icc` nibble for logical `-cc` operations (`op3` `0x11..0x17`).
+- [x] **S32-R8-6 — BUG — MEDIUM — `src/dbt/emit_fp.c:355` — Inline FP arithmetic and `FCMP` preserve stale `FSR.ftt` bits (bits 16:14)**: Clear bits 16:14 (`0xFFFF83E0U` / `0xFFFE3FE0U`) when committing `FSR` on successful inline FP operations.
+- [x] **S32-R8-7 — BUG — LOW — `src/rt32/thread_entry.S:107` — `THREAD_CORE` omits loading `x25` (`g_vm32_prot` base)**: Load `g_vm32_prot` into `x25` in `THREAD_CORE` matching `trampoline_a64.S:40-49`.
 
 ---
 
-## 10. `sparc64rt` (`57fe404`) — 6 Round-8 Findings (`0 / 6` Resolved)
+## 6. `rvrt` (`55ad5c0` -> `786c675`) — 0 Round-8 Findings (`0 / 0` Resolved — Subsystem Converged)
 
-- [ ] **S64-R8-1 — BUG — HIGH — `src/dbt/emit_cond.c:469` — Immediate `Tcc` (`d->is_imm != 0`) ignores `rs1`**: Compute `(R[rs1] + d->imm) & 0x7FU` for immediate `Tcc` matching `exec_tcc` in `src/interp/interp.c:353`.
-- [ ] **S64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:242` — `ADDXCC`/`SUBXCC` (`ADDCcc`/`SUBCcc`) computes `icc` nibble from stale flags**: Route `with_carry && cc` (`ADDCcc`/`SUBCcc`) through `e_emit_alu_helper(ec, d)` so both `icc` and `xcc` are exact.
-- [ ] **S64-R8-3 — BUG — MEDIUM — `src/dbt/emit_int.c:438` — `WR %asi` omits `& 0xFFU` mask**: Mask `ES1` with `sb_ubfm(b, false, ES1, ES1, 0U, 7U)` before storing to `E_OFF_ASI`.
-- [ ] **S64-R8-4 — BUG — MEDIUM — `src/dbt/emit_int.c:453` — `ALIGNADDRL` (`opf == 0x1A`) decoded identically to `ALIGNADDR`**: Negate the low 3 bits (`(0 - sum) & 7`) when `d->opf == 0x1AU`.
-- [ ] **S64-R8-5 — BUG — HIGH — `src/dbt/emit_mem.h:92` — `s64_jrt_mem` leaves `d.regasi` uninitialized / loses `%asi`-relative flag**: Pack `d->regasi` into the helper descriptor and initialize `d.regasi` in `s64_jrt_mem` so `%asi`-relative loads/stores resolve `cpu->asi`.
-- [ ] **S64-R8-6 — BUG — HIGH — `src/dbt/dbt.c:604` — `dbt_step_one` passes `single_step = false` to `dbt_enter_block`**: Pass `true` so single-step execution uses `sparc64_dbt_enter_step` (zero epoch, no chaining).
+All 23 files in `src/dbt/*`, `src/jit/*`, `src/darwin_dbt*`, `src/dbt_emit_fp.*`, `src/dbt_emit_m.c`, and `src/runtime/safe_syscall_a64.S` were audited line-by-line with **0 concrete behavioral bugs found** ([`2026-11-03-defects-r8-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r8-rvrt-astra.md)); 5 AOT cache items (`RV-R8-AOT-1..5`) were also remediated and verified in `786c675`.
 
 ---
 
-## 11. `rt-series` (`5ae9fe7`) — 9 Round-8 Findings (`0 / 9` Resolved)
+## 7. `loongarch64rt` (`8820bff` -> `955b481`) — 8 Round-8 Findings (`8 / 8` Resolved)
 
-- [ ] **RTS-R8-1 — DEFECT — MEDIUM — `docs/HOST-CONTRACT.md:36` — `AT_PAGESZ = 4096` statement omits `sparc64rt` (`8192`)**: Carve out `sparc64rt` (`AT_PAGESZ = 8192` with 8 KiB alignment and paired 4 KiB Soft-TLB entries) matching `SPEC.md` `D11` and `docs/UNIFICATION-PLAN.md`.
-- [ ] **RTS-R8-2 — DEFECT — MEDIUM — `docs/HOST-CONTRACT.md:102-114` — `A32H_CAP_FIXADE` (bit 10) and `A32H_CAP_SOFT_TLB_256M` (bit 11) missing from capability table**: Document bits 10 and 11 in `docs/HOST-CONTRACT.md` matching `include/a32host.h`.
-- [ ] **RTS-R8-3 — DEFECT — MEDIUM — `SPEC.md:22,83,273` — Class-A `x20` description states `x20 = xG` unconditionally without Regime-A2 (`x20 = &ctx->tlb[0]`)**: Clarify Regime A1 (`x20 = xG`) vs Regime A2 (`x20 = &ctx->tlb[0]`, `x23 = xG`) in `SPEC.md` matching `docs/UNIFICATION-PLAN.md`.
-- [ ] **RTS-R8-4 — DEFECT — MEDIUM — `SPEC.md:127` — IBTC direct linking rule omits epoch-gating and invalidation on `munmap`/`mprotect`/SMC**: Document epoch-gated IBTC/RAS lookup and mandatory invalidation on `munmap`/`mprotect`/SMC in `SPEC.md`.
-- [ ] **RTS-R8-5 — DEFECT — MEDIUM — `docs/UNIFICATION-PLAN.md:92,465` — Darwin `MAP_JIT` and `rt_host_jit_seal_rx` omit explicit I-cache invalidation (`sys_icache_invalidate` / `__builtin___clear_cache`)**: Document mandatory I-cache invalidation in `rt_host_jit_seal_rx` across both Linux and Darwin backends.
-- [ ] **RTS-R8-6 — BUG — HIGH — `tools/remote_bench_common.sh:35,71-77,128-137` — Missing `--` separator before guest binary path for Class-B translators**: Include `--` before the guest path in `remote_bench_common.sh`.
-- [ ] **RTS-R8-7 — BUG — HIGH — `tools/run_grind.sh:277,296,536,602,630,691` — Grind suites execute only a single engine (`interp` OR `dbt`) instead of both**: Run both `GRIND_INTERP` and `GRIND_DBT` when both are configured and fail if outputs/exit codes diverge.
-- [ ] **RTS-R8-8 — BUG — MEDIUM — `tools/run_grind.sh:341,383-385` — `gcc-torture` promotes first engine output when `GRIND_QEMU` is unset**: Require `GRIND_QEMU` (or report `SKIP`/`GAP` rather than `PASS` when no independent oracle is provided unless `GRIND_ALLOW_NO_ORACLE=1`).
-- [ ] **RTS-R8-9 — BUG — HIGH — `tests/p3_torture.c:877-888` — Missing self-modifying code (`SMC`) + cache-invalidation test in `p3_torture.c`**: Add a portable `t_smc_clear_cache` test row in `tests/p3_torture.c` that maps a RW page, writes a small function returning `42`, flips to `RX` + `__builtin___clear_cache`, executes it, flips back to `RW`, patches the return value to `99`, flips to `RX` + `__builtin___clear_cache`, and verifies the second call returns `99` (not stale cached `42`).
+- [x] **LA64-R8-1 — BUG — HIGH — `src/dbt/emit_ldst.c:106` — `LDPTR`/`STPTR` wide offset (`si14 << 2` outside `±4095`) overflows `a64e_add_imm` mid-sequence**: Check offset range (`off < -4095 || off > 4095`) before emitting any instructions in `la64_emit_ldst` and decline to interpreter when out of 12-bit range.
+- [x] **LA64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:636` — `REVB.2W` emits `EXTR` (word swap) instead of `REV32 X`**: Emit `REV32 X` (`0xDAC00800U`) so bytes are reversed within each 32-bit word.
+- [x] **LA64-R8-3 — BUG — HIGH — `src/dbt/emit_int.c:631` — `REVB.4H` emits `REV32 X` instead of `REV16 X`**: Emit `REV16 X` (`0xDAC00400U`) so bytes are swapped within each 16-bit halfword.
+- [x] **LA64-R8-4 — BUG — HIGH — `src/dbt/emit_int.c:629` — `REVB.2H` omits 32-bit sign extension (`SXTW`)**: Emit `REV16 W` (`0x5AC00400U`) followed by `SXTW`.
+- [x] **LA64-R8-5 — BUG — HIGH — `src/dbt/emit_int.c:486` — `MULW.D.WU` sign-extends `rj` (`SXTW`) instead of zero-extending**: Zero-extend `rj` (`MOV W, Wj`) before 64-bit `MUL`.
+- [x] **LA64-R8-7 — BUG — MEDIUM — `src/dbt/emit_fp.c:253` — `FMOV.S` copies 64 bits without NaN-boxing upper 32 bits**: NaN-box `.S` moves (`ORR` upper 32 bits with `0xFFFFFFFF00000000ULL`) and tag the FPR cache slot accordingly.
+- [x] **LA64-R8-8 — BUG — MEDIUM — `src/dbt/emit_fp.c:299` — `MOVGR2FRH.W` emits `UBFM #32, #63` (`LSR #32`) instead of `LSL #32` / `BFI`**: Deposit the low 32 bits of `rj` into bits `[63:32]` of the target FPR while preserving bits `[31:0]`.
+- [x] **LA64-R8-9 — BUG — MEDIUM — `src/dbt/emit_fp.c:694` — Vector bitwise ops (`VAND.V`/`VOR.V`/`VXOR.V`/`VANDN.V`/`VORN.V`) pass `vk = 0` to `v_halves3`**: Pass the decoded `vk` register instead of `0`.
+
+---
+
+## 8. `ppc64rt` (`ab44029` -> `c84da61`) — 3 Round-8 Findings (`3 / 3` Resolved)
+
+- [x] **P64-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:339` — Register shifts (`SLW`/`SRW`/`SRAW`/`SLD`/`SRD`/`SRAD`) mask shift amount to 5/6 bits instead of 6/7 bits**: Mask word shifts with `63` (zeroing or sign-filling when `n >= 32`) and doubleword shifts with `127` (zeroing or sign-filling when `n >= 64`), matching `src/interp/interp.h`.
+- [x] **P64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:155` — `SUBFO` (`PPC64_OP_SUBF` with `OE=1`) omits `XER[OV,OV32,SO]` update**: Compute overflow for `SUBFO` (`RB - RA`, `s1 = RB ^ RA`, `s2 = RB ^ RT`) via `e_ov2()` alongside `ADDO`.
+- [x] **P64-R8-3 — BUG — MEDIUM — `src/dbt/fetch.c:109` — `ppc64_dbt_fetch` does not reject 8-byte prefixed instructions crossing a 64-byte boundary (`(pc & 63) == 60`)**: Return `false` when `(w0 >> 26u) == 1u && (pc & UINT64_C(63)) == UINT64_C(60)` so `ppc64_step()` raises `PPC64_TRAP_INST_MISALIGNED`.
+
+---
+
+## 9. `mips64rt` (`fb9ff82` -> `954328e`) — 4 Round-8 Findings (`4 / 4` Resolved)
+
+- [x] **M64-R8-1 — BUG — HIGH — `src/dbt/emit_int.c:391` — `JR`/`JALR` misaligned target faults before executing the delay slot and reports branch PC**: Execute the link and delay slot before checking target alignment, then fault at the misaligned target address matching `src/interp/interp.c:800`.
+- [x] **M64-R8-2 — BUG — HIGH — `src/dbt/emit_alu.c:261` & `src/dbt/emit_int.c:524` — Trapping ALU/trap instructions in a delay slot do not set `in_delay_slot`**: Decline trapping instructions (`ADD`, `DADD`, `SUB`, `DSUB`, `ADDI`, `DADDI`, `TGE*`, `TLT*`, `TEQ*`, `TNE*`) when `slot != 0` so `interp_step` handles the delay-slot trap with `in_delay_slot = 1`.
+- [x] **M64-R8-3 — BUG — HIGH — `src/dbt/emit_int.c:385` & `src/dbt/emit_fpmem.c:367` — Deferred `JAL` link write breaks `COP1`/`COP1X` delay slots**: Decline linking branches whose `COP1`/`COP1X` delay slot writes the link register (`$ra`) or performs a memory access that can fault/miss.
+- [x] **M64-R8-4 — BUG — HIGH — `src/dbt/emit_int.c:394` & `src/dbt/mem_recover.c:202` — `JALR` with `rd == rs` overwrites `ctx->gpr[rs]` before a faulting delay-slot load/store**: Decline indirect linking branches (`JALR`) when `d->rd == d->rs` (or when the delay slot is a memory operation) so fault recovery never reads a link-clobbered `rs`.
+
+---
+
+## 10. `sparc64rt` (`57fe404` -> `fb84de0`) — 6 Round-8 Findings (`6 / 6` Resolved)
+
+- [x] **S64-R8-1 — BUG — HIGH — `src/dbt/emit_cond.c:469` — Immediate `Tcc` (`d->is_imm != 0`) ignores `rs1`**: Compute `(R[rs1] + d->imm) & 0x7FU` for immediate `Tcc` matching `exec_tcc` in `src/interp/interp.c:353`.
+- [x] **S64-R8-2 — BUG — HIGH — `src/dbt/emit_int.c:242` — `ADDXCC`/`SUBXCC` (`ADDCcc`/`SUBCcc`) computes `icc` nibble from stale flags**: Route `with_carry && cc` (`ADDCcc`/`SUBCcc`) through `e_emit_alu_helper(ec, d)` so both `icc` and `xcc` are exact.
+- [x] **S64-R8-3 — BUG — MEDIUM — `src/dbt/emit_int.c:438` — `WR %asi` omits `& 0xFFU` mask**: Mask `ES1` with `sb_ubfm(b, false, ES1, ES1, 0U, 7U)` before storing to `E_OFF_ASI`.
+- [x] **S64-R8-4 — BUG — MEDIUM — `src/dbt/emit_int.c:453` — `ALIGNADDRL` (`opf == 0x1A`) decoded identically to `ALIGNADDR`**: Negate the low 3 bits (`(0 - sum) & 7`) when `d->opf == 0x1AU`.
+- [x] **S64-R8-5 — BUG — HIGH — `src/dbt/emit_mem.h:92` — `s64_jrt_mem` leaves `d.regasi` uninitialized / loses `%asi`-relative flag**: Pack `d->regasi` into the helper descriptor and initialize `d.regasi` in `s64_jrt_mem` so `%asi`-relative loads/stores resolve `cpu->asi`.
+- [x] **S64-R8-6 — BUG — HIGH — `src/dbt/dbt.c:604` — `dbt_step_one` passes `single_step = false` to `dbt_enter_block`**: Pass `true` so single-step execution uses `sparc64_dbt_enter_step` (zero epoch, no chaining).
+
+---
+
+## 11. `rt-series` (`5ae9fe7` -> `315bdac`) — 9 Round-8 Findings (`9 / 9` Resolved)
+
+- [x] **RTS-R8-1 — DEFECT — MEDIUM — `docs/HOST-CONTRACT.md:36` — `AT_PAGESZ = 4096` statement omits `sparc64rt` (`8192`)**: Carve out `sparc64rt` (`AT_PAGESZ = 8192` with 8 KiB alignment and paired 4 KiB Soft-TLB entries) matching `SPEC.md` `D11` and `docs/UNIFICATION-PLAN.md`.
+- [x] **RTS-R8-2 — DEFECT — MEDIUM — `docs/HOST-CONTRACT.md:102-114` — `A32H_CAP_FIXADE` (bit 10) and `A32H_CAP_SOFT_TLB_256M` (bit 11) missing from capability table**: Document bits 10 and 11 in `docs/HOST-CONTRACT.md` matching `include/a32host.h`.
+- [x] **RTS-R8-3 — DEFECT — MEDIUM — `SPEC.md:22,83,273` — Class-A `x20` description states `x20 = xG` unconditionally without Regime-A2 (`x20 = &ctx->tlb[0]`)**: Clarify Regime A1 (`x20 = xG`) vs Regime A2 (`x20 = &ctx->tlb[0]`, `x23 = xG`) in `SPEC.md` matching `docs/UNIFICATION-PLAN.md`.
+- [x] **RTS-R8-4 — DEFECT — MEDIUM — `SPEC.md:127` — IBTC direct linking rule omits epoch-gating and invalidation on `munmap`/`mprotect`/SMC**: Document epoch-gated IBTC/RAS lookup and mandatory invalidation on `munmap`/`mprotect`/SMC in `SPEC.md`.
+- [x] **RTS-R8-5 — DEFECT — MEDIUM — `docs/UNIFICATION-PLAN.md:92,465` — Darwin `MAP_JIT` and `rt_host_jit_seal_rx` omit explicit I-cache invalidation (`sys_icache_invalidate` / `__builtin___clear_cache`)**: Document mandatory I-cache invalidation in `rt_host_jit_seal_rx` across both Linux and Darwin backends.
+- [x] **RTS-R8-6 — BUG — HIGH — `tools/remote_bench_common.sh:35,71-77,128-137` — Missing `--` separator before guest binary path for Class-B translators**: Include `--` before the guest path in `remote_bench_common.sh`.
+- [x] **RTS-R8-7 — BUG — HIGH — `tools/run_grind.sh:277,296,536,602,630,691` — Grind suites execute only a single engine (`interp` OR `dbt`) instead of both**: Run both `GRIND_INTERP` and `GRIND_DBT` when both are configured and fail if outputs/exit codes diverge.
+- [x] **RTS-R8-8 — BUG — MEDIUM — `tools/run_grind.sh:341,383-385` — `gcc-torture` promotes first engine output when `GRIND_QEMU` is unset**: Require `GRIND_QEMU` (or report `SKIP`/`GAP` rather than `PASS` when no independent oracle is provided unless `GRIND_ALLOW_NO_ORACLE=1`).
+- [x] **RTS-R8-9 — BUG — HIGH — `tests/p3_torture.c:877-888` — Missing self-modifying code (`SMC`) + cache-invalidation test in `p3_torture.c`**: Add a portable `t_smc_clear_cache` test row in `tests/p3_torture.c` that maps a RW page, writes a small function returning `42`, flips to `RX` + `__builtin___clear_cache`, executes it, flips back to `RW`, patches the return value to `99`, flips to `RX` + `__builtin___clear_cache`, and verifies the second call returns `99` (not stale cached `42`).
 
 ---
 
