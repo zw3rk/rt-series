@@ -446,17 +446,19 @@ run_testfloat_one_engine() {
             return 0
             ;;
     esac
-    if timeout --kill-after=30s 600s "$_ver" "-r${_rm}" "$_op" <"$_tfo_res" >/tmp/grind_testfloat_$$.log 2>&1; then
+    if timeout --kill-after=30s 600s "$_ver" "-r${_rm}" "$_op" <"$_tfo_res" >>/tmp/grind_testfloat_$$.log 2>&1; then
         _tfo_rc=0
     else
         _tfo_rc=$?
     fi
     rm -f "$_tfo_res"
     if [ "$_tfo_rc" -eq 0 ]; then
-        if grep -Eqi 'fail|error|mismatch' /tmp/grind_testfloat_$$.log; then
-            grind_fail "$_tfo_label" "verifier reported failures (see /tmp/grind_testfloat_$$.log)"
-        else
+        # Clean verifier line is "In N tests, no errors found in ...":
+        # require it, and keep it from matching the failure grep.
+        if grep -qi 'no errors found' /tmp/grind_testfloat_$$.log && ! grep -Eqi '(^|[^o] )errors? found|fail|mismatch' /tmp/grind_testfloat_$$.log; then
             grind_pass "$_tfo_label" "'$_op' ($_rm): $_tfo_cases cases verified clean"
+        else
+            grind_fail "$_tfo_label" "verifier reported failures (see /tmp/grind_testfloat_$$.log)"
         fi
     else
         grind_fail "$_tfo_label" "verifier exited non-zero (rc=$_tfo_rc, see /tmp/grind_testfloat_$$.log)"
