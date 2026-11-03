@@ -402,32 +402,61 @@ run_gcc_torture_suite() {
     fi
 }
 
-# Run one TestFloat verifier pass over the shared vector file and report it
-# under its own engine label. An empty wrapper runs the verifier directly
-# (host). Otherwise the wrapper runs through grind_run_guest so hl-backend
-# foreign jobs keep the single shared hl policy. Uses the caller's $_ver,
-# $_vec, and $_rounds globals and the per-engine /tmp/grind_testfloat log.
+# Run one TestFloat engine pass over the shared operand vectors and report
+# it under its own engine label. The guest operation runner executes the
+# vectors under the engine wrapper; host testfloat_ver then checks the
+# runner's result lines for $_op. Upstream (TestFloat-general.html 5)
+# requires this middle program: generator SoftFloat expectations must
+# never be fed to the verifier directly, since that tests SoftFloat
+# against itself instead of the translated guest FP instructions. Uses
+# the caller's $_ver/$_op/$_rm/$_vec globals and the per-engine
+# /tmp/grind_testfloat log; the runner result file must hold a positive
+# verified case count or the engine fails.
 run_testfloat_one_engine() {
     _tfo_label="$1"
     _tfo_wrap="$2"
+    _tfo_res="/tmp/grind_testfloat_res_${CURRENT_ARCH}_${_tfo_label}_$$"
+    if [ ! -s "$_vec" ]; then
+        grind_fail "$_tfo_label" "empty generator vectors for '$_op'"
+        return 0
+    fi
     if [ -n "$_tfo_wrap" ]; then
-        if grind_run_guest 600 "$_tfo_wrap" "$_ver" <"$_vec" >/tmp/grind_testfloat_$$.log 2>&1; then
+        if grind_run_guest 600 "$_tfo_wrap" "$TESTFLOAT_RUNNER" <"$_vec" >"$_tfo_res" 2>/tmp/grind_testfloat_$$.log; then
             _tfo_rc=0
         else
             _tfo_rc=$?
         fi
     else
-        if timeout --kill-after=30s 600s "$_ver" <"$_vec" >/tmp/grind_testfloat_$$.log 2>&1; then
+        if timeout --kill-after=30s 600s "$TESTFLOAT_RUNNER" <"$_vec" >"$_tfo_res" 2>/tmp/grind_testfloat_$$.log; then
             _tfo_rc=0
         else
             _tfo_rc=$?
         fi
     fi
+    if [ "$_tfo_rc" -ne 0 ]; then
+        grind_fail "$_tfo_label" "guest runner exited non-zero (rc=$_tfo_rc, see /tmp/grind_testfloat_$$.log)"
+        rm -f "$_tfo_res"
+        return 0
+    fi
+    _tfo_cases="$(wc -l <"$_tfo_res" 2>/dev/null | tr -d '[:space:]')"
+    case "$_tfo_cases" in
+        '' | *[!0-9]* | 0)
+            grind_fail "$_tfo_label" "runner produced no result cases for '$_op' (positive verified case count required)"
+            rm -f "$_tfo_res"
+            return 0
+            ;;
+    esac
+    if timeout --kill-after=30s 600s "$_ver" "-r${_rm}" "$_op" <"$_tfo_res" >/tmp/grind_testfloat_$$.log 2>&1; then
+        _tfo_rc=0
+    else
+        _tfo_rc=$?
+    fi
+    rm -f "$_tfo_res"
     if [ "$_tfo_rc" -eq 0 ]; then
         if grep -Eqi 'fail|error|mismatch' /tmp/grind_testfloat_$$.log; then
             grind_fail "$_tfo_label" "verifier reported failures (see /tmp/grind_testfloat_$$.log)"
         else
-            grind_pass "$_tfo_label" "gen|ver pipeline clean ($_rounds rounds)"
+            grind_pass "$_tfo_label" "'$_op' ($_rm): $_tfo_cases cases verified clean"
         fi
     else
         grind_fail "$_tfo_label" "verifier exited non-zero (rc=$_tfo_rc, see /tmp/grind_testfloat_$$.log)"
@@ -435,7 +464,7 @@ run_testfloat_one_engine() {
 }
 
 run_testfloat_suite() {
-    echo "== Grind [$CURRENT_ARCH]: Berkeley TestFloat (host testfloat_gen | guest testfloat_ver, per-engine) =="
+    echo "== Grind [$CURRENT_ARCH]: Berkeley TestFloat (host testfloat_gen <type> | guest runner | host testfloat_ver <function>, per-engine) =="
     _gen="${TESTFLOAT_GEN:-}"
     _ver="${TESTFLOAT_VER:-}"
     if [ -z "$_gen" ] || [ ! -x "$_gen" ]; then
@@ -447,17 +476,51 @@ run_testfloat_suite() {
         fi
     fi
     if [ -z "$_ver" ]; then
-        grind_skip "testfloat" "TESTFLOAT_VER not set (guest testfloat_ver binary missing)"
+        grind_skip "testfloat" "TESTFLOAT_VER not set (host testfloat_ver binary missing)"
+        return 0
+    fi
+    if [ -z "${TESTFLOAT_RUNNER:-}" ]; then
+        grind_skip "testfloat" "TESTFLOAT_RUNNER not set (guest FP executor required; refusing vacuous SoftFloat-vs-SoftFloat pass)"
         return 0
     fi
     if [ "$CURRENT_ARCH" != "host" ] && [ -z "${GRIND_INTERP:-}" ] && [ -z "${GRIND_DBT:-}" ]; then
         grind_skip "testfloat" "translator wrapper missing for $CURRENT_ARCH ($BACKEND)"
         return 0
     fi
+    _op="${TESTFLOAT_OP:-f32_add}"
+    _rm="${TESTFLOAT_ROUNDING:-near_even}"
+    case "$_rm" in
+        near_even | near_maxMag | minMag | min | max | odd) ;;
+        *)
+            grind_fail "testfloat" "invalid TESTFLOAT_ROUNDING '$_rm' (expected near_even|near_maxMag|minMag|min|max|odd)"
+            return 0
+            ;;
+    esac
+    _op_base="${_op%%_*}"
+    case "$_op" in
+        *_mulAdd) _nops=3 ;;
+        *sqrt* | *roundToInt* | *_to_*) _nops=1 ;;
+        *) _nops=2 ;;
+    esac
+    _type="${TESTFLOAT_TYPE:-${_op_base} ${_nops}}"
+    # The guest runner contract: a single binary path (like TESTFLOAT_GEN)
+    # that reads testfloat_gen operand lines on stdin, executes $_op on the
+    # guest under rounding $_rm, and writes testfloat_ver result lines on
+    # stdout. Op and rounding travel via TESTFLOAT_OP/TESTFLOAT_ROUNDING.
+    TESTFLOAT_OP="$_op"
+    TESTFLOAT_ROUNDING="$_rm"
+    export TESTFLOAT_OP TESTFLOAT_ROUNDING
     _rounds="${TESTFLOAT_ROUNDS:-10000}"
     if [ "$TIER" = "weekly" ]; then _rounds="${TESTFLOAT_ROUNDS_WEEKLY:-$_rounds}"; fi
+    case "$_rounds" in
+        '' | *[!0-9]* | 0)
+            grind_fail "testfloat" "TESTFLOAT_ROUNDS must be a positive integer"
+            return 0
+            ;;
+    esac
     _vec="/tmp/grind_testfloat_vec_${CURRENT_ARCH}_$$"
-    if ! timeout --kill-after=30s 300s "$_gen" -rounds "$_rounds" >"$_vec" 2>/tmp/grind_testfloat_$$.log; then
+    # shellcheck disable=SC2086
+    if ! timeout --kill-after=30s 300s "$_gen" -n "$_rounds" $_type >"$_vec" 2>/tmp/grind_testfloat_$$.log; then
         grind_fail "testfloat" "testfloat_gen failed to produce vectors (see /tmp/grind_testfloat_$$.log)"
         rm -f "$_vec" /tmp/grind_testfloat_$$.log
         return 0
@@ -648,7 +711,26 @@ run_lmbench_suite() {
             _have_lm=0
         fi
         if [ "$_have_lm" -eq 1 ]; then
-            if grind_run_guest 120 "$_wrap" "$_b" -P 1 null >/tmp/grind_lm_$$.log 2>&1; then
+            # Each tool takes its own arguments (upstream lat_*.c usage):
+            # lat_syscall names a syscall, lat_proc names a procedure kind,
+            # lat_ctx takes a process count, and lat_pagefault takes an
+            # existing input file (>= 1 MiB) prepared here.
+            case "$_t" in
+                lat_syscall) _lm_args="-P 1 null" ;;
+                lat_proc) _lm_args="-P 1 procedure" ;;
+                lat_ctx) _lm_args="-P 1 2" ;;
+                lat_pagefault)
+                    _lm_pf="/tmp/grind_pagefault_${CURRENT_ARCH}_$$"
+                    if ! dd if=/dev/zero of="$_lm_pf" bs=4096 count=1024 2>/dev/null || [ ! -s "$_lm_pf" ]; then
+                        grind_fail "lmbench" "lat_pagefault input setup failed"
+                        rm -f "$_lm_pf"
+                        continue
+                    fi
+                    _lm_args="-P 1 $_lm_pf"
+                    ;;
+            esac
+            # shellcheck disable=SC2086
+            if grind_run_guest 120 "$_wrap" "$_b" $_lm_args >/tmp/grind_lm_$$.log 2>&1; then
                 if [ -s /tmp/grind_lm_$$.log ]; then
                     grind_pass "lmbench" "$_t completed"
                 else
@@ -657,6 +739,7 @@ run_lmbench_suite() {
             else
                 grind_fail "lmbench" "$_t exited non-zero or timed out"
             fi
+            [ "$_t" = "lat_pagefault" ] && rm -f "$_lm_pf"
         else
             grind_skip "lmbench" "$_t not built"
         fi

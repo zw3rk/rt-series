@@ -79,7 +79,16 @@ static volatile sig_atomic_t g_usr1_count = 0;
 static volatile sig_atomic_t g_usr1_signo = 0;
 static volatile sig_atomic_t g_usr1_code = 0;
 static volatile sig_atomic_t g_usr1_has_ctx = 0;
+static volatile sig_atomic_t g_usr1_has_info = 0;
+static volatile sig_atomic_t g_usr1_info_signo = 0;
+static volatile sig_atomic_t g_usr1_raise_rc = -1;
+static volatile sig_atomic_t g_usr1_on_altstack = 0;
 static volatile sig_atomic_t g_usr1_clobber_sink = 0;
+static volatile sig_atomic_t g_usr2_count = 0;
+static volatile sig_atomic_t g_usr2_on_altstack = 0;
+static volatile sig_atomic_t g_usr2_saw_usr1_active = 0;
+/* Static backing for the nested-delivery alternate stack. */
+static char g_nest_stack[65536];
 static volatile sig_atomic_t g_on_altstack = 0;
 static volatile sig_atomic_t g_nest_depth = 0;
 static volatile sig_atomic_t g_fp_handler_ran = 0;
@@ -107,12 +116,19 @@ static uintptr_t load_segv_addr(void)
 
 static void usr1_handler(int signo, siginfo_t *info, void *ctx)
 {
+    stack_t ss;
     g_usr1_count++;
     g_usr1_signo = signo;
     if (info != NULL) {
+        g_usr1_has_info = 1;
+        g_usr1_info_signo = info->si_signo;
         g_usr1_code = info->si_code;
     }
     g_usr1_has_ctx = (ctx != NULL) ? 1 : 0;
+    memset(&ss, 0, sizeof(ss));
+    if (sigaltstack(NULL, &ss) == 0 && (ss.ss_flags & SS_ONSTACK) != 0) {
+        g_usr1_on_altstack = 1;
+    }
     /* Clobber caller/callee-saved GPRs inside the signal frame to verify
      * that interrupted live GPR state is restored by sigreturn. */
     {
@@ -133,19 +149,38 @@ static void usr1_handler(int signo, siginfo_t *info, void *ctx)
     atomic_store(&g_cas_cell, 2);
     g_nest_depth++;
     if (g_nest_depth < 2) {
-        /* Nested delivery on the alternate stack. */
-        raise(SIGUSR2);
+        /* Nested delivery; rc asserted so a dropped SIGUSR2 fails. */
+        g_usr1_raise_rc = (sig_atomic_t)raise(SIGUSR2);
     }
     g_nest_depth--;
 }
 
 static void usr2_handler(int signo, siginfo_t *info, void *ctx)
 {
+    stack_t ss;
     (void)info;
     (void)ctx;
     if (signo == SIGUSR2) {
-        g_nest_depth++;
+        g_usr2_count++;
+        if (g_nest_depth == 1) {
+            g_usr2_saw_usr1_active = 1;
+        }
+        memset(&ss, 0, sizeof(ss));
+        if (sigaltstack(NULL, &ss) == 0 && (ss.ss_flags & SS_ONSTACK) != 0) {
+            g_usr2_on_altstack = 1;
+        }
     }
+}
+
+/* Disable the nested-delivery alternate stack. */
+static int drop_nest_stack(void)
+{
+    stack_t ss;
+    memset(&ss, 0, sizeof(ss));
+    ss.ss_sp = g_nest_stack;
+    ss.ss_size = sizeof(g_nest_stack);
+    ss.ss_flags = SS_DISABLE;
+    return sigaltstack(&ss, NULL);
 }
 
 static void fp_handler(int signo, siginfo_t *info, void *ctx)
@@ -232,8 +267,10 @@ static void t_llsc_reservation(void)
 #endif
 }
 
-/* Signal frame: async SIGUSR1 must arrive with exact si_signo, a
- * kill-family si_code, and a non-null ucontext. Value-level GPR check:
+/* Signal frame: async SIGUSR1 must arrive with the handler signo, an
+ * exact info->si_signo, a kill-family si_code, and non-null ucontext
+ * plus info, and nests SIGUSR2 on an SA_ONSTACK stack (count, order,
+ * and SS_ONSTACK residency asserted). Value-level GPR check:
  * C locals are folded through a fixed 16-step sequence split around a
  * nested raise() round-trip and compared against an uninterrupted
  * recomputation, detecting corruption of compiler-visible state by the
@@ -242,15 +279,32 @@ static void t_llsc_reservation(void)
  * (LL/SC reservation isolation lives in t_llsc_reservation()). */
 static void t_sig_frame_gpr(void)
 {
-    if (install_handler(SIGUSR1, usr1_handler, 0) != 0 ||
-        install_handler(SIGUSR2, usr2_handler, 0) != 0) {
+    stack_t nest_ss;
+    memset(&nest_ss, 0, sizeof(nest_ss));
+    nest_ss.ss_sp = g_nest_stack;
+    nest_ss.ss_size = sizeof(g_nest_stack);
+    nest_ss.ss_flags = 0;
+    if (sigaltstack(&nest_ss, NULL) != 0) {
+        report_skip("sig-frame-gpr", "sigaltstack unavailable");
+        return;
+    }
+    if (install_handler(SIGUSR1, usr1_handler, SA_ONSTACK) != 0 ||
+        install_handler(SIGUSR2, usr2_handler, SA_ONSTACK) != 0) {
         report_skip("sig-frame-gpr", "sigaction unavailable");
+        (void)drop_nest_stack();
         return;
     }
     g_usr1_count = 0;
     g_usr1_signo = 0;
     g_usr1_code = 0;
     g_usr1_has_ctx = 0;
+    g_usr1_has_info = 0;
+    g_usr1_info_signo = 0;
+    g_usr1_raise_rc = -1;
+    g_usr1_on_altstack = 0;
+    g_usr2_count = 0;
+    g_usr2_on_altstack = 0;
+    g_usr2_saw_usr1_active = 0;
     atomic_store(&g_cas_cell, 1);
 
     /* Fold value-level state through a fixed sequence split around a
@@ -276,9 +330,16 @@ static void t_sig_frame_gpr(void)
              * (stale-CAS check below) while GPR state must survive. */
             if (raise(SIGUSR1) != 0) {
                 report_fail("sig-frame-gpr", "raise failed");
+                (void)drop_nest_stack();
                 return;
             }
         }
+    }
+
+    /* Handlers ran synchronously inside raise(); drop the stack first. */
+    if (drop_nest_stack() != 0) {
+        report_fail("sig-frame-gpr", "sigaltstack SS_DISABLE failed");
+        return;
     }
 
     uint64_t w0 = 0x0123456789ABCDEFULL;
@@ -304,6 +365,14 @@ static void t_sig_frame_gpr(void)
         return;
     }
     if (g_usr1_signo != SIGUSR1) {
+        report_fail("sig-frame-gpr", "handler signo mismatch");
+        return;
+    }
+    if (!g_usr1_has_info) {
+        report_fail("sig-frame-gpr", "missing siginfo");
+        return;
+    }
+    if (g_usr1_info_signo != SIGUSR1) {
         report_fail("sig-frame-gpr", "si_signo mismatch");
         return;
     }
@@ -320,6 +389,22 @@ static void t_sig_frame_gpr(void)
     }
     if (!g_usr1_has_ctx) {
         report_fail("sig-frame-gpr", "null ucontext");
+        return;
+    }
+    if (g_usr1_raise_rc != 0 || g_usr2_count != 1) {
+        report_fail("sig-frame-gpr", "nested SIGUSR2 delivery failed");
+        return;
+    }
+    if (!g_usr2_saw_usr1_active) {
+        report_fail("sig-frame-gpr", "nested handler did not run inside SIGUSR1");
+        return;
+    }
+    if (!g_usr1_on_altstack) {
+        report_fail("sig-frame-gpr", "SIGUSR1 handler not on alt stack");
+        return;
+    }
+    if (!g_usr2_on_altstack) {
+        report_fail("sig-frame-gpr", "nested SIGUSR2 handler not on alt stack");
         return;
     }
     if (atomic_load(&g_cas_cell) != 2) {
@@ -347,7 +432,7 @@ static void t_sig_frame_gpr(void)
         report_fail("sig-frame-gpr", "fresh CAS lost");
         return;
     }
-    report_pass("sig-frame-gpr si_signo/si_code/ucontext + stolen reservation");
+    report_pass("sig-frame-gpr si_signo/si_code/ucontext + nested altstack + stolen reservation");
 }
 
 /* FPR round-trip: FP environment and in-flight values must survive an
@@ -387,13 +472,16 @@ static void t_sig_frame_fpr(void)
 #endif
         return;
     }
-    /* Bit-exact resume check: recompute without signals and compare. */
+    /* Bit-exact resume check via plain-double snapshots: memcmp on the
+     * volatile accumulators would discard volatile (C11 6.7.3p6 UB). */
     {
         volatile double ref = 0.0;
         for (int i = 0; i < 1000000; i++) {
             ref += a * 0.5;
         }
-        if (memcmp((const void *)&b, (const void *)&ref, sizeof(b)) != 0) {
+        double b_snap = b;
+        double ref_snap = ref;
+        if (memcmp(&b_snap, &ref_snap, sizeof(b_snap)) != 0) {
             report_fail("sig-frame-fpr", "FP value corrupted by handler");
 #ifdef FE_TONEAREST
             fesetround(old_rm);
