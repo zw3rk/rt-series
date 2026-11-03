@@ -39,7 +39,7 @@ To achieve high-assurance convergence across all 11 repositories simultaneously 
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Phase D: Independent Post-Remediation Verification (11 Concurrent Lanes)    │
-│   Model: claude-fable-5-1 (claude -p --model claude-fable-5-1 --effort high)│
+│   Model: claude-fable-5-1 (fallback: claude-opus-5-5 when unavailable)      │
 │   Input: Exact remediation commit(s) + original astra report + DEFECTS.md   │
 │   Output: lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-fable.md              │
 │           (Per-item verdict: VERIFIED | PARTIAL | REGRESSION)               │
@@ -174,16 +174,21 @@ timeout --kill-after=30s 1200s muse exec --yolo --parallel-tool-calls \
 
 ---
 
-### Phase D: Concurrent `claude-fable-5-1` Verification Reviews
+### Phase D: Concurrent `claude-fable-5-1` (Fallback: `claude-opus-5-5`) Verification Reviews
 
-Once `muse exec` commits on `<repo>` `master`, run `claude-fable-5-1` to independently verify the commit against the `astra` report:
+Once `muse exec` commits on `<repo>` `master`, run `claude-fable-5-1` (with automatic fallback to `claude-opus-5-5` if `claude-fable-5-1` is unavailable or rate-limited) to independently verify the commit against the `astra` report:
 
 ```sh
 cd /Users/angerman/Projects/zw3rk/<repo> && \
-timeout --kill-after=30s 900s claude -p --model claude-fable-5-1 --effort high \
-  "Review the latest Round-<N> remediation commit HEAD in /Users/angerman/Projects/zw3rk/<repo> against /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md and /Users/angerman/Projects/zw3rk/rt-series/DEFECTS.md.
-   Classify each item as VERIFIED, PARTIAL, or REGRESSION, and check whether the surgical diff introduced any second-order edge cases (e.g. fork lock ordering, sign-extension, line limits, or unguarded fault paths). Output a concise markdown report." \
-  < /dev/null > /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-fable.md
+timeout --kill-after=30s 900s sh -c '
+PROMPT="Review the latest Round-<N> remediation commit HEAD in /Users/angerman/Projects/zw3rk/<repo> against /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md and /Users/angerman/Projects/zw3rk/rt-series/DEFECTS.md.
+Classify each item as VERIFIED, PARTIAL, or REGRESSION, and check whether the surgical diff introduced any second-order edge cases (e.g. fork lock ordering, sign-extension, line limits, or unguarded fault paths). Output a concise markdown report."
+OUT="/Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-fable.md"
+claude -p --model claude-fable-5-1 --effort high --permission-mode bypassPermissions "$PROMPT" < /dev/null > "$OUT" 2>&1 || true
+if grep -qi "reached your Fable limit" "$OUT" || [ "$(wc -l < "$OUT")" -lt 10 ]; then
+  claude -p --model claude-opus-5-5 --effort high --permission-mode bypassPermissions "$PROMPT" < /dev/null > "$OUT"
+fi
+'
 ```
 
 ---

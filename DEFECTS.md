@@ -4,7 +4,7 @@
 **Process Specification:** [`docs/CONVERGENCE-AUDIT-PROCESS.md`](docs/CONVERGENCE-AUDIT-PROCESS.md) (Parabola Oscillation Model, Step-Size Annealing, and 6-Subsystem Deep-Dive Schedule)  
 **Static Auditor ("Hunting"):** `gpt-6-astra` / `muse exec` read-only static audit across 11 concurrent read-only static audit lanes  
 **Remediation Engine ("Fixing"):** `muse` (`muse exec --yolo --parallel-tool-calls`)  
-**Post-Remediation Verifier ("Review"):** `claude-fable-5-1` (`claude -p --model claude-fable-5-1 --effort high`) & `claude-opus-4-6`  
+**Post-Remediation Verifier ("Review"):** `claude-fable-5-1` (`claude -p --model claude-fable-5-1 --effort high`, fallback `claude-opus-5-5` when unavailable)  
 **Architectural & Convergence Invariants Enforced:**
 1. **Standalone Zero-Dependency Repositories (`AGENTS.md` §2.1):** Each `<arch>rt` repository is standalone; **never extract a shared cross-repo `librt32` or `librt64` C library**.
 2. **Curated C11 (`AGENTS.md` §2.2):** `-std=c11 -Werror=vla -pedantic -Wall -Wextra -Werror`, no VLAs, no banned libc functions (`strcpy`, `strcat`, `sprintf`, `atoi`), `x18` permanently reserved on AArch64, no textual `#include "*.c"` unity includes, and every `.c`/`.h`/`.S` file $\le 900$ lines.
