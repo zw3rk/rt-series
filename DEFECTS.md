@@ -11,50 +11,50 @@
 
 ---
 
-## Part I — Round-5 Active Checklist (`0 / 109` Resolved)
+## Part I — Round-5 Active Checklist (`109 / 109` Resolved — 100% Complete)
 
-### 0.1 Round 5 Audit Matrix (`0 / 109` Resolved)
+### 0.1 Round 5 Audit Matrix (`109 / 109` Resolved — 100% Complete)
 
 Following complete remediation, `fable` (`claude-fable-5-1`) verification review, and `muse` post-review follow-up across Round 1 (`187` items), Round 2 (`145` items), Round 3 (`85` items), and Round 4 (`125` items), Round 5 performed a fresh `gpt-6-astra` static audit of all 11 repositories at their post-Round-4 `HEAD` commits (`109` findings: `0 Critical`, `65 High`, `26 Medium`, `18 Low`).
 
 | # | Repository | Class | Audited `master` | High | Medium | Low | BUG | DEFECT | DRY | YAGNI | CLEAN | **R5 Total** | Raw Round-5 `astra` Transcript |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | `a32rt` | Class A | `acd2834` | 6 | 3 | 1 | 6 | 1 | 1 | 1 | 1 | **0 / 10** | [`2026-11-03-defects-r5-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-a32rt-astra.md) |
-| 2 | `i686rt` | Class A | `e993289` | 7 | 2 | 2 | 7 | 2 | 1 | 1 | 0 | **0 / 11** | [`2026-11-03-defects-r5-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r5-i686rt-astra.md) |
-| 3 | `mips32rt` | Class A | `aa2eb8e` | 8 | 1 | 2 | 6 | 3 | 1 | 1 | 0 | **0 / 11** | [`2026-11-03-defects-r5-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-mips32rt-astra.md) |
-| 4 | `ppc32rt` | Class A | `a091b8f` | 9 | 0 | 2 | 8 | 1 | 1 | 1 | 0 | **0 / 11** | [`2026-11-03-defects-r5-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-ppc32rt-astra.md) |
-| 5 | `sparc32rt` | Class A | `edfcf6f` | 8 | 2 | 2 | 5 | 5 | 1 | 1 | 0 | **0 / 12** | [`2026-11-03-defects-r5-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-sparc32rt-astra.md) |
-| 6 | `rvrt` | Class B | `841d562` | 2 | 3 | 2 | 2 | 3 | 1 | 1 | 0 | **0 / 7** | [`2026-11-03-defects-r5-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r5-rvrt-astra.md) |
-| 7 | `loongarch64rt` | Class B | `1256d4b` | 6 | 2 | 1 | 6 | 2 | 1 | 0 | 0 | **0 / 9** | [`2026-11-03-defects-r5-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-loongarch64rt-astra.md) |
-| 8 | `ppc64rt` | Class B | `69d193a` | 6 | 2 | 2 | 6 | 2 | 1 | 1 | 0 | **0 / 10** | [`2026-11-03-defects-r5-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-ppc64rt-astra.md) |
-| 9 | `mips64rt` | Class B | `e8f6ffe` | 6 | 4 | 1 | 7 | 3 | 1 | 0 | 0 | **0 / 11** | [`2026-11-03-defects-r5-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-mips64rt-astra.md) |
-| 10 | `sparc64rt` | Class B | `750b805` | 4 | 3 | 2 | 4 | 2 | 1 | 1 | 1 | **0 / 9** | [`2026-11-03-defects-r5-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-sparc64rt-astra.md) |
-| 11 | `rt-series` | Harness | `448a548` | 3 | 4 | 1 | 4 | 3 | 0 | 0 | 1 | **0 / 8** | [`2026-11-03-defects-r5-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r5-rt-series-astra.md) |
-| | **Total (Round 5)** | | | **65** | **26** | **18** | **61** | **27** | **10** | **8** | **3** | **0 / 109** | |
+| 1 | `a32rt` | Class A | `acd2834` | 6 | 3 | 1 | 6 | 1 | 1 | 1 | 1 | **10 / 10** | [`2026-11-03-defects-r5-a32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-a32rt-astra.md) |
+| 2 | `i686rt` | Class A | `e993289` | 7 | 2 | 2 | 7 | 2 | 1 | 1 | 0 | **11 / 11** | [`2026-11-03-defects-r5-i686rt-astra.md`](lode/reviews/2026-11-03-defects-r5-i686rt-astra.md) |
+| 3 | `mips32rt` | Class A | `aa2eb8e` | 8 | 1 | 2 | 6 | 3 | 1 | 1 | 0 | **11 / 11** | [`2026-11-03-defects-r5-mips32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-mips32rt-astra.md) |
+| 4 | `ppc32rt` | Class A | `a091b8f` | 9 | 0 | 2 | 8 | 1 | 1 | 1 | 0 | **11 / 11** | [`2026-11-03-defects-r5-ppc32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-ppc32rt-astra.md) |
+| 5 | `sparc32rt` | Class A | `edfcf6f` | 8 | 2 | 2 | 5 | 5 | 1 | 1 | 0 | **12 / 12** | [`2026-11-03-defects-r5-sparc32rt-astra.md`](lode/reviews/2026-11-03-defects-r5-sparc32rt-astra.md) |
+| 6 | `rvrt` | Class B | `841d562` | 2 | 3 | 2 | 2 | 3 | 1 | 1 | 0 | **7 / 7** | [`2026-11-03-defects-r5-rvrt-astra.md`](lode/reviews/2026-11-03-defects-r5-rvrt-astra.md) |
+| 7 | `loongarch64rt` | Class B | `1256d4b` | 6 | 2 | 1 | 6 | 2 | 1 | 0 | 0 | **9 / 9** | [`2026-11-03-defects-r5-loongarch64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-loongarch64rt-astra.md) |
+| 8 | `ppc64rt` | Class B | `69d193a` | 6 | 2 | 2 | 6 | 2 | 1 | 1 | 0 | **10 / 10** | [`2026-11-03-defects-r5-ppc64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-ppc64rt-astra.md) |
+| 9 | `mips64rt` | Class B | `e8f6ffe` | 6 | 4 | 1 | 7 | 3 | 1 | 0 | 0 | **11 / 11** | [`2026-11-03-defects-r5-mips64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-mips64rt-astra.md) |
+| 10 | `sparc64rt` | Class B | `750b805` | 4 | 3 | 2 | 4 | 2 | 1 | 1 | 1 | **9 / 9** | [`2026-11-03-defects-r5-sparc64rt-astra.md`](lode/reviews/2026-11-03-defects-r5-sparc64rt-astra.md) |
+| 11 | `rt-series` | Harness | `448a548` | 3 | 4 | 1 | 4 | 3 | 0 | 0 | 1 | **8 / 8** | [`2026-11-03-defects-r5-rt-series-astra.md`](lode/reviews/2026-11-03-defects-r5-rt-series-astra.md) |
+| | **Total (Round 5)** | | | **65** | **26** | **18** | **61** | **27** | **10** | **8** | **3** | **109 / 109** | |
 
 ### 0.2 Round 5 Cross-Cutting Defect Clusters (Cross-Runtime Check Index)
 
-- [ ] **X-R5-1 — High — Retained Inode FD Access-Mode Mismatch (`O_RDONLY` vs `O_RDWR`), Staged `MAP_SHARED` Store/Read Coherence & Darwin Sub-Page Backing Preservation**
+- [x] **X-R5-1 — High — Retained Inode FD Access-Mode Mismatch (`O_RDONLY` vs `O_RDWR`), Staged `MAP_SHARED` Store/Read Coherence & Darwin Sub-Page Backing Preservation**
   - **Linked Items**: `A32-R5-2`, `A32-R5-7`, `I686-R5-8`, `M32-R5-7`, `P32-R5-6`, `P32-R5-7`, `S32-R5-8`, `S32-R5-9`, `RV-R5-3`, `RV-R5-4`, `LA64-R5-1`, `LA64-R5-2`, `LA64-R5-3`, `LA64-R5-4`, `LA64-R5-6`, `P64-R5-5`, `P64-R5-6`, `M64-R5-2`, `M64-R5-7`, `M64-R5-8`
   - **Summary**: Inode-level descriptor caching reusing an `O_RDONLY` or `O_WRONLY` descriptor for subsequent writable/readable mappings (`P32-R5-7`, `LA64-R5-3`, `P64-R5-5..6`), staged `MAP_SHARED` store/read propagation and `pread`/`pwrite` error/short-read handling (`M32-R5-7`, `P32-R5-6`, `LA64-R5-2`, `M64-R5-2`), Darwin sub-page replacement and partial-page file overlay (`A32-R5-2`, `RV-R5-3`, `LA64-R5-6`), and transactional `munmap`/`mremap`/region-table rollback (`A32-R5-7`, `I686-R5-8`, `S32-R5-8..9`, `LA64-R5-1`, `LA64-R5-4`, `M64-R5-7..8`).
-- [ ] **X-R5-2 — High — Syscall Socket (`sendmsg`/`recvmsg`/`sendmmsg`/`recvmmsg`/`select`) & Vectored I/O (`readv`/`writev`) Marshalling, Atomicity & Copyout Permission Checks**
+- [x] **X-R5-2 — High — Syscall Socket (`sendmsg`/`recvmsg`/`sendmmsg`/`recvmmsg`/`select`) & Vectored I/O (`readv`/`writev`) Marshalling, Atomicity & Copyout Permission Checks**
   - **Linked Items**: `A32-R5-3`, `A32-R5-4`, `A32-R5-5`, `I686-R5-4`, `I686-R5-5`, `I686-R5-6`, `I686-R5-7`, `I686-R5-9`, `M32-R5-6`, `P32-R5-3`, `P32-R5-4`, `P32-R5-5`, `M64-R5-1`, `M64-R5-10`, `S64-R5-1`, `S64-R5-2`, `S64-R5-3`, `S64-R5-5`, `S64-R5-6`
   - **Summary**: `sendmsg` writing to read-only guest headers (`A32-R5-3`), ancillary `SCM_RIGHTS` truncation/drop (`A32-R5-4`, `I686-R5-5`), `select` >1024-fd host-word overrun (`A32-R5-5`), `i686rt` socket message marshalling/timeout/copyout checks (`I686-R5-4..7`, `I686-R5-9`), `readv`/`writev` chunking and descriptor snapshot (`M32-R5-6`, `P32-R5-3..5`, `S64-R5-3`), `mips64rt` `clock_nanosleep` & `clock_getres` dispatch (`M64-R5-1`, `M64-R5-10`), and `sparc64rt` composite open flags, `F_SETFL`, and `statx` negative timestamps (`S64-R5-1..2`, `S64-R5-5..6`).
-- [ ] **X-R5-3 — High — Thread Lifecycle, Futex Emulation/Endianness/Requeue, Signal Queue Ownership & Synchronous vs Asynchronous Delivery**
+- [x] **X-R5-3 — High — Thread Lifecycle, Futex Emulation/Endianness/Requeue, Signal Queue Ownership & Synchronous vs Asynchronous Delivery**
   - **Linked Items**: `M32-R5-2`, `M32-R5-3`, `M32-R5-4`, `M32-R5-5`, `P32-R5-1`, `P32-R5-8`, `P32-R5-9`, `S32-R5-3`, `S32-R5-4`, `S32-R5-5`, `S32-R5-6`, `S32-R5-7`, `S32-R5-10`, `M64-R5-5`
   - **Summary**: `mips32rt` BE futex value endianness, `REQUEUE`/`WAKE_OP` `val2` count, clone reaper lifecycle, and O32 robust list teardown (`M32-R5-2..5`), `ppc32rt` synchronous `clone(CLONE_VM)` execution, self-directed blocked signal queueing, and callback thread joinability (`P32-R5-1`, `P32-R5-8..9`), `sparc32rt` `rt_sigsuspend` process vs thread signal queue ownership, default-fatal signal handling, `SA_SIGINFO` frame fields, and futex slot recycling (`S32-R5-3..7`, `S32-R5-10`), and `mips64rt` thread-group leader `SYS_exit` vs `SYS_exit_group` (`M64-R5-5`).
-- [ ] **X-R5-4 — High — Interpreter/DBT Permission Enforcement (`PROT_EXEC`, A2 Sub-Pages), Exclusive Store ABA & Precise Fault State**
+- [x] **X-R5-4 — High — Interpreter/DBT Permission Enforcement (`PROT_EXEC`, A2 Sub-Pages), Exclusive Store ABA & Precise Fault State**
   - **Linked Items**: `A32-R5-1`, `A32-R5-6`, `I686-R5-2`, `I686-R5-3`, `M32-R5-1`, `P32-R5-2`, `S32-R5-1`, `S32-R5-2`, `RV-R5-1`, `RV-R5-2`
   - **Summary**: `a32rt` interpreter fetch checking `PROT_EXEC` (`A32-R5-1`) and software `STREX` ABA exclusion (`A32-R5-6`), `i686rt` `LDMXCSR` reserved bits fault and `LOCK`-prefixed shift `#UD` (`I686-R5-2..3`), `mips32rt` A2 sub-page permission enforcement in DBT (`M32-R5-1`), `ppc32rt` FP load/store fault preserving FPR/RA/`nip` (`P32-R5-2`), `sparc32rt` `LDDF`/`STDF` alignment & fault width classification (`S32-R5-1..2`), and `rvrt` Soft-TLB emitter scratch-register/offset validation (`RV-R5-1..2`).
-- [ ] **X-R5-5 — High — ISA / FPU Rounding, Exception Flags (`Cause` vs Sticky `Flags`, SNaN `CVT`), Prefix Decoding & ELF Loader Bounds/Entropy Validation**
+- [x] **X-R5-5 — High — ISA / FPU Rounding, Exception Flags (`Cause` vs Sticky `Flags`, SNaN `CVT`), Prefix Decoding & ELF Loader Bounds/Entropy Validation**
   - **Linked Items**: `I686-R5-1`, `M32-R5-8`, `LA64-R5-5`, `LA64-R5-7`, `P64-R5-1`, `P64-R5-2`, `P64-R5-3`, `P64-R5-4`, `P64-R5-7`, `M64-R5-3`, `M64-R5-4`, `M64-R5-6`, `S64-R5-4`
   - **Summary**: `i686rt` SSE directed rounding adjustment (`I686-R5-1`), `mips32rt` reserved `CVT.S.S`/`CVT.D.D` rejection (`M32-R5-8`), `loongarch64rt` DBT FCSR `Cause` vs sticky `Flags` separation and malformed `PT_INTERP` rejection (`LA64-R5-5`, `LA64-R5-7`), `ppc64rt` `PLHA` sign extension, prefixed scalar FP `rt` decoding, `PLXSD` vs `PLHA` dispatch, and unsigned branch displacement shifts (`P64-R5-2..4`, `P64-R5-7`), `mips64rt` `CVT.S.D`/`CVT.D.S` SNaN `FP_EXC_V`, `CFC1` sign-extension, and OS CSPRNG `AT_RANDOM` (`M64-R5-3..4`, `M64-R5-6`), and overflow-safe ELF header/bias validation (`P64-R5-1`, `S64-R5-4`).
-- [ ] **X-R5-6 — Medium — Intra-Repo DRY, YAGNI, CLEAN, Differential/Parity Test Verification & `rt-series` Harness**
+- [x] **X-R5-6 — Medium — Intra-Repo DRY, YAGNI, CLEAN, Differential/Parity Test Verification & `rt-series` Harness**
   - **Linked Items**: `A32-R5-8`, `A32-R5-9`, `A32-R5-10`, `I686-R5-10`, `I686-R5-11`, `M32-R5-9`, `M32-R5-10`, `M32-R5-11`, `P32-R5-10`, `P32-R5-11`, `S32-R5-11`, `S32-R5-12`, `RV-R5-5`, `RV-R5-6`, `RV-R5-7`, `LA64-R5-8`, `LA64-R5-9`, `P64-R5-8`, `P64-R5-9`, `P64-R5-10`, `M64-R5-9`, `M64-R5-11`, `S64-R5-7`, `S64-R5-8`, `S64-R5-9`, `RTS-R5-1..8`
 
 ---
 
-## 1. `a32rt` (`acd2834`) — 10 Round-5 Findings (`0 / 10` Resolved)
+## 1. `a32rt` (`acd2834`) — 10 Round-5 Findings (`10 / 10` Resolved)
 
 Found **10 actionable findings**. Used exactly **8 read-only shell commands**; no Markdown reads, builds, tests, Docker, or QEMU. These are static findings, not reproduced failures. Inspection covered the requested areas selectively; no `rt32/` or `family/` paths were found. Family-related state resides in `vm_file.c`.
 
@@ -119,20 +119,20 @@ Found **10 actionable findings**. Used exactly **8 read-only shell commands**; n
 
 ELF loading, DBT dispatch, FP conversion, and file-family bookkeeping received selective inspection without additional sufficiently established findings. This bounded pass does not establish those areas as defect-free.
 
-- [ ] **A32-R5-1:** Remediate `A32-R5-1` in `a32rt` and verify with tests.
-- [ ] **A32-R5-2:** Remediate `A32-R5-2` in `a32rt` and verify with tests.
-- [ ] **A32-R5-3:** Remediate `A32-R5-3` in `a32rt` and verify with tests.
-- [ ] **A32-R5-4:** Remediate `A32-R5-4` in `a32rt` and verify with tests.
-- [ ] **A32-R5-5:** Remediate `A32-R5-5` in `a32rt` and verify with tests.
-- [ ] **A32-R5-6:** Remediate `A32-R5-6` in `a32rt` and verify with tests.
-- [ ] **A32-R5-7:** Remediate `A32-R5-7` in `a32rt` and verify with tests.
-- [ ] **A32-R5-8:** Remediate `A32-R5-8` in `a32rt` and verify with tests.
-- [ ] **A32-R5-9:** Remediate `A32-R5-9` in `a32rt` and verify with tests.
-- [ ] **A32-R5-10:** Remediate `A32-R5-10` in `a32rt` and verify with tests.
+- [x] **A32-R5-1:** Remediate `A32-R5-1` in `a32rt` and verify with tests.
+- [x] **A32-R5-2:** Remediate `A32-R5-2` in `a32rt` and verify with tests.
+- [x] **A32-R5-3:** Remediate `A32-R5-3` in `a32rt` and verify with tests.
+- [x] **A32-R5-4:** Remediate `A32-R5-4` in `a32rt` and verify with tests.
+- [x] **A32-R5-5:** Remediate `A32-R5-5` in `a32rt` and verify with tests.
+- [x] **A32-R5-6:** Remediate `A32-R5-6` in `a32rt` and verify with tests.
+- [x] **A32-R5-7:** Remediate `A32-R5-7` in `a32rt` and verify with tests.
+- [x] **A32-R5-8:** Remediate `A32-R5-8` in `a32rt` and verify with tests.
+- [x] **A32-R5-9:** Remediate `A32-R5-9` in `a32rt` and verify with tests.
+- [x] **A32-R5-10:** Remediate `A32-R5-10` in `a32rt` and verify with tests.
 
 ---
 
-## 2. `i686rt` (`e993289`) — 11 Round-5 Findings (`0 / 11` Resolved)
+## 2. `i686rt` (`e993289`) — 11 Round-5 Findings (`11 / 11` Resolved)
 
 Static inspection found **11 actionable findings**. Eight shell commands were used; no Markdown files, builds, tests, Docker, or QEMU were run. These are source-derived findings, not reproduced failures. Inspection covered selected interpreter, DBT, VM, syscall, ELF/rt32, and test paths; it does not establish whole-repository correctness.
 
@@ -253,21 +253,21 @@ Sibling repositories were not inspected; these are targeted follow-up checks, no
 
 No inspected source file exceeded 900 lines; the largest was `src/os/sys_stat.c` at 898. No additional ELF-loader finding met the confidence threshold within this inspection budget.
 
-- [ ] **I686-R5-1:** Remediate `I686-R5-1` in `i686rt` and verify with tests.
-- [ ] **I686-R5-2:** Remediate `I686-R5-2` in `i686rt` and verify with tests.
-- [ ] **I686-R5-3:** Remediate `I686-R5-3` in `i686rt` and verify with tests.
-- [ ] **I686-R5-4:** Remediate `I686-R5-4` in `i686rt` and verify with tests.
-- [ ] **I686-R5-5:** Remediate `I686-R5-5` in `i686rt` and verify with tests.
-- [ ] **I686-R5-6:** Remediate `I686-R5-6` in `i686rt` and verify with tests.
-- [ ] **I686-R5-7:** Remediate `I686-R5-7` in `i686rt` and verify with tests.
-- [ ] **I686-R5-8:** Remediate `I686-R5-8` in `i686rt` and verify with tests.
-- [ ] **I686-R5-9:** Remediate `I686-R5-9` in `i686rt` and verify with tests.
-- [ ] **I686-R5-10:** Remediate `I686-R5-10` in `i686rt` and verify with tests.
-- [ ] **I686-R5-11:** Remediate `I686-R5-11` in `i686rt` and verify with tests.
+- [x] **I686-R5-1:** Remediate `I686-R5-1` in `i686rt` and verify with tests.
+- [x] **I686-R5-2:** Remediate `I686-R5-2` in `i686rt` and verify with tests.
+- [x] **I686-R5-3:** Remediate `I686-R5-3` in `i686rt` and verify with tests.
+- [x] **I686-R5-4:** Remediate `I686-R5-4` in `i686rt` and verify with tests.
+- [x] **I686-R5-5:** Remediate `I686-R5-5` in `i686rt` and verify with tests.
+- [x] **I686-R5-6:** Remediate `I686-R5-6` in `i686rt` and verify with tests.
+- [x] **I686-R5-7:** Remediate `I686-R5-7` in `i686rt` and verify with tests.
+- [x] **I686-R5-8:** Remediate `I686-R5-8` in `i686rt` and verify with tests.
+- [x] **I686-R5-9:** Remediate `I686-R5-9` in `i686rt` and verify with tests.
+- [x] **I686-R5-10:** Remediate `I686-R5-10` in `i686rt` and verify with tests.
+- [x] **I686-R5-11:** Remediate `I686-R5-11` in `i686rt` and verify with tests.
 
 ---
 
-## 3. `mips32rt` (`aa2eb8e`) — 11 Round-5 Findings (`0 / 11` Resolved)
+## 3. `mips32rt` (`aa2eb8e`) — 11 Round-5 Findings (`11 / 11` Resolved)
 
 **Round 5 found 11 actionable issues.** Used exactly eight shell commands for static inspection. No Markdown files, builds, tests, Docker, or QEMU were read or run. Findings below are code-based; suggested reproductions remain unexecuted.
 
@@ -377,21 +377,21 @@ Sibling sources were not inspected; these are targeted checks, not confirmed sib
 
 **CLEAN coverage:** The source line-count inspection found no `.c`, `.h`, or `.S` file above 900 lines; the largest inspected source was `src/dbt/emit_int.c` at 899. The FP uninitialized read and misleading lifecycle comments are concrete hygiene findings above. ELF loading was inspected, but this bounded review established no additional ELF finding.
 
-- [ ] **M32-R5-1:** Remediate `M32-R5-1` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-2:** Remediate `M32-R5-2` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-3:** Remediate `M32-R5-3` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-4:** Remediate `M32-R5-4` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-5:** Remediate `M32-R5-5` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-6:** Remediate `M32-R5-6` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-7:** Remediate `M32-R5-7` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-8:** Remediate `M32-R5-8` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-9:** Remediate `M32-R5-9` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-10:** Remediate `M32-R5-10` in `mips32rt` and verify with tests.
-- [ ] **M32-R5-11:** Remediate `M32-R5-11` in `mips32rt` and verify with tests.
+- [x] **M32-R5-1:** Remediate `M32-R5-1` in `mips32rt` and verify with tests.
+- [x] **M32-R5-2:** Remediate `M32-R5-2` in `mips32rt` and verify with tests.
+- [x] **M32-R5-3:** Remediate `M32-R5-3` in `mips32rt` and verify with tests.
+- [x] **M32-R5-4:** Remediate `M32-R5-4` in `mips32rt` and verify with tests.
+- [x] **M32-R5-5:** Remediate `M32-R5-5` in `mips32rt` and verify with tests.
+- [x] **M32-R5-6:** Remediate `M32-R5-6` in `mips32rt` and verify with tests.
+- [x] **M32-R5-7:** Remediate `M32-R5-7` in `mips32rt` and verify with tests.
+- [x] **M32-R5-8:** Remediate `M32-R5-8` in `mips32rt` and verify with tests.
+- [x] **M32-R5-9:** Remediate `M32-R5-9` in `mips32rt` and verify with tests.
+- [x] **M32-R5-10:** Remediate `M32-R5-10` in `mips32rt` and verify with tests.
+- [x] **M32-R5-11:** Remediate `M32-R5-11` in `mips32rt` and verify with tests.
 
 ---
 
-## 4. `ppc32rt` (`a091b8f`) — 11 Round-5 Findings (`0 / 11` Resolved)
+## 4. `ppc32rt` (`a091b8f`) — 11 Round-5 Findings (`11 / 11` Resolved)
 
 Found **11 issues**, including incomplete Round 4 copyout/coherence fixes. Used **eight shell commands**; no Markdown files, builds, tests, Docker, or QEMU. Findings are static conclusions, not runtime reproductions.
 
@@ -463,21 +463,21 @@ These are propagation targets, **not confirmed sibling findings**; sibling sourc
 
 **CLEAN check:** Static line counts found no `.c`, `.h`, or `.S` file above 900 lines under `src`, `include`, or `tests`; the largest was `src/os/threads.c` at 884. ELF loading was inspected, but no additional ELF finding met the evidence threshold within this budget.
 
-- [ ] **P32-R5-1:** Remediate `P32-R5-1` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-2:** Remediate `P32-R5-2` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-3:** Remediate `P32-R5-3` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-4:** Remediate `P32-R5-4` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-5:** Remediate `P32-R5-5` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-6:** Remediate `P32-R5-6` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-7:** Remediate `P32-R5-7` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-8:** Remediate `P32-R5-8` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-9:** Remediate `P32-R5-9` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-10:** Remediate `P32-R5-10` in `ppc32rt` and verify with tests.
-- [ ] **P32-R5-11:** Remediate `P32-R5-11` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-1:** Remediate `P32-R5-1` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-2:** Remediate `P32-R5-2` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-3:** Remediate `P32-R5-3` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-4:** Remediate `P32-R5-4` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-5:** Remediate `P32-R5-5` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-6:** Remediate `P32-R5-6` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-7:** Remediate `P32-R5-7` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-8:** Remediate `P32-R5-8` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-9:** Remediate `P32-R5-9` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-10:** Remediate `P32-R5-10` in `ppc32rt` and verify with tests.
+- [x] **P32-R5-11:** Remediate `P32-R5-11` in `ppc32rt` and verify with tests.
 
 ---
 
-## 5. `sparc32rt` (`edfcf6f`) — 12 Round-5 Findings (`0 / 12` Resolved)
+## 5. `sparc32rt` (`edfcf6f`) — 12 Round-5 Findings (`12 / 12` Resolved)
 
 **Round 5 found 12 actionable issues.** These are static findings, not runtime reproductions. I used eight shell commands; read no Markdown; ran no builds, tests, Docker, or QEMU; and changed no files. Inspection covered selected interpreter, DBT, VM, syscall, ELF, and test paths. This checkout has no `src/rt32/family/` directory; related bookkeeping resides in `src/vm/vm_file.c`.
 
@@ -553,22 +553,22 @@ These are propagation targets, **not confirmed sibling findings**; sibling sourc
 
 These are propagation candidates; sibling repositories were not inspected. No inspected `.c`, `.h`, or `.S` file exceeded 900 lines—the largest was `src/rt32/vm.c` at 883. No additional concrete ELF-loader finding was established within this inspection budget.
 
-- [ ] **S32-R5-1:** Remediate `S32-R5-1` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-2:** Remediate `S32-R5-2` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-3:** Remediate `S32-R5-3` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-4:** Remediate `S32-R5-4` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-5:** Remediate `S32-R5-5` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-6:** Remediate `S32-R5-6` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-7:** Remediate `S32-R5-7` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-8:** Remediate `S32-R5-8` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-9:** Remediate `S32-R5-9` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-10:** Remediate `S32-R5-10` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-11:** Remediate `S32-R5-11` in `sparc32rt` and verify with tests.
-- [ ] **S32-R5-12:** Remediate `S32-R5-12` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-1:** Remediate `S32-R5-1` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-2:** Remediate `S32-R5-2` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-3:** Remediate `S32-R5-3` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-4:** Remediate `S32-R5-4` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-5:** Remediate `S32-R5-5` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-6:** Remediate `S32-R5-6` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-7:** Remediate `S32-R5-7` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-8:** Remediate `S32-R5-8` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-9:** Remediate `S32-R5-9` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-10:** Remediate `S32-R5-10` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-11:** Remediate `S32-R5-11` in `sparc32rt` and verify with tests.
+- [x] **S32-R5-12:** Remediate `S32-R5-12` in `sparc32rt` and verify with tests.
 
 ---
 
-## 6. `rvrt` (`841d562`) — 7 Round-5 Findings (`0 / 7` Resolved)
+## 6. `rvrt` (`841d562`) — 7 Round-5 Findings (`7 / 7` Resolved)
 
 **Round 5 found seven actionable issues.** The strongest are incorrect accepted inputs in the Soft-TLB emitter and byte-range corruption in the VM mapping helper. Their integration limits are noted below.
 
@@ -652,17 +652,17 @@ Used exactly **8 shell invocations**, all read-only. No Markdown files, builds, 
 
 These are propagation targets, not verified sibling defects. No inspected C source/header under `src/` or `tests/` exceeded 900 lines. No additional interpreter, FP, ELF32, or signal finding met the evidence threshold within this budget.
 
-- [ ] **RV-R5-1:** Remediate `RV-R5-1` in `rvrt` and verify with tests.
-- [ ] **RV-R5-2:** Remediate `RV-R5-2` in `rvrt` and verify with tests.
-- [ ] **RV-R5-3:** Remediate `RV-R5-3` in `rvrt` and verify with tests.
-- [ ] **RV-R5-4:** Remediate `RV-R5-4` in `rvrt` and verify with tests.
-- [ ] **RV-R5-5:** Remediate `RV-R5-5` in `rvrt` and verify with tests.
-- [ ] **RV-R5-6:** Remediate `RV-R5-6` in `rvrt` and verify with tests.
-- [ ] **RV-R5-7:** Remediate `RV-R5-7` in `rvrt` and verify with tests.
+- [x] **RV-R5-1:** Remediate `RV-R5-1` in `rvrt` and verify with tests.
+- [x] **RV-R5-2:** Remediate `RV-R5-2` in `rvrt` and verify with tests.
+- [x] **RV-R5-3:** Remediate `RV-R5-3` in `rvrt` and verify with tests.
+- [x] **RV-R5-4:** Remediate `RV-R5-4` in `rvrt` and verify with tests.
+- [x] **RV-R5-5:** Remediate `RV-R5-5` in `rvrt` and verify with tests.
+- [x] **RV-R5-6:** Remediate `RV-R5-6` in `rvrt` and verify with tests.
+- [x] **RV-R5-7:** Remediate `RV-R5-7` in `rvrt` and verify with tests.
 
 ---
 
-## 7. `loongarch64rt` (`1256d4b`) — 9 Round-5 Findings (`0 / 9` Resolved)
+## 7. `loongarch64rt` (`1256d4b`) — 9 Round-5 Findings (`9 / 9` Resolved)
 
 Found **9 concrete issues**. This was a static audit using **eight shell invocations**; no Markdown files, builds, tests, Docker, or QEMU were run. No files changed. Local tooling is in `tests/`; shared tooling is in `../rt-series/tools/`.
 
@@ -715,19 +715,19 @@ Found **9 concrete issues**. This was a static audit using **eight shell invocat
 
 **CLEAN:** The counted source and test `.c`, `.h`, and `.S` files stayed within 900 lines. Targeted searches found no calls to `sprintf`, `strcpy`, or `strcat`. No standalone CLEAN finding warranted inclusion. Runtime reproduction and exhaustive ISA coverage remain unverified under the requested static-only budget.
 
-- [ ] **LA64-R5-1:** Remediate `LA64-R5-1` in `loongarch64rt` and verify with tests.
-- [ ] **LA64-R5-2:** Remediate `LA64-R5-2` in `loongarch64rt` and verify with tests.
-- [ ] **LA64-R5-3:** Remediate `LA64-R5-3` in `loongarch64rt` and verify with tests.
-- [ ] **LA64-R5-4:** Remediate `LA64-R5-4` in `loongarch64rt` and verify with tests.
-- [ ] **LA64-R5-5:** Remediate `LA64-R5-5` in `loongarch64rt` and verify with tests.
-- [ ] **LA64-R5-6:** Remediate `LA64-R5-6` in `loongarch64rt` and verify with tests.
-- [ ] **LA64-R5-7:** Remediate `LA64-R5-7` in `loongarch64rt` and verify with tests.
-- [ ] **LA64-R5-8:** Remediate `LA64-R5-8` in `loongarch64rt` and verify with tests.
-- [ ] **LA64-R5-9:** Remediate `LA64-R5-9` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-1:** Remediate `LA64-R5-1` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-2:** Remediate `LA64-R5-2` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-3:** Remediate `LA64-R5-3` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-4:** Remediate `LA64-R5-4` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-5:** Remediate `LA64-R5-5` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-6:** Remediate `LA64-R5-6` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-7:** Remediate `LA64-R5-7` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-8:** Remediate `LA64-R5-8` in `loongarch64rt` and verify with tests.
+- [x] **LA64-R5-9:** Remediate `LA64-R5-9` in `loongarch64rt` and verify with tests.
 
 ---
 
-## 8. `ppc64rt` (`69d193a`) — 10 Round-5 Findings (`0 / 10` Resolved)
+## 8. `ppc64rt` (`69d193a`) — 10 Round-5 Findings (`10 / 10` Resolved)
 
 Round 5 identified **10 findings** through static inspection. Used **8 shell commands**; read no Markdown and ran no builds, tests, Docker, or QEMU. No files changed.
 
@@ -797,20 +797,20 @@ These are suggested checks, not confirmed sibling defects:
 
 The source-size scan found **no `.c`, `.h`, or `.S` file above 900 lines** under `src/` or `tests/`. This bounded audit does not establish exhaustive signal, threading, or Soft-TLB correctness.
 
-- [ ] **P64-R5-1:** Remediate `P64-R5-1` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-2:** Remediate `P64-R5-2` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-3:** Remediate `P64-R5-3` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-4:** Remediate `P64-R5-4` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-5:** Remediate `P64-R5-5` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-6:** Remediate `P64-R5-6` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-7:** Remediate `P64-R5-7` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-8:** Remediate `P64-R5-8` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-9:** Remediate `P64-R5-9` in `ppc64rt` and verify with tests.
-- [ ] **P64-R5-10:** Remediate `P64-R5-10` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-1:** Remediate `P64-R5-1` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-2:** Remediate `P64-R5-2` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-3:** Remediate `P64-R5-3` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-4:** Remediate `P64-R5-4` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-5:** Remediate `P64-R5-5` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-6:** Remediate `P64-R5-6` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-7:** Remediate `P64-R5-7` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-8:** Remediate `P64-R5-8` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-9:** Remediate `P64-R5-9` in `ppc64rt` and verify with tests.
+- [x] **P64-R5-10:** Remediate `P64-R5-10` in `ppc64rt` and verify with tests.
 
 ---
 
-## 9. `mips64rt` (`e8f6ffe`) — 11 Round-5 Findings (`0 / 11` Resolved)
+## 9. `mips64rt` (`e8f6ffe`) — 11 Round-5 Findings (`11 / 11` Resolved)
 
 Found **11 issues** from static inspection. Used **8 shell commands**; read no Markdown files and ran no builds, tests, Docker, or QEMU. No files changed. The actual audit paths are `src/loader.c` and `tests/`; `src/elf/` and `tools/tests/` do not exist.
 
@@ -919,21 +919,21 @@ These are suggested inspection targets, not confirmed sibling defects.
 
 The source line-count scan found **no `.c`, `.h`, or `.S` file above 900 lines**; `src/os/mem_table.c` is exactly 900. Findings remain statically established paths and failure scenarios, without execution-based confirmation.
 
-- [ ] **M64-R5-1:** Remediate `M64-R5-1` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-2:** Remediate `M64-R5-2` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-3:** Remediate `M64-R5-3` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-4:** Remediate `M64-R5-4` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-5:** Remediate `M64-R5-5` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-6:** Remediate `M64-R5-6` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-7:** Remediate `M64-R5-7` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-8:** Remediate `M64-R5-8` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-9:** Remediate `M64-R5-9` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-10:** Remediate `M64-R5-10` in `mips64rt` and verify with tests.
-- [ ] **M64-R5-11:** Remediate `M64-R5-11` in `mips64rt` and verify with tests.
+- [x] **M64-R5-1:** Remediate `M64-R5-1` in `mips64rt` and verify with tests.
+- [x] **M64-R5-2:** Remediate `M64-R5-2` in `mips64rt` and verify with tests.
+- [x] **M64-R5-3:** Remediate `M64-R5-3` in `mips64rt` and verify with tests.
+- [x] **M64-R5-4:** Remediate `M64-R5-4` in `mips64rt` and verify with tests.
+- [x] **M64-R5-5:** Remediate `M64-R5-5` in `mips64rt` and verify with tests.
+- [x] **M64-R5-6:** Remediate `M64-R5-6` in `mips64rt` and verify with tests.
+- [x] **M64-R5-7:** Remediate `M64-R5-7` in `mips64rt` and verify with tests.
+- [x] **M64-R5-8:** Remediate `M64-R5-8` in `mips64rt` and verify with tests.
+- [x] **M64-R5-9:** Remediate `M64-R5-9` in `mips64rt` and verify with tests.
+- [x] **M64-R5-10:** Remediate `M64-R5-10` in `mips64rt` and verify with tests.
+- [x] **M64-R5-11:** Remediate `M64-R5-11` in `mips64rt` and verify with tests.
 
 ---
 
-## 10. `sparc64rt` (`750b805`) — 9 Round-5 Findings (`0 / 9` Resolved)
+## 10. `sparc64rt` (`750b805`) — 9 Round-5 Findings (`9 / 9` Resolved)
 
 # Round 5 static audit
 
@@ -1035,19 +1035,19 @@ These are inspection targets, **not confirmed sibling defects**:
 
 No inspected `.c`, `.h`, or `.S` file exceeded 900 lines; the largest was `src/os/threads.c` at 895. No additional interpreter/DBT/VM runtime defect is asserted from the limited slices inspected.
 
-- [ ] **S64-R5-1:** Remediate `S64-R5-1` in `sparc64rt` and verify with tests.
-- [ ] **S64-R5-2:** Remediate `S64-R5-2` in `sparc64rt` and verify with tests.
-- [ ] **S64-R5-3:** Remediate `S64-R5-3` in `sparc64rt` and verify with tests.
-- [ ] **S64-R5-4:** Remediate `S64-R5-4` in `sparc64rt` and verify with tests.
-- [ ] **S64-R5-5:** Remediate `S64-R5-5` in `sparc64rt` and verify with tests.
-- [ ] **S64-R5-6:** Remediate `S64-R5-6` in `sparc64rt` and verify with tests.
-- [ ] **S64-R5-7:** Remediate `S64-R5-7` in `sparc64rt` and verify with tests.
-- [ ] **S64-R5-8:** Remediate `S64-R5-8` in `sparc64rt` and verify with tests.
-- [ ] **S64-R5-9:** Remediate `S64-R5-9` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-1:** Remediate `S64-R5-1` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-2:** Remediate `S64-R5-2` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-3:** Remediate `S64-R5-3` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-4:** Remediate `S64-R5-4` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-5:** Remediate `S64-R5-5` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-6:** Remediate `S64-R5-6` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-7:** Remediate `S64-R5-7` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-8:** Remediate `S64-R5-8` in `sparc64rt` and verify with tests.
+- [x] **S64-R5-9:** Remediate `S64-R5-9` in `sparc64rt` and verify with tests.
 
 ---
 
-## 11. `rt-series` (`448a548`) — 8 Round-5 Findings (`0 / 8` Resolved)
+## 11. `rt-series` (`448a548`) — 8 Round-5 Findings (`8 / 8` Resolved)
 
 Found **8 issues** in the current checkout. There is no `src/` directory here, so this report covers `rt-series` tools and test fixtures—not sibling interpreter, DBT, VM, OS, or ELF implementations.
 
@@ -1133,14 +1133,14 @@ Used **8 read-only shell invocations**. No Markdown files, builds, tests, Docker
 
    **Propagation:** No runtime implementation change required; preserve sibling callers’ existing command interface.
 
-- [ ] **RTS-R5-1:** Remediate `RTS-R5-1` in `rt-series` and verify with tests.
-- [ ] **RTS-R5-2:** Remediate `RTS-R5-2` in `rt-series` and verify with tests.
-- [ ] **RTS-R5-3:** Remediate `RTS-R5-3` in `rt-series` and verify with tests.
-- [ ] **RTS-R5-4:** Remediate `RTS-R5-4` in `rt-series` and verify with tests.
-- [ ] **RTS-R5-5:** Remediate `RTS-R5-5` in `rt-series` and verify with tests.
-- [ ] **RTS-R5-6:** Remediate `RTS-R5-6` in `rt-series` and verify with tests.
-- [ ] **RTS-R5-7:** Remediate `RTS-R5-7` in `rt-series` and verify with tests.
-- [ ] **RTS-R5-8:** Remediate `RTS-R5-8` in `rt-series` and verify with tests.
+- [x] **RTS-R5-1:** Remediate `RTS-R5-1` in `rt-series` and verify with tests.
+- [x] **RTS-R5-2:** Remediate `RTS-R5-2` in `rt-series` and verify with tests.
+- [x] **RTS-R5-3:** Remediate `RTS-R5-3` in `rt-series` and verify with tests.
+- [x] **RTS-R5-4:** Remediate `RTS-R5-4` in `rt-series` and verify with tests.
+- [x] **RTS-R5-5:** Remediate `RTS-R5-5` in `rt-series` and verify with tests.
+- [x] **RTS-R5-6:** Remediate `RTS-R5-6` in `rt-series` and verify with tests.
+- [x] **RTS-R5-7:** Remediate `RTS-R5-7` in `rt-series` and verify with tests.
+- [x] **RTS-R5-8:** Remediate `RTS-R5-8` in `rt-series` and verify with tests.
 
 ---
 ## Part II — Round-4 Audit Archive (125 Items Resolved & Verified by `fable`)
