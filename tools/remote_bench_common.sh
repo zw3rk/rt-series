@@ -33,7 +33,7 @@ rt_format_cmd_prefix() {
             printf '%s --%s --' "$_rfp_bin" "$_rfp_eng"
             ;;
         *)
-            printf '%s --%s' "$_rfp_bin" "$_rfp_eng"
+            printf '%s --%s --' "$_rfp_bin" "$_rfp_eng"
             ;;
     esac
 }
@@ -73,7 +73,7 @@ rt_run_bounded_translator() {
             I686RT_ENGINE="$_rrt_eng" RVRT_ENGINE="$_rrt_eng" MIPS32RT_ENGINE="$_rrt_eng" \
             PPC32RT_ENGINE="$_rrt_eng" SPARC32RT_ENGINE="$_rrt_eng" LOONGARCH64RT_ENGINE="$_rrt_eng" \
             PPC64RT_ENGINE="$_rrt_eng" MIPS64RT_ENGINE="$_rrt_eng" SPARC64RT_ENGINE="$_rrt_eng" \
-            run_bounded "$_rrt_secs" "$_rrt_bin" "--$_rrt_eng" "$_rrt_guest" "$@"
+            run_bounded "$_rrt_secs" "$_rrt_bin" "--$_rrt_eng" -- "$_rrt_guest" "$@"
             ;;
     esac
 }
@@ -133,7 +133,7 @@ rt_run_bounded_hl() {
                 --env "SPARC32RT_ENGINE=$_rrh_eng" --env "LOONGARCH64RT_ENGINE=$_rrh_eng" \
                 --env "PPC64RT_ENGINE=$_rrh_eng" --env "MIPS64RT_ENGINE=$_rrh_eng" \
                 --env "SPARC64RT_ENGINE=$_rrh_eng" \
-                "$_rrh_lrt" "--$_rrh_eng" "$_rrh_guest" "$@"
+                "$_rrh_lrt" "--$_rrh_eng" -- "$_rrh_guest" "$@"
             ;;
     esac
 }

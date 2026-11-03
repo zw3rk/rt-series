@@ -17,18 +17,14 @@
  * Copyright 2026 Moritz Angermann <moritz@zw3rk.com>, zw3rk pte. ltd.
  * SPDX-License-Identifier: Apache-2.0
  */
-
 #define _POSIX_C_SOURCE 200809L
-/* Strict -std=c11 hides the XSI sigaltstack family (sigaltstack, SA_ONSTACK,
- * SS_ONSTACK, SS_DISABLE, SIGSTKSZ) on glibc; _DEFAULT_SOURCE re-exposes it
- * and is ignored on other libcs. */
+/* Re-expose XSI sigaltstack on strict -std=c11 glibc; ignored elsewhere. */
 #if defined(__linux__) && !defined(_DEFAULT_SOURCE) && !defined(_GNU_SOURCE)
 #define _DEFAULT_SOURCE 1
 #endif
 #if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
 #define _DARWIN_C_SOURCE 1
 #endif
-
 #include <errno.h>
 #include <fenv.h>
 #include <pthread.h>
@@ -42,39 +38,30 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
-
 #include "p3_llsc.h"
 #include "sig_fault_addr.h"
-
 /* MAP_ANONYMOUS is MAP_ANON on macOS/BSD when strict feature macros hide it. */
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
 #endif
-
 static int g_pass = 0;
 static int g_fail = 0;
 static int g_skip = 0;
-
 static void report_pass(const char *name)
 {
     g_pass++;
     printf("PASS [p3]: %s\n", name);
 }
-
 static void report_fail(const char *name, const char *detail)
 {
     g_fail++;
     printf("FAIL [p3]: %s (%s)\n", name, detail);
 }
-
 static void report_skip(const char *name, const char *detail)
 {
     g_skip++;
     printf("SKIP [p3]: %s (%s)\n", name, detail);
 }
-
-/* --- shared signal state --- */
-
 static volatile sig_atomic_t g_usr1_count = 0;
 static volatile sig_atomic_t g_usr1_signo = 0;
 static volatile sig_atomic_t g_usr1_code = 0;
@@ -87,33 +74,26 @@ static volatile sig_atomic_t g_usr1_clobber_sink = 0;
 static volatile sig_atomic_t g_usr2_count = 0;
 static volatile sig_atomic_t g_usr2_on_altstack = 0;
 static volatile sig_atomic_t g_usr2_saw_usr1_active = 0;
-/* Static backing for the nested-delivery alternate stack. */
 static char g_nest_stack[65536];
 static volatile sig_atomic_t g_on_altstack = 0;
 static volatile sig_atomic_t g_nest_depth = 0;
 static volatile sig_atomic_t g_fp_handler_ran = 0;
-
 static sigjmp_buf g_segv_jmp;
 static volatile sig_atomic_t g_segv_armed = 0;
 static volatile sig_atomic_t g_segv_signo = 0;
 static volatile sig_atomic_t g_segv_code = 0;
-/* Separate fault-address bridge instance for this fixture; the 22-bit
- * encode/decode logic lives in tests/sig_fault_addr.h. */
+/* Fault-address bridge; encode/decode lives in tests/sig_fault_addr.h. */
 static struct sig_fault_addr_bridge g_segv_bridge = { 0, 0, 0 };
-
 static _Atomic int g_cas_cell = 0;
 static _Atomic long g_race_sum = 0;
-
 static void store_segv_addr(uintptr_t addr)
 {
     sig_fault_addr_store(&g_segv_bridge, addr);
 }
-
 static uintptr_t load_segv_addr(void)
 {
     return sig_fault_addr_load(&g_segv_bridge);
 }
-
 static void usr1_handler(int signo, siginfo_t *info, void *ctx)
 {
     stack_t ss;
@@ -144,17 +124,14 @@ static void usr1_handler(int signo, siginfo_t *info, void *ctx)
         }
         g_usr1_clobber_sink = (sig_atomic_t)((c0 ^ c1 ^ c2 ^ c3) & 0x7FFFU);
     }
-    /* Break any in-flight "reservation": the main thread's CAS retry loop
-     * must observe this store, exactly like a stolen LL/SC reservation. */
+    /* Break any in-flight reservation like a stolen LL/SC reservation. */
     atomic_store(&g_cas_cell, 2);
     g_nest_depth++;
     if (g_nest_depth < 2) {
-        /* Nested delivery; rc asserted so a dropped SIGUSR2 fails. */
         g_usr1_raise_rc = (sig_atomic_t)raise(SIGUSR2);
     }
     g_nest_depth--;
 }
-
 static void usr2_handler(int signo, siginfo_t *info, void *ctx)
 {
     stack_t ss;
@@ -171,8 +148,6 @@ static void usr2_handler(int signo, siginfo_t *info, void *ctx)
         }
     }
 }
-
-/* Disable the nested-delivery alternate stack. */
 static int drop_nest_stack(void)
 {
     stack_t ss;
@@ -182,14 +157,12 @@ static int drop_nest_stack(void)
     ss.ss_flags = SS_DISABLE;
     return sigaltstack(&ss, NULL);
 }
-
 static void fp_handler(int signo, siginfo_t *info, void *ctx)
 {
     (void)signo;
     (void)info;
     (void)ctx;
-    /* Touch the FPRs and mutate rounding mode + sticky exception flags inside
-     * the handler; sigreturn must restore the interrupted FP state. */
+    /* Burn FPRs/rounding in handler; sigreturn must restore FP state. */
 #ifdef FE_TOWARDZERO
     (void)fesetround(FE_TOWARDZERO);
 #endif
@@ -201,7 +174,6 @@ static void fp_handler(int signo, siginfo_t *info, void *ctx)
     (void)acc;
     g_fp_handler_ran = 1;
 }
-
 static void alt_handler(int signo, siginfo_t *info, void *ctx)
 {
     (void)signo;
@@ -213,7 +185,6 @@ static void alt_handler(int signo, siginfo_t *info, void *ctx)
         g_on_altstack = 1;
     }
 }
-
 static void segv_handler(int signo, siginfo_t *info, void *ctx)
 {
     (void)ctx;
@@ -226,7 +197,6 @@ static void segv_handler(int signo, siginfo_t *info, void *ctx)
         siglongjmp(g_segv_jmp, 1);
     }
 }
-
 static int install_handler(int signo, void (*fn)(int, siginfo_t *, void *), int flags)
 {
     struct sigaction sa;
@@ -236,11 +206,7 @@ static int install_handler(int signo, void (*fn)(int, siginfo_t *, void *), int 
     sigemptyset(&sa.sa_mask);
     return sigaction(signo, &sa, NULL);
 }
-
-/* Reservation invalidation, isolated from the GPR/CAS fixture via its own
- * signal (SIGURG) and counter-only handler (see tests/p3_llsc.h). Control
- * first (an always-fail SC cannot pass); the interrupted case validates
- * the signal-return boundary. Arches without LL/SC take a vacuous pass. */
+/* LL/SC reservation vs SIGURG; vacuous pass where LL/SC is absent. */
 static void t_llsc_reservation(void)
 {
 #if P3_HAVE_LLSC
@@ -266,17 +232,8 @@ static void t_llsc_reservation(void)
     report_pass("llsc-reservation no LL/SC on this arch (vacuous)");
 #endif
 }
-
-/* Signal frame: async SIGUSR1 must arrive with the handler signo, an
- * exact info->si_signo, a kill-family si_code, and non-null ucontext
- * plus info, and nests SIGUSR2 on an SA_ONSTACK stack (count, order,
- * and SS_ONSTACK residency asserted). Value-level GPR check:
- * C locals are folded through a fixed 16-step sequence split around a
- * nested raise() round-trip and compared against an uninterrupted
- * recomputation, detecting corruption of compiler-visible state by the
- * handler or sigreturn (not a pinned-register liveness proof: no asm
- * register pinning is used). Plus a CAS retry across the signal boundary
- * (LL/SC reservation isolation lives in t_llsc_reservation()). */
+/* SIGUSR1 frame: signo/si_signo/si_code/ucontext + nested SIGUSR2 on
+ * altstack; 16-step GPR fold must survive delivery (value-level check). */
 static void t_sig_frame_gpr(void)
 {
     stack_t nest_ss;
@@ -306,11 +263,7 @@ static void t_sig_frame_gpr(void)
     g_usr2_on_altstack = 0;
     g_usr2_saw_usr1_active = 0;
     atomic_store(&g_cas_cell, 1);
-
-    /* Fold value-level state through a fixed sequence split around a
-     * nested raise() round-trip while usr1_handler + nested usr2_handler
-     * clobber registers and overwrite g_cas_cell; the result must match
-     * an uninterrupted recomputation. */
+    /* Fold-check: sequence split around nested raise(); must match. */
     uint64_t r0 = 0x0123456789ABCDEFULL;
     uint64_t r1 = 0xFEDCBA9876543210ULL;
     uint64_t r2 = 0xCAFEBABE12345678ULL;
@@ -335,13 +288,11 @@ static void t_sig_frame_gpr(void)
             }
         }
     }
-
-    /* Handlers ran synchronously inside raise(); drop the stack first. */
+    /* Handlers ran inside raise(); drop the stack first. */
     if (drop_nest_stack() != 0) {
         report_fail("sig-frame-gpr", "sigaltstack SS_DISABLE failed");
         return;
     }
-
     uint64_t w0 = 0x0123456789ABCDEFULL;
     uint64_t w1 = 0xFEDCBA9876543210ULL;
     uint64_t w2 = 0xCAFEBABE12345678ULL;
@@ -376,8 +327,7 @@ static void t_sig_frame_gpr(void)
         report_fail("sig-frame-gpr", "si_signo mismatch");
         return;
     }
-    /* raise() arrives as SI_TKILL (-6) or SI_USER (-1) on Linux; on
-     * BSD/macOS raise() reports si_code 0. */
+    /* raise(): SI_TKILL/SI_USER on Linux, si_code 0 on BSD/macOS. */
     if (g_usr1_code != SI_USER
 #ifdef SI_TKILL
         && g_usr1_code != SI_TKILL
@@ -411,9 +361,7 @@ static void t_sig_frame_gpr(void)
         report_fail("sig-frame-gpr", "handler store lost");
         return;
     }
-    /* Reservation broken by the handler: CAS using the pre-signal loaded
-     * value (`expect == 1`) must fail, and CAS on the handler's value must
-     * succeed. */
+    /* Stolen reservation: stale CAS must fail, fresh CAS must win. */
     if (expect != 1) {
         report_fail("sig-frame-gpr", "pre-signal expect corrupted");
         return;
@@ -434,9 +382,7 @@ static void t_sig_frame_gpr(void)
     }
     report_pass("sig-frame-gpr si_signo/si_code/ucontext + nested altstack + stolen reservation");
 }
-
-/* FPR round-trip: FP environment and in-flight values must survive an
- * async signal whose handler burns the FPRs. */
+/* FPR round-trip: FP env and in-flight values must survive handler. */
 static void t_sig_frame_fpr(void)
 {
     if (install_handler(SIGALRM, fp_handler, 0) != 0) {
@@ -454,8 +400,7 @@ static void t_sig_frame_fpr(void)
     feclearexcept(FE_ALL_EXCEPT);
     volatile double a = 1.0 / 3.0;
     volatile double b = 0.0;
-    /* Arm alarm(1) and guarantee mid-computation delivery at the midpoint
-     * if the wall-clock timer has not fired yet on a fast host. */
+    /* Guarantee mid-computation delivery on fast hosts. */
     alarm(1);
     for (int i = 0; i < 1000000; i++) {
         b += a * 0.5;
@@ -472,8 +417,7 @@ static void t_sig_frame_fpr(void)
 #endif
         return;
     }
-    /* Bit-exact resume check via plain-double snapshots: memcmp on the
-     * volatile accumulators would discard volatile (C11 6.7.3p6 UB). */
+    /* Bit-exact check via plain-double snapshots (no volatile memcmp). */
     {
         volatile double ref = 0.0;
         for (int i = 0; i < 1000000; i++) {
@@ -503,7 +447,6 @@ static void t_sig_frame_fpr(void)
     }
     report_pass("sig-frame-fpr FP env + values survive async handler");
 }
-
 /* sigaltstack: handler must run on the alternate stack (SS_ONSTACK). */
 static void t_sigaltstack(void)
 {
@@ -873,6 +816,62 @@ static void t_atomic_race(void)
     }
     report_pass("atomic-race 2x200000 fetch_add exact");
 }
+static void t_smc_clear_cache(void)
+{
+    long ps = sysconf(_SC_PAGESIZE); size_t sz; unsigned char *p; int (*fn)(void) = NULL; int r1, r2;
+    uint32_t patch = 0; int patch_x86 = 0; int use_jit = 0; (void)use_jit;
+    if (ps < 4096L) { ps = 4096L; } sz = (size_t)ps; p = (unsigned char *)mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (p == MAP_FAILED) { report_skip("smc-clear-cache", "mmap unavailable"); return; }
+    if (mprotect(p, sz, PROT_READ | PROT_EXEC) != 0) {
+        if (errno != EACCES && errno != ENOTSUP) { report_fail("smc-clear-cache", "mprotect probe failed"); munmap(p, sz); return; }
+#if defined(__APPLE__) && defined(MAP_JIT)
+        munmap(p, sz); p = (unsigned char *)mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
+        if (p == MAP_FAILED) { report_skip("smc-clear-cache", "MAP_JIT mmap failed"); return; }
+        use_jit = 1;
+#else
+        report_skip("smc-clear-cache", "W^X mprotect denied"); munmap(p, sz); return;
+#endif
+    } else if (mprotect(p, sz, PROT_READ | PROT_WRITE) != 0) { report_fail("smc-clear-cache", "mprotect RW restore failed"); munmap(p, sz); return; }
+#if defined(__APPLE__) && defined(MAP_JIT)
+    if (use_jit) { pthread_jit_write_protect_np(0); }
+#endif
+#if defined(__aarch64__)
+    { uint32_t w[2] = { 0x52800540U, 0xD65F03C0U }; memcpy(p, w, sizeof(w)); patch = 0x52800C60U; }
+#elif defined(__x86_64__)
+    { static const unsigned char c[6] = { 0xB8, 0x2A, 0x00, 0x00, 0x00, 0xC3 }; memcpy(p, c, sizeof(c)); patch_x86 = 1; }
+#elif defined(__riscv)
+    { uint32_t w[2] = { 0x02A00513U, 0x00008067U }; memcpy(p, w, sizeof(w)); patch = 0x06300513U; }
+#elif defined(__mips__)
+    { uint32_t w[3] = { 0x2402002AU, 0x03E00008U, 0x00000000U }; memcpy(p, w, sizeof(w)); patch = 0x24020063U; }
+#elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)
+    { uint32_t w[2] = { 0x3860002AU, 0x4E800020U }; memcpy(p, w, sizeof(w)); patch = 0x38600063U; }
+#elif defined(__sparc__)
+    { uint32_t w[3] = { 0x9010202AU, 0x81C3E008U, 0x01000000U }; memcpy(p, w, sizeof(w)); patch = 0x90102063U; }
+#elif defined(__loongarch__)
+    { uint32_t w[2] = { 0x0280A804U, 0x4C000020U }; memcpy(p, w, sizeof(w)); patch = 0x02818C04U; }
+#else
+    report_skip("smc-clear-cache", "arch codegen unsupported"); munmap(p, sz); return;
+#endif
+    __builtin___clear_cache((char *)p, (char *)(p + 64));
+#if defined(__APPLE__) && defined(MAP_JIT)
+    if (use_jit) { pthread_jit_write_protect_np(1); } else
+#endif
+    if (mprotect(p, sz, PROT_READ | PROT_EXEC) != 0) { report_fail("smc-clear-cache", "mprotect RX seal failed"); munmap(p, sz); return; }
+    memcpy(&fn, &p, sizeof(fn)); r1 = fn(); if (r1 != 42) { report_fail("smc-clear-cache", "first call != 42"); munmap(p, sz); return; }
+#if defined(__APPLE__) && defined(MAP_JIT)
+    if (use_jit) { pthread_jit_write_protect_np(0); } else
+#endif
+    if (mprotect(p, sz, PROT_READ | PROT_WRITE) != 0) { report_fail("smc-clear-cache", "mprotect RW failed"); munmap(p, sz); return; }
+    if (patch_x86) { p[1] = 0x63; } else { memcpy(p, &patch, sizeof(patch)); }
+    __builtin___clear_cache((char *)p, (char *)(p + 64));
+#if defined(__APPLE__) && defined(MAP_JIT)
+    if (use_jit) { pthread_jit_write_protect_np(1); } else
+#endif
+    if (mprotect(p, sz, PROT_READ | PROT_EXEC) != 0) { report_fail("smc-clear-cache", "mprotect RX reseal failed"); munmap(p, sz); return; }
+    memcpy(&fn, &p, sizeof(fn)); r2 = fn();
+    if (r2 != 99) { report_fail("smc-clear-cache", "rewritten call != 99"); munmap(p, sz); return; }
+    munmap(p, sz); report_pass("smc-clear-cache RET 42->99 with icache clear");
+}
 
 int main(void)
 {
@@ -886,6 +885,7 @@ int main(void)
     t_unaligned_cross_page();
     t_mprotect_munmap();
     t_atomic_race();
+    t_smc_clear_cache();
     printf("P3_TORTURE RESULT: pass=%d fail=%d skip=%d\n", g_pass, g_fail, g_skip);
     if (g_pass == 0) {
         printf("P3_TORTURE FAIL (0 passes)\n");

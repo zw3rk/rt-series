@@ -269,6 +269,51 @@ yaml_has_verify_failure() {
     return 1
 }
 
+# Dual-engine comparison (RTS-R8-7): when both GRIND_INTERP and GRIND_DBT are
+# configured and distinct on a foreign arch, run <guest> under BOTH engines
+# and compare exit codes plus stdout. Leaves the matching DBT output at
+# /tmp/grind_dual_out_$$ on success. Returns 0 with output staged, 1 after
+# recording grind_fail on divergence, 2 when single-engine fallback applies.
+run_dual_or_single_guest() {
+    _dos_secs="$1"
+    _dos_suite="$2"
+    _dos_label="$3"
+    _dos_guest="$4"
+    shift 4
+    rm -f /tmp/grind_dual_out_$$
+    if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
+        if grind_run_guest "$_dos_secs" "$GRIND_INTERP" "$_dos_guest" "$@" >/tmp/grind_dual_interp_$$ 2>&1; then
+            _dos_i=0
+        else
+            _dos_i=$?
+        fi
+        if grind_run_guest "$_dos_secs" "$GRIND_DBT" "$_dos_guest" "$@" >/tmp/grind_dual_dbt_$$ 2>&1; then
+            _dos_d=0
+        else
+            _dos_d=$?
+        fi
+        if [ "$_dos_i" -ne "$_dos_d" ]; then
+            grind_fail "$_dos_suite" "$_dos_label interp exit=$_dos_i vs dbt exit=$_dos_d"
+            rm -f /tmp/grind_dual_interp_$$ /tmp/grind_dual_dbt_$$ /tmp/grind_dual_out_$$
+            return 1
+        fi
+        if [ "$_dos_i" -ne 0 ]; then
+            grind_fail "$_dos_suite" "$_dos_label exit=$_dos_i (both engines agree)"
+            rm -f /tmp/grind_dual_interp_$$ /tmp/grind_dual_dbt_$$ /tmp/grind_dual_out_$$
+            return 1
+        fi
+        if ! cmp -s /tmp/grind_dual_interp_$$ /tmp/grind_dual_dbt_$$; then
+            grind_fail "$_dos_suite" "$_dos_label interp vs dbt output mismatch"
+            rm -f /tmp/grind_dual_interp_$$ /tmp/grind_dual_dbt_$$ /tmp/grind_dual_out_$$
+            return 1
+        fi
+        cp /tmp/grind_dual_dbt_$$ /tmp/grind_dual_out_$$
+        rm -f /tmp/grind_dual_interp_$$ /tmp/grind_dual_dbt_$$
+        return 0
+    fi
+    return 2
+}
+
 run_stressng_suite() {
     echo "== Grind [$CURRENT_ARCH]: stress-ng (backend=$BACKEND, ${STRESS_SECS}s/stressor) =="
     _sng_cmd="stress-ng"
@@ -293,7 +338,28 @@ run_stressng_suite() {
     for s in $_stressors; do
         _yaml="$_work/$s.yaml"
         if [ "$_sng_is_guest" -eq 1 ]; then
-            if grind_run_guest 120 "$GRIND_DBT" "$GRIND_STRESS_NG" --verify --metrics-brief --yaml "$_yaml" -t "$STRESS_SECS" --"$s" 1 >"$_work/$s.log" 2>&1; then
+            if [ -n "${GRIND_INTERP:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT:-}" ]; then
+                if grind_run_guest 120 "$GRIND_INTERP" "$GRIND_STRESS_NG" --verify --metrics-brief --yaml "$_work/$s.interp.yaml" -t "$STRESS_SECS" --"$s" 1 >"$_work/$s.interp.log" 2>&1; then
+                    _rc_i=0
+                else
+                    _rc_i=$?
+                fi
+                if grind_run_guest 120 "$GRIND_DBT" "$GRIND_STRESS_NG" --verify --metrics-brief --yaml "$_work/$s.dbt.yaml" -t "$STRESS_SECS" --"$s" 1 >"$_work/$s.dbt.log" 2>&1; then
+                    _rc_d=0
+                else
+                    _rc_d=$?
+                fi
+                cat "$_work/$s.interp.log" "$_work/$s.dbt.log" >"$_work/$s.log" 2>/dev/null
+                if [ "$_rc_i" -ne "$_rc_d" ]; then
+                    _rc=1
+                    echo "interp exit=$_rc_i vs dbt exit=$_rc_d" >>"$_work/$s.log"
+                elif [ "$_rc_i" -ne 0 ]; then
+                    _rc="$_rc_i"
+                else
+                    _rc=0
+                    _yaml="$_work/$s.dbt.yaml"
+                fi
+            elif grind_run_guest 120 "$GRIND_DBT" "$GRIND_STRESS_NG" --verify --metrics-brief --yaml "$_yaml" -t "$STRESS_SECS" --"$s" 1 >"$_work/$s.log" 2>&1; then
                 _rc=0
             else
                 _rc=$?
@@ -340,6 +406,10 @@ run_gcc_torture_suite() {
     fi
     if [ "$CURRENT_ARCH" != "host" ] && { [ -z "${GRIND_INTERP:-}" ] || [ -z "${GRIND_DBT:-}" ]; }; then
         grind_skip "gcc-torture" "translator wrappers (GRIND_INTERP + GRIND_DBT) missing for $CURRENT_ARCH ($BACKEND)"
+        return 0
+    fi
+    if [ "$CURRENT_ARCH" != "host" ] && [ -z "${GRIND_QEMU:-}" ] && [ "${GRIND_ALLOW_NO_ORACLE:-0}" != "1" ]; then
+        grind_skip "gcc-torture" "GRIND_QEMU oracle missing for $CURRENT_ARCH (GAP without independent oracle; set GRIND_ALLOW_NO_ORACLE=1 for interp-vs-dbt only)"
         return 0
     fi
     _cap=50
@@ -548,6 +618,28 @@ run_testfloat_suite() {
             grind_skip "testfloat-dbt" "GRIND_DBT not configured for $CURRENT_ARCH ($BACKEND); single-engine run"
         fi
     fi
+    if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
+        if grind_run_guest 600 "$GRIND_INTERP" "$TESTFLOAT_RUNNER" <"$_vec" >/tmp/grind_testfloat_cmp_i_$$ 2>/dev/null; then
+            _tfc_i=0
+        else
+            _tfc_i=$?
+        fi
+        if grind_run_guest 600 "$GRIND_DBT" "$TESTFLOAT_RUNNER" <"$_vec" >/tmp/grind_testfloat_cmp_d_$$ 2>/dev/null; then
+            _tfc_d=0
+        else
+            _tfc_d=$?
+        fi
+        if [ "$_tfc_i" -ne "$_tfc_d" ]; then
+            grind_fail "testfloat" "interp exit=$_tfc_i vs dbt exit=$_tfc_d on shared vectors"
+        elif [ "$_tfc_i" -ne 0 ]; then
+            grind_fail "testfloat" "runner exit=$_tfc_i on shared vectors (both engines agree)"
+        elif ! cmp -s /tmp/grind_testfloat_cmp_i_$$ /tmp/grind_testfloat_cmp_d_$$; then
+            grind_fail "testfloat" "interp vs dbt runner output mismatch on shared vectors"
+        else
+            grind_pass "testfloat" "interp-vs-dbt runner outputs match on shared vectors"
+        fi
+        rm -f /tmp/grind_testfloat_cmp_i_$$ /tmp/grind_testfloat_cmp_d_$$
+    fi
     rm -f "$_vec" /tmp/grind_testfloat_$$.log
 }
 
@@ -600,11 +692,29 @@ EOF
         return 0
     fi
     _wrap="${GRIND_INTERP:-${GRIND_DBT:-}}"
-    if [ -n "$_wrap" ]; then
+    if run_dual_or_single_guest 60 "compiler-rt" "builtins" "$_bin"; then
+        if grep -q "BUILTINS_OK" /tmp/grind_dual_out_$$; then
+            grind_pass "compiler-rt" "div/mod/mulosi boundary patterns OK (interp-vs-dbt match)"
+        else
+            grind_fail "compiler-rt" "unexpected output (see /tmp/grind_dual_out_$$)"
+        fi
+        rm -f /tmp/grind_dual_out_$$
+    elif [ "$?" -eq 1 ]; then
+        :
+    elif [ -n "$_wrap" ]; then
         if grind_run_guest 60 "$_wrap" "$_bin" > /tmp/grind_builtins_out_$$ 2>&1; then
             _brc=0
         else
             _brc=$?
+        fi
+        if [ "$_brc" -eq 0 ]; then
+            if grep -q "BUILTINS_OK" /tmp/grind_builtins_out_$$; then
+                grind_pass "compiler-rt" "div/mod/mulosi boundary patterns OK"
+            else
+                grind_fail "compiler-rt" "unexpected output (see /tmp/grind_builtins_out_$$)"
+            fi
+        else
+            grind_fail "compiler-rt" "builtin probe exit!=0 (see /tmp/grind_builtins_out_$$)"
         fi
     else
         if timeout --kill-after=10s 60s "$_bin" > /tmp/grind_builtins_out_$$ 2>&1; then
@@ -612,17 +722,17 @@ EOF
         else
             _brc=$?
         fi
-    fi
-    if [ "$_brc" -eq 0 ]; then
-        if grep -q "BUILTINS_OK" /tmp/grind_builtins_out_$$; then
-            grind_pass "compiler-rt" "div/mod/mulosi boundary patterns OK"
+        if [ "$_brc" -eq 0 ]; then
+            if grep -q "BUILTINS_OK" /tmp/grind_builtins_out_$$; then
+                grind_pass "compiler-rt" "div/mod/mulosi boundary patterns OK"
+            else
+                grind_fail "compiler-rt" "unexpected output (see /tmp/grind_builtins_out_$$)"
+            fi
         else
-            grind_fail "compiler-rt" "unexpected output (see /tmp/grind_builtins_out_$$)"
+            grind_fail "compiler-rt" "builtin probe exit!=0 (see /tmp/grind_builtins_out_$$)"
         fi
-    else
-        grind_fail "compiler-rt" "builtin probe exit!=0 (see /tmp/grind_builtins_out_$$)"
     fi
-    rm -f "$_src" "$_bin" /tmp/grind_builtins_out_$$
+    rm -f "$_src" "$_bin" /tmp/grind_builtins_out_$$ /tmp/grind_dual_out_$$
 }
 
 run_libc_ltp_suite() {
@@ -641,7 +751,13 @@ run_libc_ltp_suite() {
             esac
             _bin="$(printf '%s' "$_line" | awk '{print $1}')"
             if [ -x "$_bin" ]; then
-                if grind_run_guest 120 "$_wrap" "$_bin" >/tmp/grind_libc_$$.log 2>&1; then
+                if run_dual_or_single_guest 120 "libc-ltp" "$_bin" "$_bin"; then
+                    cp /tmp/grind_dual_out_$$ /tmp/grind_libc_$$.log
+                    grind_pass "libc-ltp" "$_bin (interp-vs-dbt match)"
+                    rm -f /tmp/grind_dual_out_$$
+                elif [ "$?" -eq 1 ]; then
+                    _mfail=$((_mfail + 1))
+                elif grind_run_guest 120 "$_wrap" "$_bin" >/tmp/grind_libc_$$.log 2>&1; then
                     grind_pass "libc-ltp" "$_bin"
                 else
                     grind_fail "libc-ltp" "$_bin exit!=0"
@@ -661,7 +777,14 @@ run_libc_ltp_suite() {
         for _t in functional math pthread; do
             _b="$LIBC_TEST_DIR/bin/$_t"
             if [ -x "$_b" ]; then
-                if grind_run_guest 300 "$_wrap" "$_b" >/tmp/grind_libc_$$.log 2>&1; then grind_pass "libc-ltp" "libc-test $_t"; else grind_fail "libc-ltp" "libc-test $_t exit!=0"; fi
+                if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
+                    if grind_run_guest 300 "$GRIND_INTERP" "$_b" >/tmp/grind_libc_i_$$ 2>&1; then _lci=0; else _lci=$?; fi
+                    if grind_run_guest 300 "$GRIND_DBT" "$_b" >/tmp/grind_libc_d_$$ 2>&1; then _lcd=0; else _lcd=$?; fi
+                    rm -f /tmp/grind_libc_i_$$ /tmp/grind_libc_d_$$
+                    if [ "$_lci" -ne "$_lcd" ]; then grind_fail "libc-ltp" "libc-test $_t interp exit=$_lci vs dbt exit=$_lcd";
+                    elif [ "$_lci" -ne 0 ]; then grind_fail "libc-ltp" "libc-test $_t exit=$_lci (both engines agree)";
+                    else grind_pass "libc-ltp" "libc-test $_t (interp-vs-dbt exit match)"; fi
+                elif grind_run_guest 300 "$_wrap" "$_b" >/tmp/grind_libc_$$.log 2>&1; then grind_pass "libc-ltp" "libc-test $_t"; else grind_fail "libc-ltp" "libc-test $_t exit!=0"; fi
             else
                 grind_skip "libc-ltp" "libc-test $_t not built"
             fi
@@ -675,9 +798,9 @@ run_libc_ltp_suite() {
         export LTPROOT="$LTP_DIR"; TMPDIR="${TMPDIR:-/tmp}"; export TMPDIR
         _ln=0
         if [ -n "${LTP_MANIFEST:-}" ] && [ -f "$LTP_MANIFEST" ]; then
-            while IFS= read -r _lb || [ -n "$_lb" ]; do case "$_lb" in ""|"#"*) continue ;; *.sh) continue ;; esac; [ -x "$_lb" ] || continue; _ln=$((_ln+1)); if [ "$_ln" -gt 50 ]; then break; fi; if grind_run_guest 120 "$_wrap" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then grind_pass "ltp" "$(basename "$_lb")"; else grind_fail "ltp" "$(basename "$_lb") exit!=0"; fi; done < "$LTP_MANIFEST"
+            while IFS= read -r _lb || [ -n "$_lb" ]; do case "$_lb" in ""|"#"*) continue ;; *.sh) continue ;; esac; [ -x "$_lb" ] || continue; _ln=$((_ln+1)); if [ "$_ln" -gt 50 ]; then break; fi; if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then if grind_run_guest 120 "$GRIND_INTERP" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then _li=0; else _li=$?; fi; if grind_run_guest 120 "$GRIND_DBT" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then _ld=0; else _ld=$?; fi; if [ "$_li" -ne "$_ld" ]; then grind_fail "ltp" "$(basename "$_lb") interp exit=$_li vs dbt exit=$_ld"; elif [ "$_li" -ne 0 ]; then grind_fail "ltp" "$(basename "$_lb") exit=$_li (both engines agree)"; else grind_pass "ltp" "$(basename "$_lb") (interp-vs-dbt exit match)"; fi; elif grind_run_guest 120 "$_wrap" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then grind_pass "ltp" "$(basename "$_lb")"; else grind_fail "ltp" "$(basename "$_lb") exit!=0"; fi; done < "$LTP_MANIFEST"
         else
-            for _lb in "$LTP_DIR/testcases/bin"/* "$LTP_DIR/bin"/* "$LTP_DIR/testcases/kernel/syscalls"/*/*; do case "$_lb" in *.sh) continue ;; esac; [ -f "$_lb" ] && [ -x "$_lb" ] || continue; _ln=$((_ln+1)); if [ "$_ln" -gt 50 ]; then break; fi; if grind_run_guest 120 "$_wrap" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then grind_pass "ltp" "$(basename "$_lb")"; else grind_fail "ltp" "$(basename "$_lb") exit!=0"; fi; done
+            for _lb in "$LTP_DIR/testcases/bin"/* "$LTP_DIR/bin"/* "$LTP_DIR/testcases/kernel/syscalls"/*/*; do case "$_lb" in *.sh) continue ;; esac; [ -f "$_lb" ] && [ -x "$_lb" ] || continue; _ln=$((_ln+1)); if [ "$_ln" -gt 50 ]; then break; fi; if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then if grind_run_guest 120 "$GRIND_INTERP" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then _li=0; else _li=$?; fi; if grind_run_guest 120 "$GRIND_DBT" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then _ld=0; else _ld=$?; fi; if [ "$_li" -ne "$_ld" ]; then grind_fail "ltp" "$(basename "$_lb") interp exit=$_li vs dbt exit=$_ld"; elif [ "$_li" -ne 0 ]; then grind_fail "ltp" "$(basename "$_lb") exit=$_li (both engines agree)"; else grind_pass "ltp" "$(basename "$_lb") (interp-vs-dbt exit match)"; fi; elif grind_run_guest 120 "$_wrap" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then grind_pass "ltp" "$(basename "$_lb")"; else grind_fail "ltp" "$(basename "$_lb") exit!=0"; fi; done
         fi
         rm -f /tmp/grind_ltp_$$.log
         if [ "$_ln" -eq 0 ]; then grind_fail "ltp" "LTP_DIR=$LTP_DIR yielded 0 binaries (check LTP install or LTP_MANIFEST)"; fi
@@ -732,7 +855,27 @@ run_lmbench_suite() {
                     ;;
             esac
             # shellcheck disable=SC2086
-            if grind_run_guest 120 "$_wrap" "$_b" $_lm_args >/tmp/grind_lm_$$.log 2>&1; then
+            if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
+                if grind_run_guest 120 "$GRIND_INTERP" "$_b" $_lm_args >/tmp/grind_lm_$$.log 2>&1; then
+                    _lmi=0
+                else
+                    _lmi=$?
+                fi
+                if grind_run_guest 120 "$GRIND_DBT" "$_b" $_lm_args >/tmp/grind_lm_$$.log 2>&1; then
+                    _lmd=0
+                else
+                    _lmd=$?
+                fi
+                if [ "$_lmi" -ne "$_lmd" ]; then
+                    grind_fail "lmbench" "$_t interp exit=$_lmi vs dbt exit=$_lmd"
+                elif [ "$_lmi" -ne 0 ]; then
+                    grind_fail "lmbench" "$_t exited non-zero or timed out (both engines agree)"
+                elif [ -s /tmp/grind_lm_$$.log ]; then
+                    grind_pass "lmbench" "$_t completed (interp-vs-dbt exit match)"
+                else
+                    grind_fail "lmbench" "$_t empty output"
+                fi
+            elif grind_run_guest 120 "$_wrap" "$_b" $_lm_args >/tmp/grind_lm_$$.log 2>&1; then
                 if [ -s /tmp/grind_lm_$$.log ]; then
                     grind_pass "lmbench" "$_t completed"
                 else
@@ -748,7 +891,25 @@ run_lmbench_suite() {
     done
     if [ "$_bins" = "PATH" ]; then _b="bw_mmap"; else _b="$_bins/bw_mmap"; fi
     if { [ "$_bins" = "PATH" ] && command -v bw_mmap >/dev/null 2>&1; } || [ -x "$_b" ]; then
-        if grind_run_guest 180 "$_wrap" "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
+        if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
+            if grind_run_guest 180 "$GRIND_INTERP" "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
+                _lmi=0
+            else
+                _lmi=$?
+            fi
+            if grind_run_guest 180 "$GRIND_DBT" "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
+                _lmd=0
+            else
+                _lmd=$?
+            fi
+            if [ "$_lmi" -ne "$_lmd" ]; then
+                grind_fail "lmbench" "bw_mmap interp exit=$_lmi vs dbt exit=$_lmd"
+            elif [ "$_lmi" -ne 0 ]; then
+                grind_fail "lmbench" "bw_mmap exited non-zero or timed out (both engines agree)"
+            else
+                grind_pass "lmbench" "bw_mmap completed (interp-vs-dbt exit match)"
+            fi
+        elif grind_run_guest 180 "$_wrap" "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
             grind_pass "lmbench" "bw_mmap completed"
         else
             grind_fail "lmbench" "bw_mmap exited non-zero or timed out"

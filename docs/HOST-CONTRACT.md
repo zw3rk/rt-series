@@ -33,11 +33,12 @@ No `rt-series` translator may `#include` headers from `hyper-linux` or link agai
 *(Note: Apple `RosettaLinux` handles `ELFCLASS64` `EM_X86_64` via `hl`'s dedicated TTBR1 `kbuf` + high-VA alias path and is never routed through `rt-series` translators.)*
 
 ### 2.1 Three-Layer Page-Size Contract (`4 KiB` Guest ABI vs `16 KiB` Darwin Backing vs `64 KiB` ELF Alignment)
-1. **Guest ABI Page Size (`AT_PAGESZ = 4096`)**: Every Class-A and Class-B translator reports `AT_PAGESZ = 4096` (4 KiB) in the guest auxiliary vector. Syscall-specific alignment, validation, and rounding rules match Linux (`rvrt/src/linux/memory.c:212`):
+1. **Guest ABI Page Size (`AT_PAGESZ = 4096`, except `sparc64rt` with `AT_PAGESZ = 8192`)**: Every Class-A and Class-B translator except `sparc64rt` reports `AT_PAGESZ = 4096` (4 KiB) in the guest auxiliary vector; `sparc64rt` (Class-B SPARC V9, per `SPEC.md` D11) reports `AT_PAGESZ = 8192` (8 KiB) with 8 KiB guest `mmap`/`mprotect`/`munmap` alignment and paired 4 KiB Soft-TLB entries. Syscall-specific alignment, validation, and rounding rules match Linux (`rvrt/src/linux/memory.c:212`):
    - `mmap` / `mmap2`: non-zero `addr` with `MAP_FIXED` / `MAP_FIXED_NOREPLACE` and `addr % 4096 != 0` returns **`-EINVAL`**; `offset % 4096 != 0` returns **`-EINVAL`**; `len == 0` returns **`-EINVAL`**; positive `len` rounds up to a 4 KiB page multiple for the mapped VMA extent.
    - `mprotect` / `munmap`: `addr % 4096 != 0` returns **`-EINVAL`**; `munmap` with `len == 0` returns **`-EINVAL`** while `mprotect` with `len == 0` succeeds as a no-op; positive `len` rounds up to 4 KiB.
    - `mremap`: `old_address % 4096 != 0` (or `new_address % 4096 != 0` under `MREMAP_FIXED`) returns **`-EINVAL`**; `new_size == 0` returns **`-EINVAL`**; `old_size` and `new_size` round up to 4 KiB.
    - `brk`: preserves the **exact byte-granular logical program break** (`current_brk`) returned to the guest while mapping and unmapping backing memory at 4 KiB page boundaries (`align_up(brk, 4096)`).
+   - On `sparc64rt`, substitute `8192` for `4096` in all four rules above (8 KiB guest `mmap`/`mprotect`/`munmap`/`mremap` alignment, rounding, and `brk` backing).
 2. **Translated Page-Table & Permission Enforcement Layer (`4 KiB`)**:
    - **Class B (`rv_space`)**: `src/memory/space.c` maintains software page-table entries at **4 KiB granularity** (`RV_PAGE_SHIFT = 12`), enforcing per-4-KiB-page `PROT_READ`, `PROT_WRITE`, and `PROT_EXEC` permissions in software regardless of the host OS page size.
    - **Class A (`rt32_`)**: Native AArch64 Linux uses 4 KiB hardware pages. Under `hyper-linux`, the primary HVF stage-2 GPA mapping (`src/guest.c:312`) is coarse `RWX`, while **4 KiB per-page `PROT_READ`/`PROT_WRITE`/`PROT_EXEC` permissions (`AP`, `UXN`/`PXN`) and page splitting are enforced in the guest's 4 KiB stage-1 AArch64 page tables** (`src/guest.c:60`).
@@ -100,7 +101,7 @@ All Class-A 32-bit translators vendor [`include/a32host.h`](../include/a32host.h
 - Device path: `/dev/a32host` (character device `major 10, minor 240` inside `hyper-linux`).
 - Request ioctl: `A32H_GET_INFO = 0x81006101UL` (`_IOR('a', 0x01, struct a32h_info)`, 256 bytes).
 - **Versioning & Header Sync Rule**:
-  - `A32H_ABI_MAJOR` (`1U`) and `A32H_ABI_MINOR` (`0U`) define the minimum accepted wire-layout version; `A32H_ABI_MINOR_TSO` (`1U`) identifies the minor revision that defines `A32H_CAP_HW_TSO` (bit 9).
+  - `A32H_ABI_MAJOR` (`1U`) and `A32H_ABI_MINOR` (`0U`) define the minimum accepted wire-layout version; `A32H_ABI_MINOR_TSO` (`1U`) identifies the minor revision that defines `A32H_CAP_HW_TSO` (bit 9), `A32H_CAP_FIXADE` (bit 10), and `A32H_CAP_SOFT_TLB_256M` (bit 11).
   - Consumers require `info.abi_major == 1` (accepting any `info.abi_minor >= 0`) and test individual capability bits in `info.caps`.
   - Because `a32rt/Makefile`'s `check-headers` target enforces byte-for-byte equality between `../a32rt/include/a32host.h` and `../hyper-linux/src/a32host.h`, Wave 1 must update `../a32rt/include/a32host.h` (`L-A32-3`), **`../i686rt/include/a32host.h`** (`L-I686-3`), and `../hyper-linux/src/a32host.h` (`L-HL-1`) in lockstep from `rt-series/include/a32host.h`.
 - **Capabilities (`a32h_info_t.caps`)**:
@@ -111,6 +112,8 @@ All Class-A 32-bit translators vendor [`include/a32host.h`](../include/a32host.h
   - `A32H_CAP_DIROFF32` (`1ULL << 4`): Directory cookies fit in 31 bits without remapping.
   - `A32H_CAP_AOT_SOCKET` (`1ULL << 5`): `aot_socket` path is active.
   - `A32H_CAP_COMPAT_IOCTL` (`1ULL << 6`), `A32H_CAP_ROBUST32` (`1ULL << 7`), `A32H_CAP_SET_PROC` (`1ULL << 8`).
+  - `A32H_CAP_FIXADE` (`1ULL << 10`, ABI 1.1): Host emulates MIPS unaligned load/store fixup (`TIF_FIXADE` semantics).
+  - `A32H_CAP_SOFT_TLB_256M` (`1ULL << 11`, ABI 1.1): Host supports the 256 MiB Regime A2 Soft-TLB over the 4 GiB window.
   - `A32H_CAP_HW_TSO` (`1ULL << 9`, ABI 1.1): Host guarantees hardware TSO (`ACTLR_EL1` / Apple Silicon TSO mode) across **all** vCPUs of the process (initial vCPU in `src/hl.c`, thread vCPUs in `src/thread.c`, and fork/exec vCPUs in `src/fork_ipc.c`). **Qualification Requirement**: Because store-buffering (`SB`) both-zero outcomes are *permitted* under TSO, `SB` cannot distinguish TSO from weak ordering! Advertising `A32H_CAP_HW_TSO` requires: (1) explicit hardware TSO configuration and register readback confirmation on initial, thread (`src/thread.c`), fork (`src/fork_ipc.c`), and exec vCPU creation paths, plus (2) discriminating **Message-Passing (`MP`: `data = 1; flag = 1` vs `r0 = flag; r1 = data`, where `r0 == 1 && r1 == 0` is strictly forbidden under TSO)** and **Load-Buffering (`LB`)** litmus tests across initial, `pthread_create`, and `fork` workers. Until both conditions are met, `hyper-linux` MUST leave `A32H_CAP_HW_TSO` clear (`0`).
 
 ### 4.2 Window Base `G` Resolution Order (Mandatory Across All Class-A Translators)

@@ -89,7 +89,7 @@ This plan defines the architecture and phased execution schedule to achieve **th
 │  │  • Raw Linux AArch64 `svc #0`           │ │  • Direct `blr` into macOS `libSystem.B`   │  │
 │  │  • Signal-atomic `safe_syscall_a64.S`   │ │  • Per-class kqueue/wake-pipe/ulock commit │  │
 │  │  • `/dev/a32host` + family shm inode tbl│ │  • Linux->Darwin errno/open/stat/dirent/   │  │
-│  │  • Host `mprotect` W^X + `IC IALLU`     │ │    sockaddr + `MAP_JIT` APRR W^X           │  │
+│  │  • Host `mprotect` W^X + seal_rx I-cache │ │    sockaddr + `MAP_JIT` APRR W^X + seal_rx │  │
 │  └─────────┬──────────────────────┬────────┘ └──────────────────────┬─────────────────────┘  │
 └────────────┼──────────────────────┼─────────────────────────────────┼────────────────────────┘
              │                      │                                 │
@@ -462,7 +462,7 @@ int   rt_host_madvise(void *host_addr, size_t len, int linux_advice);
 void *rt_host_jit_alloc(size_t size);
 void  rt_host_jit_thread_init(void); /* sets pthread_jit_write_protect_np(1) on Darwin */
 void  rt_host_jit_begin_write(void *buf, size_t size);
-int   rt_host_jit_seal_rx(void *buf, size_t size);
+int   rt_host_jit_seal_rx(void *buf, size_t size); /* mandatory I-cache invalidation on seal: Linux: `IC IALLU`/EL2 trap only when `A32H_CAP_ICACHE_TRAP_IALLU` is active under hyper-linux, otherwise `__builtin___clear_cache`; Darwin `MAP_JIT`: `pthread_jit_write_protect_np(1)` + `sys_icache_invalidate` / `__builtin___clear_cache` */
 void  rt_host_jit_free(void *buf, size_t size);
 
 /* 4. Per-Syscall-Class Race-Free Signal-Atomic Blocking & Worker Preemption
