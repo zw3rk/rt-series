@@ -95,44 +95,28 @@ rt_run_bounded_hl() {
     fi
     case "$_rrh_repo" in
         i686rt|sparc32rt)
-            HL_EXACT_CLOCK=1 run_bounded "$_rrh_secs" "$_rrh_hl" \
-                --env "A32_INTERP=$_rrh_a32" --env "I686_NO_JIT=$_rrh_i686" \
-                --env "I686RT_ENGINE=$_rrh_eng" --env "RVRT_ENGINE=$_rrh_eng" \
-                --env "MIPS32RT_ENGINE=$_rrh_eng" --env "PPC32RT_ENGINE=$_rrh_eng" \
-                --env "SPARC32RT_ENGINE=$_rrh_eng" --env "LOONGARCH64RT_ENGINE=$_rrh_eng" \
-                --env "PPC64RT_ENGINE=$_rrh_eng" --env "MIPS64RT_ENGINE=$_rrh_eng" \
-                --env "SPARC64RT_ENGINE=$_rrh_eng" \
+            HL_EXACT_CLOCK=1 A32_INTERP="$_rrh_a32" I686_NO_JIT="$_rrh_i686" \
+            I686RT_ENGINE="$_rrh_eng" RVRT_ENGINE="$_rrh_eng" MIPS32RT_ENGINE="$_rrh_eng" \
+            PPC32RT_ENGINE="$_rrh_eng" SPARC32RT_ENGINE="$_rrh_eng" LOONGARCH64RT_ENGINE="$_rrh_eng" \
+            PPC64RT_ENGINE="$_rrh_eng" MIPS64RT_ENGINE="$_rrh_eng" SPARC64RT_ENGINE="$_rrh_eng" \
+            run_bounded "$_rrh_secs" "$_rrh_hl" \
                 "$_rrh_lrt" --engine "$_rrh_eng" -- "$_rrh_guest" "$@"
             ;;
         rvrt)
-            HL_EXACT_CLOCK=1 run_bounded "$_rrh_secs" "$_rrh_hl" \
+            HL_EXACT_CLOCK=1 A32_INTERP="$_rrh_a32" I686_NO_JIT="$_rrh_i686" \
+            I686RT_ENGINE="$_rrh_eng" RVRT_ENGINE="$_rrh_eng" MIPS32RT_ENGINE="$_rrh_eng" \
+            PPC32RT_ENGINE="$_rrh_eng" SPARC32RT_ENGINE="$_rrh_eng" LOONGARCH64RT_ENGINE="$_rrh_eng" \
+            PPC64RT_ENGINE="$_rrh_eng" MIPS64RT_ENGINE="$_rrh_eng" SPARC64RT_ENGINE="$_rrh_eng" \
+            run_bounded "$_rrh_secs" "$_rrh_hl" \
                 --rvrt-native \
-                --env "A32_INTERP=$_rrh_a32" --env "I686_NO_JIT=$_rrh_i686" \
-                --env "I686RT_ENGINE=$_rrh_eng" --env "RVRT_ENGINE=$_rrh_eng" \
-                --env "MIPS32RT_ENGINE=$_rrh_eng" --env "PPC32RT_ENGINE=$_rrh_eng" \
-                --env "SPARC32RT_ENGINE=$_rrh_eng" --env "LOONGARCH64RT_ENGINE=$_rrh_eng" \
-                --env "PPC64RT_ENGINE=$_rrh_eng" --env "MIPS64RT_ENGINE=$_rrh_eng" \
-                --env "SPARC64RT_ENGINE=$_rrh_eng" \
-                "$_rrh_lrt" "--$_rrh_eng" -- "$_rrh_guest" "$@"
-            ;;
-        a32rt|mips32rt|ppc32rt)
-            HL_EXACT_CLOCK=1 run_bounded "$_rrh_secs" "$_rrh_hl" \
-                --env "A32_INTERP=$_rrh_a32" --env "I686_NO_JIT=$_rrh_i686" \
-                --env "I686RT_ENGINE=$_rrh_eng" --env "RVRT_ENGINE=$_rrh_eng" \
-                --env "MIPS32RT_ENGINE=$_rrh_eng" --env "PPC32RT_ENGINE=$_rrh_eng" \
-                --env "SPARC32RT_ENGINE=$_rrh_eng" --env "LOONGARCH64RT_ENGINE=$_rrh_eng" \
-                --env "PPC64RT_ENGINE=$_rrh_eng" --env "MIPS64RT_ENGINE=$_rrh_eng" \
-                --env "SPARC64RT_ENGINE=$_rrh_eng" \
                 "$_rrh_lrt" "--$_rrh_eng" -- "$_rrh_guest" "$@"
             ;;
         *)
-            HL_EXACT_CLOCK=1 run_bounded "$_rrh_secs" "$_rrh_hl" \
-                --env "A32_INTERP=$_rrh_a32" --env "I686_NO_JIT=$_rrh_i686" \
-                --env "I686RT_ENGINE=$_rrh_eng" --env "RVRT_ENGINE=$_rrh_eng" \
-                --env "MIPS32RT_ENGINE=$_rrh_eng" --env "PPC32RT_ENGINE=$_rrh_eng" \
-                --env "SPARC32RT_ENGINE=$_rrh_eng" --env "LOONGARCH64RT_ENGINE=$_rrh_eng" \
-                --env "PPC64RT_ENGINE=$_rrh_eng" --env "MIPS64RT_ENGINE=$_rrh_eng" \
-                --env "SPARC64RT_ENGINE=$_rrh_eng" \
+            HL_EXACT_CLOCK=1 A32_INTERP="$_rrh_a32" I686_NO_JIT="$_rrh_i686" \
+            I686RT_ENGINE="$_rrh_eng" RVRT_ENGINE="$_rrh_eng" MIPS32RT_ENGINE="$_rrh_eng" \
+            PPC32RT_ENGINE="$_rrh_eng" SPARC32RT_ENGINE="$_rrh_eng" LOONGARCH64RT_ENGINE="$_rrh_eng" \
+            PPC64RT_ENGINE="$_rrh_eng" MIPS64RT_ENGINE="$_rrh_eng" SPARC64RT_ENGINE="$_rrh_eng" \
+            run_bounded "$_rrh_secs" "$_rrh_hl" \
                 "$_rrh_lrt" "--$_rrh_eng" -- "$_rrh_guest" "$@"
             ;;
     esac
