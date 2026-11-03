@@ -75,18 +75,14 @@ case "$ENGINE" in
         ;;
 esac
 
-ALL_ARCHES=(
-    armhf
-    i686
-    mipsel
-    ppc32
-    sparc32
-    riscv64
-    loongarch64
-    ppc64le
-    mips64el
-    sparc64
-)
+# Canonical architecture list is shared with tools/remote_bench_common.sh via
+# $ARCH_LIST (includes riscv32); derive ALL_ARCHES from it so
+# 'smoke --arch riscv32' / '--arch all' stays consistent with remote_bench_common.sh.
+ALL_ARCHES=()
+for _arch_entry in $ARCH_LIST; do
+    ALL_ARCHES+=("${_arch_entry%%:*}")
+done
+unset _arch_entry
 
 arch_repo() {
     case "$1" in
@@ -593,7 +589,7 @@ Commands:
 
 Options:
   --target <t>          darwin | hl | linux | qemu | all (default: all)
-  --arch <a>            armhf | i686 | mipsel | ppc32 | sparc32 | riscv64 |
+  --arch <a>            armhf | i686 | mipsel | ppc32 | sparc32 | riscv64 | riscv32 |
                         loongarch64 | ppc64le | mips64el | sparc64 | all (default: all)
   --engine <e>          dbt | interp (default: dbt)
   --force               Bypass BENCH_MAX_LOAD check during 'run'

@@ -548,6 +548,65 @@ static void t_unaligned_cross_page(void)
             return;
         }
     }
+    /* Soft-TLB generation check: protect the second page independently to
+     * PROT_READ. A cross-page load spanning the boundary must still
+     * succeed while a cross-page store spilling into the RO page must
+     * fault (SIGSEGV/SIGBUS via sigsetjmp/siglongjmp). Then restore RW. */
+    if (install_handler(SIGSEGV, segv_handler, 0) != 0 ||
+        install_handler(SIGBUS, segv_handler, 0) != 0) {
+        report_fail("unaligned-cross-page", "sigaction unavailable");
+        munmap(base, two);
+        return;
+    }
+    if (mprotect(base + (size_t)ps, (size_t)ps, PROT_READ) != 0) {
+        report_fail("unaligned-cross-page", "mprotect RO failed");
+        munmap(base, two);
+        return;
+    }
+    {
+        unsigned char *edge = base + (size_t)ps - 5;
+        uint64_t got = 0;
+        memcpy(&got, edge, sizeof(got));
+        if (got != 0x0123456789ABCDEFULL) {
+            report_fail("unaligned-cross-page", "RO cross-page load mismatch");
+            mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
+            munmap(base, two);
+            return;
+        }
+    }
+    g_segv_armed = 1;
+    g_segv_signo = 0;
+    g_segv_code = 0;
+    store_segv_addr(0);
+    if (sigsetjmp(g_segv_jmp, 1) == 0) {
+        unsigned char *edge = base + (size_t)ps - 5;
+        uint64_t bad = 0xFEDCBA9876543210ULL;
+        memcpy(edge, &bad, sizeof(bad));
+        g_segv_armed = 0;
+        report_fail("unaligned-cross-page", "RO cross-page store did not trap");
+        mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
+        munmap(base, two);
+        return;
+    }
+    g_segv_armed = 0;
+    if (g_segv_signo != SIGSEGV && g_segv_signo != SIGBUS) {
+        report_fail("unaligned-cross-page", "wrong signal on RO cross-page store");
+        mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
+        munmap(base, two);
+        return;
+    }
+    if (load_segv_addr() < (uintptr_t)base ||
+        load_segv_addr() >= (uintptr_t)(base + two)) {
+        report_fail("unaligned-cross-page", "si_addr outside mapping on RO store");
+        mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE);
+        munmap(base, two);
+        return;
+    }
+    if (mprotect(base + (size_t)ps, (size_t)ps, PROT_READ | PROT_WRITE) != 0) {
+        report_fail("unaligned-cross-page", "mprotect RW restore failed");
+        munmap(base, two);
+        return;
+    }
     munmap(base, two);
     report_pass("unaligned-cross-page straddling load/store exact");
 }
@@ -567,8 +626,12 @@ static void t_mprotect_munmap(void)
         report_skip("mprotect-munmap", "mmap unavailable");
         return;
     }
-    base[0] = 0xAA;
-    base[(size_t)ps] = 0xBB;
+    /* Volatile probes so the compiler cannot optimize away any deliberate
+     * faulting or post-restoration access. */
+    volatile uint8_t *vbase = (volatile uint8_t *)base;
+    volatile uint8_t *vsecond = (volatile uint8_t *)(base + (size_t)ps);
+    vbase[0] = 0xAA;
+    vsecond[0] = 0xBB;
     /* PROT_NONE access raises SIGSEGV on Linux but SIGBUS on macOS/BSD;
      * arm both so the immediacy + si_addr checks are portable. */
     if (install_handler(SIGSEGV, segv_handler, 0) != 0 ||
@@ -588,7 +651,7 @@ static void t_mprotect_munmap(void)
     g_segv_code = 0;
     store_segv_addr(0);
     if (sigsetjmp(g_segv_jmp, 1) == 0) {
-        volatile unsigned char c = base[(size_t)ps];
+        volatile uint8_t c = vsecond[0];
         (void)c;
         g_segv_armed = 0;
         report_fail("mprotect-munmap", "PROT_NONE read did not trap");
@@ -617,11 +680,14 @@ static void t_mprotect_munmap(void)
         munmap(base, two);
         return;
     }
-    base[(size_t)ps] = 0xCC;
-    if (base[(size_t)ps] != 0xCC) {
-        report_fail("mprotect-munmap", "RW re-access mismatch");
-        munmap(base, two);
-        return;
+    vsecond[0] = 0xCC;
+    {
+        volatile uint8_t check = vsecond[0];
+        if (check != 0xCC) {
+            report_fail("mprotect-munmap", "RW re-access mismatch");
+            munmap(base, two);
+            return;
+        }
     }
     /* 3. mprotect first page PROT_READ: a write must trap immediately. */
     if (mprotect(base, (size_t)ps, PROT_READ) != 0) {
@@ -634,7 +700,7 @@ static void t_mprotect_munmap(void)
     g_segv_code = 0;
     store_segv_addr(0);
     if (sigsetjmp(g_segv_jmp, 1) == 0) {
-        base[0] = 0x11;
+        vbase[0] = 0x11;
         g_segv_armed = 0;
         report_fail("mprotect-munmap", "RO write did not trap");
         munmap(base, two);
@@ -663,7 +729,7 @@ static void t_mprotect_munmap(void)
     g_segv_code = 0;
     store_segv_addr(0);
     if (sigsetjmp(g_segv_jmp, 1) == 0) {
-        volatile unsigned char c = base[(size_t)ps];
+        volatile uint8_t c = vsecond[0];
         (void)c;
         g_segv_armed = 0;
         report_fail("mprotect-munmap", "unmapped read did not trap");

@@ -169,13 +169,15 @@ parse_and_print() {
             "$target" "$arch" "$engine" "-" "-" "-" "-" "-" "-" "FAIL"
         return 1
     fi
-    cm=$(printf '%s\n' "$out" | awk '/BENCH coremark/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    cc=$(printf '%s\n' "$out" | awk '/BENCH chacha20/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    vf=$(printf '%s\n' "$out" | awk '/BENCH vfp_simd/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    ib=$(printf '%s\n' "$out" | awk '/BENCH calls_ibtc/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    sc=$(printf '%s\n' "$out" | awk '/BENCH syscalls/ {for(i=1;i<=NF;i++) if($i ~ /^us=/) {sub(/^us=/,"",$i); print $i}}')
-    tot=$(printf '%s\n' "$out" | awk '/BENCH total_us=/ {for(i=1;i<=NF;i++) if($i ~ /^total_us=/) {sub(/^total_us=/,"",$i); print $i}}')
-    st=$(printf '%s\n' "$out" | awk '/BENCH total_us=/ {print $NF}')
+    cm=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="coremark" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    cc=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="chacha20" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    vf=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="vfp_simd" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    ib=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="calls_ibtc" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    sc=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2=="syscalls" && NF==6 && $3 ~ /^us=[0-9]+$/ && $4 ~ /^ops_sec=[0-9]+$/ && $5 ~ /^crc=0x[0-9a-f]{8}$/ && $6=="PASS" {sub(/^us=/,"",$3); print $3}')
+    tot=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2 ~ /^total_us=[0-9]+$/ && $3=="ALL_PASS" && NF==3 {sub(/^total_us=/,"",$2); print $2}')
+    st=$(printf '%s\n' "$out" | awk '$1=="BENCH" && $2 ~ /^total_us=[0-9]+$/ && $3=="ALL_PASS" && NF==3 {print $3}')
+    for _f in "$cm" "$cc" "$vf" "$ib" "$sc" "$tot"; do case "$_f" in ""|*[!0-9]*) printf "RESULT\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$target" "$arch" "$engine" "-" "-" "-" "-" "-" "-" "FAIL"; return 1 ;; esac; done
+    case "$st" in "ALL_PASS") ;; *) printf "RESULT\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$target" "$arch" "$engine" "-" "-" "-" "-" "-" "-" "FAIL"; return 1 ;; esac
     printf "RESULT\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-        "$target" "$arch" "$engine" "${cm:--}" "${cc:--}" "${vf:--}" "${ib:--}" "${sc:--}" "${tot:--}" "${st:-FAIL}"
+        "$target" "$arch" "$engine" "$cm" "$cc" "$vf" "$ib" "$sc" "$tot" "$st"
 }

@@ -22,7 +22,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set -eu
-trap 'rm -rf /tmp/grind_*_$$ "${_ydir:-}" 2>/dev/null' EXIT INT TERM
+grind_cleanup() { rm -rf /tmp/grind_*_$$ "${_ydir:-}" /tmp/grind_libc_$$.log /tmp/grind_ltp_$$.log 2>/dev/null; }
+trap '_rc=$?; grind_cleanup; exit $_rc' EXIT
+trap 'grind_cleanup; exit 130' INT
+trap 'grind_cleanup; exit 143' TERM
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -603,21 +606,27 @@ run_libc_ltp_suite() {
     done
     if [ "$_found" = "0" ]; then
         grind_skip "libc-ltp" "no manifest and LIBC_TEST_DIR/LTP_DIR unset (expected: functional, math, pthread, mmap, clone, futex, sigaltstack, epoll, SCM_RIGHTS, statx, getdents64, EFAULT)"
+        grind_skip "ltp" "LTP_DIR unset (point at LTP install for syscall binaries)"
         return 0
     fi
     for _t in functional math pthread; do
         _b="${LIBC_TEST_DIR:-}/bin/$_t"
         if [ -x "$_b" ]; then
-            if grind_run_guest 300 "$_wrap" "$_b" >/tmp/grind_libc_$$.log 2>&1; then
-                grind_pass "libc-ltp" "libc-test $_t"
-            else
-                grind_fail "libc-ltp" "libc-test $_t exit!=0"
-            fi
+            if grind_run_guest 300 "$_wrap" "$_b" >/tmp/grind_libc_$$.log 2>&1; then grind_pass "libc-ltp" "libc-test $_t"; else grind_fail "libc-ltp" "libc-test $_t exit!=0"; fi
         else
             grind_skip "libc-ltp" "libc-test $_t not built"
         fi
     done
     rm -f /tmp/grind_libc_$$.log
+    if [ -n "${LTP_DIR:-}" ] && [ -d "${LTP_DIR:-}" ]; then
+        _ld=""; for _c in "$LTP_DIR/testcases/kernel/syscalls" "$LTP_DIR/bin" "$LTP_DIR/testcases/bin"; do if [ -d "$_c" ]; then _ld="$_ld $_c"; fi; done; if [ -z "$_ld" ]; then _ld="$LTP_DIR"; fi
+        _ln=0
+        for _lp in $_ld; do for _lb in "$_lp"/*; do [ -f "$_lb" ] && [ -x "$_lb" ] || continue; _ln=$((_ln + 1)); if [ "$_ln" -gt 50 ]; then break 2; fi; if grind_run_guest 120 "$_wrap" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then grind_pass "ltp" "$(basename "$_lb")"; else grind_fail "ltp" "$(basename "$_lb") exit!=0"; fi; done; done
+        rm -f /tmp/grind_ltp_$$.log
+        if [ "$_ln" -eq 0 ]; then grind_skip "ltp" "no executables under $LTP_DIR"; fi
+    else
+        grind_skip "ltp" "LTP_DIR unset (point at LTP install for syscall binaries)"
+    fi
 }
 
 run_lmbench_suite() {

@@ -44,6 +44,26 @@ static uint32_t u32_divmod(uint32_t num, uint32_t den, uint32_t *rem_out)
     return quot;
 }
 
+/* 64-bit binary long division (shift/subtract) so freestanding 32-bit
+ * targets never emit __udivdi3. Returns ~0ULL on divide-by-zero. */
+static uint64_t udiv64(uint64_t num, uint64_t den)
+{
+    uint64_t quot = 0ULL;
+    uint64_t rem = 0ULL;
+    int i;
+    if (den == 0ULL) {
+        return ~0ULL;
+    }
+    for (i = 63; i >= 0; i--) {
+        rem = (rem << 1) | ((num >> i) & 1ULL);
+        if (rem >= den) {
+            rem -= den;
+            quot |= (1ULL << i);
+        }
+    }
+    return quot;
+}
+
 static size_t append_str(char *buf, size_t pos, const char *s)
 {
     while (*s != '\0') {
@@ -106,16 +126,13 @@ static uint32_t elapsed_us_between(const struct bench_timespec64 *t0,
 static void report_bench(const char *name, uint32_t iters, uint32_t us,
                          uint32_t crc, bool ok)
 {
-    uint32_t ops_sec;
-    if (iters <= 4000U) {
-        ops_sec = u32_divmod(iters * 1000000U, us, NULL);
-    } else if (us >= 1000U) {
-        uint32_t ms = u32_divmod(us, 1000U, NULL);
-        ops_sec = u32_divmod(iters * 1000U, ms, NULL);
-    } else {
-        uint32_t denom = (us == 0U) ? 1U : us;
-        ops_sec = u32_divmod(iters * 1000U, denom, NULL) * 1000U;
-    }
+    /* No millisecond truncation: ops/sec = (iters * 1e6) / us in 64-bit,
+     * so adjacent us values on either side of a 1 ms boundary stay
+     * continuous. udiv64() keeps 32-bit freestanding targets free of
+     * __udivdi3. */
+    uint64_t denom = (us == 0U) ? 1ULL : (uint64_t)us;
+    uint64_t q = udiv64((uint64_t)iters * 1000000ULL, denom);
+    uint32_t ops_sec = (q > 0xFFFFFFFFULL) ? 0xFFFFFFFFU : (uint32_t)q;
     char line[128];
     size_t pos = 0U;
     pos = append_str(line, pos, "BENCH ");
