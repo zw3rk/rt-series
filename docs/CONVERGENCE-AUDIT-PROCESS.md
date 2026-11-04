@@ -236,3 +236,32 @@ The table below records the actual defect counts remediated and verified across 
 | **Round 11** | **Regime III (Step-Size Annealed)** — Deep-Dive 5 of 6: Signal Multiplexing, Host Fault Recovery & RT Signal Frames | **`24 / 24`** | **`4 / 11`** (`a32rt`, `rvrt`, `loongarch64rt`, `ppc64rt`; `3` more had only `1` item) |
 | **Round 12** | **Regime III (Step-Size Annealed)** — Deep-Dive 6 of 6: Syscall ABI, Struct/Flag/Errno Marshaling, `/proc/self` & Backends | **`23 / 23`** | **`2 / 11`** (`rvrt`, `rt-series`) |
 | **Total** | **All 12 Rounds (6 Broad Sweeps + 6 Orthogonal Subsystem Deep-Dives)** | **`1,180 / 1,180` (`1,234` incl. clusters)** | **100% Verified Across All 11 Repositories** |
+
+---
+
+## 7. Post-Audit Performance Gate & Fast-Path Restoration (`gpt-6-astra` Verified)
+
+Correctness-only audit loops carry a subtle secondary hazard: an automated remediation worker can satisfy a tricky floating-point or register-window corner-case audit item (e.g., tininess before vs. after rounding, `FPSCR.FR`/`FI` rounding direction, `FR=0` odd/even FPR pairing, or `longjmp` window spilling) by conservatively returning `-1` from the JIT emitter (`EXIT_UNDEF` $\to$ single-instruction interpreter fallback) or inserting pipeline-serializing `MRS`/`MSR FPCR` instructions on every interior FP operation.
+
+To ensure that convergence audits never silently trade away DBT performance:
+
+1. **Mandatory Post-Audit `--full` Benchmark Gate:**
+   - After completing a convergence round series, run the 5-workload `--full` benchmark suite (`coremark`, `chacha20`, `vfp_simd`, `calls_ibtc`, `syscalls`) across all 11 guest architectures and compare against both the pre-audit Wave P13 DBT baseline and `qemu-user` (`tcg`).
+2. **Surgical Fast-Path Restoration + `gpt-6-astra` Zero-Defect Sign-Off:**
+   - Wherever an audit fix disabled an inline JIT fast path (or added per-instruction `FPCR`/`FPSR` synchronization), replace the blanket fallback with an inline fast-path guard that keeps normal-range operations in native AArch64 instructions and branches to the cold interpreter fallback only on true IEEE-754 boundary cases (NaN/Inf, subnormal/tininess boundaries, halfway double-rounding ties, or enabled trap bits).
+   - Every restored fast path must be audited by `gpt-6-astra` (`codex exec -m gpt-6-astra --sandbox read-only`) to **`0 DEFECTS`** and pass `tests/parity_suite.sh --tier smoke` (`difftest` + `dbt` + `interp`).
+
+| Guest Arch | Runtime (`Commit`) | Post-R12 `total_us` | Restored `total_us` (`vfp_simd`) | `qemu-user` `total_us` (`vfp_simd`) | Speedup vs. `qemu-user` | `gpt-6-astra` Verdict |
+|---|---|---:|---:|---:|---:|---|
+| `armhf` | `a32rt` (`4b94c15`) | `7,662 us` | **`9,742 us`** (`929 us`) | `22,066 us` (`5,198 us`) | **`2.27x`** | **`0 DEFECTS`** |
+| `i686` | `i686rt` (`7a82e21`) | `419,611 us` | **`28,846 us`** (`6,545 us`) | `32,623 us` (`12,817 us`) | **`1.13x–1.34x`** | **`0 DEFECTS`** |
+| `mipsel` | `mips32rt` (`3fb98db`) | `995,436 us` | **`26,524 us`** (`8,435 us`) | `39,328 us` (`26,369 us`) | **`1.48x–1.79x`** | **`0 DEFECTS`** |
+| `ppc32` | `ppc32rt` (`621e368`) | `223,128 us` | **`35,732 us`** (`15,525 us`) | `67,692 us` (`55,257 us`) | **`1.89x–2.10x`** | **`0 DEFECTS`** |
+| `sparc32` | `sparc32rt` (`f343b8b`) | `151,831 us` | **`40,107 us`** (`16,559 us`) | `68,286 us` (`30,784 us`) | **`1.70x–1.91x`** | **`0 DEFECTS`** |
+| `riscv32` | `rvrt` (`ca1ef7b`) | `41,704 us` | **`25,153 us`** (`9,674 us`) | `26,932 us` (`11,124 us`) | **`1.07x–1.17x`** | **`0 DEFECTS`** |
+| `riscv64` | `rvrt` (`ca1ef7b`) | `58,832 us` | **`25,258 us`** (`9,540 us`) | `30,816 us` (`14,577 us`) | **`1.22x–1.34x`** | **`0 DEFECTS`** |
+| `loongarch64` | `loongarch64rt` (`ecc2782`) | `98,425 us` | **`35,065 us`** (`20,106 us`) | `42,824 us` (`30,123 us`) | **`1.22x`** | **`0 DEFECTS`** |
+| `ppc64le` | `ppc64rt` (`bc25fb8`) | `495,551 us` | **`30,678 us`** (`7,020 us`) | `67,990 us` (`50,430 us`) | **`2.22x`** | **`0 DEFECTS`** |
+| `mips64el` | `mips64rt` (`06483f7`) | `27,255 us` | **`30,393 us`** (`4,187 us`) | `42,720 us` (`29,661 us`) | **`1.41x–1.77x`** | **`0 DEFECTS`** |
+| `sparc64` | `sparc64rt` (`a92c0c0`) | `32,963 us` | **`43,653 us`** (`13,804 us`) | `68,951 us` (`30,984 us`) | **`1.58x–2.09x`** | **`0 DEFECTS`** |
+
