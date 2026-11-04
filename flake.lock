@@ -9,15 +9,15 @@
       "locked": {
         "lastModified": 1793713472,
         "narHash": "sha256-qiDRYrGSoTZXnZL8sk/fVABuuPOGeYtxDGIMxhz7+rQ=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "a32rt",
         "rev": "4b94c1527beaa57665444c2578dc9f7e1fec9e04",
-        "revCount": 72,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/a32rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/a32rt"
+        "owner": "zw3rk",
+        "repo": "a32rt",
+        "type": "github"
       }
     },
     "i686rt": {
@@ -29,15 +29,15 @@
       "locked": {
         "lastModified": 1793772893,
         "narHash": "sha256-MB4tWj1km06miQM4EMVfnjKDYS4Q9ADbCmI2bvLr6bw=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "i686rt",
         "rev": "92fc0afb23d6f0b9ebfcbb24ede7a59f6b92e95a",
-        "revCount": 271,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/i686rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/i686rt"
+        "owner": "zw3rk",
+        "repo": "i686rt",
+        "type": "github"
       }
     },
     "loongarch64rt": {
@@ -49,15 +49,15 @@
       "locked": {
         "lastModified": 1793757558,
         "narHash": "sha256-fyTBhzBjYv6+a7QAcHwtKk06vFFlkFNBtiGRA7S1nDg=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "loongarch64rt",
         "rev": "eec0f3d517bdf9c1fb3d6abe842ceebd9ed0a36e",
-        "revCount": 133,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/loongarch64rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/loongarch64rt"
+        "owner": "zw3rk",
+        "repo": "loongarch64rt",
+        "type": "github"
       }
     },
     "mips32rt": {
@@ -69,15 +69,15 @@
       "locked": {
         "lastModified": 1793754139,
         "narHash": "sha256-UYhzJfCquSpObZ09l8pEOOGOTErAAFEsQMysPIHtJeE=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "mips32rt",
         "rev": "3fb98db8f8ca14d64889feca687443fce55788f6",
-        "revCount": 124,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/mips32rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/mips32rt"
+        "owner": "zw3rk",
+        "repo": "mips32rt",
+        "type": "github"
       }
     },
     "mips64rt": {
@@ -89,15 +89,15 @@
       "locked": {
         "lastModified": 1793757558,
         "narHash": "sha256-dfIJ5hftLVwROHdULJmmHX5wKRFkB4nRbzA0P8ZDUhw=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "mips64rt",
         "rev": "92e86b9ed717c89e371c7df21b88a6e7ac7f5f4c",
-        "revCount": 134,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/mips64rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/mips64rt"
+        "owner": "zw3rk",
+        "repo": "mips64rt",
+        "type": "github"
       }
     },
     "nixpkgs": {
@@ -125,15 +125,15 @@
       "locked": {
         "lastModified": 1793753485,
         "narHash": "sha256-LzO7uor/ZPe9TRrXhy+jfh5bnI9FLYSXhOhlz3NTSOs=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "ppc32rt",
         "rev": "621e36892ffb8d5f68ddd615b670324d4e437c07",
-        "revCount": 125,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/ppc32rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/ppc32rt"
+        "owner": "zw3rk",
+        "repo": "ppc32rt",
+        "type": "github"
       }
     },
     "ppc64rt": {
@@ -145,15 +145,15 @@
       "locked": {
         "lastModified": 1793757558,
         "narHash": "sha256-B3LeYchb63aYWxio12KES/YpJzndiTcb8WKGUUjFm70=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "ppc64rt",
         "rev": "3c236f2584e9e0a2e5ebf07fa77d3110b032202c",
-        "revCount": 151,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/ppc64rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/ppc64rt"
+        "owner": "zw3rk",
+        "repo": "ppc64rt",
+        "type": "github"
       }
     },
     "root": {
@@ -180,15 +180,15 @@
       "locked": {
         "lastModified": 1793753236,
         "narHash": "sha256-Mcu3UDXPWTENLgwdnOYtmZFJnM1kL3PeQmDVv9+oIjI=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "rvrt",
         "rev": "ca1ef7bc3a4d01cd318fb2c7544d147c662ad5ff",
-        "revCount": 1226,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/rvrt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/rvrt"
+        "owner": "zw3rk",
+        "repo": "rvrt",
+        "type": "github"
       }
     },
     "sparc32rt": {
@@ -200,15 +200,15 @@
       "locked": {
         "lastModified": 1793755340,
         "narHash": "sha256-p2Qov1itFr9dkAma/ljC3SQKsa1Xv+0GWO9FBGdM6gE=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "sparc32rt",
         "rev": "f343b8b2a37554ee2e64cb8204dc7cb2fd915b3d",
-        "revCount": 116,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/sparc32rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/sparc32rt"
+        "owner": "zw3rk",
+        "repo": "sparc32rt",
+        "type": "github"
       }
     },
     "sparc64rt": {
@@ -220,15 +220,15 @@
       "locked": {
         "lastModified": 1793757558,
         "narHash": "sha256-3HmDsnlsuN07EkmYlvOVLQ3r5vXU/0F6mwdNKrZqW/A=",
-        "ref": "refs/heads/master",
+        "owner": "zw3rk",
+        "repo": "sparc64rt",
         "rev": "e33935f73e3a097c65435ff026c9168c2724d823",
-        "revCount": 133,
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/sparc64rt"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///Users/angerman/Projects/zw3rk/sparc64rt"
+        "owner": "zw3rk",
+        "repo": "sparc64rt",
+        "type": "github"
       }
     }
   },

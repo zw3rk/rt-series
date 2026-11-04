@@ -7,43 +7,43 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     a32rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/a32rt";
+      url = "github:zw3rk/a32rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     i686rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/i686rt";
+      url = "github:zw3rk/i686rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     mips32rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/mips32rt";
+      url = "github:zw3rk/mips32rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     ppc32rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/ppc32rt";
+      url = "github:zw3rk/ppc32rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     sparc32rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/sparc32rt";
+      url = "github:zw3rk/sparc32rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     rvrt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/rvrt";
+      url = "github:zw3rk/rvrt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     loongarch64rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/loongarch64rt";
+      url = "github:zw3rk/loongarch64rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     ppc64rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/ppc64rt";
+      url = "github:zw3rk/ppc64rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     mips64rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/mips64rt";
+      url = "github:zw3rk/mips64rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     sparc64rt = {
-      url = "git+file:///Users/angerman/Projects/zw3rk/sparc64rt";
+      url = "github:zw3rk/sparc64rt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
