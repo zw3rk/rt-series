@@ -17,7 +17,18 @@ REMOTE_LIMA_TIMEOUT="${REMOTE_LIMA_TIMEOUT:-600}"
 run_bounded() {
     _rb_secs="$1"
     shift
-    timeout --kill-after=30s "${_rb_secs}s" "$@"
+    if command -v timeout >/dev/null 2>&1; then
+        timeout --kill-after=30s "${_rb_secs}s" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout --kill-after=30s "${_rb_secs}s" "$@"
+    else
+        _rb_nix_to="$(ls -d /nix/store/*coreutils*/bin/timeout 2>/dev/null | head -n 1 || true)"
+        if [ -n "$_rb_nix_to" ] && [ -x "$_rb_nix_to" ]; then
+            "$_rb_nix_to" --kill-after=30s "${_rb_secs}s" "$@"
+        else
+            perl -e 'alarm shift; exec @ARGV' "$_rb_secs" "$@"
+        fi
+    fi
 }
 
 # Print the canonical command prefix `<rt_bin> <engine_flags>` for `<repo>` and `<engine>`.
