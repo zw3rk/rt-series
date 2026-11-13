@@ -284,17 +284,7 @@ enum {
                                LA_HWCAP_CRC32),
     LA_HWCAP_BASE_PROFILE   = (LA_HWCAP_P2_INT_PROFILE | LA_HWCAP_FPU),
     LA_HWCAP_SIMD_PROFILE   = (LA_HWCAP_BASE_PROFILE | LA_HWCAP_LSX | LA_HWCAP_LASX),
-    LA_CPUCFG2_FP           = (1U << 0),
-    LA_CPUCFG2_FP_SP        = (1U << 1),
-    LA_CPUCFG2_FP_DP        = (1U << 2),
-    LA_CPUCFG2_FP_VER_1     = (1U << 3),
-    LA_CPUCFG2_LSX          = (1U << 6),
-    LA_CPUCFG2_LASX         = (1U << 7),
-    LA_CPUCFG2_LLFTP        = (1U << 14),
-    LA_CPUCFG2_LLFTP_VER_1  = (1U << 15),
-    LA_CPUCFG2_LAM          = (1U << 22),
-    LA_CPUCFG2_LAM_BH       = (1U << 27),
-    LA_CPUCFG2_LAMCAS       = (1U << 28)
+    LA_CPUCFG2_LAM          = (1U << 22)
 };
 
 _Static_assert(LA_HWCAP_P2_INT_PROFILE == 0x0047U, "LoongArch P2 int HWCAP == 0x0047");

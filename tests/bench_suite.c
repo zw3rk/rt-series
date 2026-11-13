@@ -173,7 +173,7 @@ static int bench_coremark(bool smoke, uint32_t *out_us)
 {
     const uint32_t iters      = smoke ? 50U : 2000U;
     const uint32_t trials     = smoke ? 1U : 5U;
-    const uint16_t expect_crc = smoke ? 0xedd5U : 0x41ddU;
+    const uint16_t expect_crc = smoke ? 0x8defU : 0xa77cU;
     uint32_t min_us = 0xFFFFFFFFU;
     uint16_t crc = 0xFFFFU;
     bool all_ok = true;
@@ -223,8 +223,10 @@ static int bench_coremark(bool smoke, uint32_t *out_us)
             }
             uint32_t l_sum = 0U;
             list_node_t *p = &nodes[0];
+            uint32_t idx = 1U;
             while (p != NULL) {
-                l_sum += p->val;
+                l_sum += idx * p->val;
+                idx++;
                 p = p->next;
             }
 

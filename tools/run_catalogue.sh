@@ -42,6 +42,13 @@ PROJECTS_DIR="$(cd "$ROOT_DIR/.." && pwd)"
 # shellcheck source=tools/catalogue_payloads.sh
 . "$SCRIPT_DIR/catalogue_payloads.sh"
 
+# parity_now_ms for per-repo gate timing (guarded: guest-payload must also
+# run when parity_contract.sh was not copied into an isolated sysroot).
+if [ -f "$SCRIPT_DIR/parity_contract.sh" ]; then
+    # shellcheck source=tools/parity_contract.sh
+    . "$SCRIPT_DIR/parity_contract.sh"
+fi
+
 CMD="${1:-help}"
 if [ $# -gt 0 ]; then shift; fi
 
@@ -253,10 +260,39 @@ check_uniform_guests() {
     return 0
 }
 
-docker_ids() {
-    if command -v docker >/dev/null 2>&1; then
-        docker ps -q 2>/dev/null | sort || true
+# Portable bounded command runner for host-gate docker probes: prefers
+# `timeout --kill-after`, then `gtimeout`, then a perl alarm fallback.
+run_bounded_cmd() {
+    _rbc_secs="$1"
+    shift
+    if command -v timeout >/dev/null 2>&1; then
+        timeout --kill-after=10s "${_rbc_secs}s" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout --kill-after=10s "${_rbc_secs}s" "$@"
+    else
+        perl -e 'alarm shift; exec @ARGV' "$_rbc_secs" "$@"
     fi
+}
+
+# now_ms / elapsed_ms_since: per-repo gate timing via parity_now_ms
+# (RTS-R13-11); 0 when parity_contract.sh is unavailable.
+now_ms() {
+    _nm_v="0"
+    if command -v parity_now_ms >/dev/null 2>&1; then
+        _nm_v="$(parity_now_ms)"
+    fi
+    case "$_nm_v" in ''|*[!0-9]*) printf '0' ;; *) printf '%s' "$_nm_v" ;; esac
+}
+elapsed_ms_since() {
+    _ems_base="${1:-0}"
+    case "$_ems_base" in ''|*[!0-9]*) _ems_base="0" ;; esac
+    printf '%s' "$(( $(now_ms) - _ems_base ))"
+}
+
+docker_ids() {
+    command -v docker >/dev/null 2>&1 || return 0
+    _dids="$(run_bounded_cmd 15 docker ps -q)" || return 1
+    printf '%s\n' "$_dids" | sed '/^$/d' | sort
 }
 
 check_no_leftover_docker() {
@@ -265,7 +301,10 @@ check_no_leftover_docker() {
         return 0
     fi
     _after_tmp="$2"
-    docker_ids > "$_after_tmp" || true
+    if ! docker_ids > "$_after_tmp"; then
+        echo "FAIL: 'docker ps -q' failed while checking for leftover containers" >&2
+        return 1
+    fi
     if [ ! -s "$_before_file" ] && [ ! -s "$_after_tmp" ]; then
         return 0
     fi
@@ -274,7 +313,7 @@ check_no_leftover_docker() {
     if [ -s "$_new_tmp" ]; then
         echo "FAIL: leftover docker containers after gate:" >&2
         cat "$_new_tmp" >&2
-        docker ps >&2 || true
+        run_bounded_cmd 15 docker ps >&2 || true
         rm -f "$_new_tmp"
         return 1
     fi
@@ -463,13 +502,13 @@ run_guest_payload() {
             dgst_out="$(openssl dgst -sha256 "$work/plain.txt")" || fail_now "T2" "openssl dgst"
             case "$dgst_out" in
                 *SHA2-256*|*SHA256*|*=*)
-                    hexpart="$(printf '%s' "$dgst_out" | sed -E 's/.*= *//')"
-                    case "$hexpart" in
-                        ????????????????????????????????????????????????????????????????)
-                            note_pass "T2" "openssl dgst -sha256"
-                            ;;
-                        *) fail_now "T2" "openssl dgst format ($dgst_out)" ;;
-                    esac
+                    hexpart="$(printf '%s' "$dgst_out" | sed -E 's/.*= *//' | tr 'A-F' 'a-f')"
+                    # Exact SHA-256 of "The quick brown fox jumps over the lazy dog 0123456789\n".
+                    if [ "$hexpart" = "2c1cd14ce8406d6f1be86a45f0fa531c57ff1c65e969410118a877040c13cc7a" ]; then
+                        note_pass "T2" "openssl dgst -sha256"
+                    else
+                        fail_now "T2" "openssl dgst sha256 mismatch ($dgst_out)"
+                    fi
                     ;;
                 *) fail_now "T2" "openssl dgst ($dgst_out)" ;;
             esac
@@ -681,6 +720,9 @@ run_repo_gate() {
     _log_file="$4"
     ps="$PROJECTS_DIR/$_repo/tests/parity_suite.sh"
     echo "== Catalogue $CMD gate: $_repo (tier=$_tier, timeout=${_timeout_s}s) =="
+    # Per-repo elapsed-time probe (RTS-R13-11): sourced from
+    # parity_contract.sh on the host; 0 when unavailable.
+    _t0_ms="$(now_ms)"
     if [ -f "$ps" ]; then
         if PARITY_TIER="$_tier" timeout --kill-after=30s "${_timeout_s}s" sh "$ps" >"$_log_file" 2>&1; then
             if ! check_parity_no_skip "$_log_file" "$_repo" 1; then
@@ -691,10 +733,12 @@ run_repo_gate() {
                 tail -n 20 "$_log_file" 2>/dev/null || true
                 return 1
             fi
-            echo "PASS [$_repo]: parity_suite.sh"
+            _elapsed_ms="$(elapsed_ms_since "$_t0_ms")"
+            echo "PASS [$_repo]: parity_suite.sh (${_elapsed_ms}ms)"
             return 0
         else
-            echo "FAIL [$_repo]: parity_suite.sh (see $_log_file)"
+            _elapsed_ms="$(elapsed_ms_since "$_t0_ms")"
+            echo "FAIL [$_repo]: parity_suite.sh (${_elapsed_ms}ms) (see $_log_file)"
             tail -n 20 "$_log_file" 2>/dev/null || true
             return 1
         fi
@@ -711,10 +755,12 @@ run_repo_gate() {
                 tail -n 20 "$_log_file" 2>/dev/null || true
                 return 1
             fi
-            echo "PASS [$_repo]: make check"
+            _elapsed_ms="$(elapsed_ms_since "$_t0_ms")"
+            echo "PASS [$_repo]: make check (${_elapsed_ms}ms)"
             return 0
         else
-            echo "FAIL [$_repo]: make check (see $_log_file)"
+            _elapsed_ms="$(elapsed_ms_since "$_t0_ms")"
+            echo "FAIL [$_repo]: make check (${_elapsed_ms}ms) (see $_log_file)"
             tail -n 20 "$_log_file" 2>/dev/null || true
             return 1
         fi
@@ -730,7 +776,12 @@ run_host_gate() {
     _gate_dir="$(mktemp -d "/tmp/rt-cat-${CMD}.XXXXXX")"
     _docker_before="$_gate_dir/docker-before"
     _docker_after="$_gate_dir/docker-after"
-    docker_ids > "$_docker_before" 2>/dev/null || true
+    _docker_before_ok=1
+    if command -v docker >/dev/null 2>&1 && ! docker_ids > "$_docker_before" 2>/dev/null; then
+        echo "FAIL: 'docker ps -q' failed before gate (cannot verify no leftovers)" >&2
+        _docker_before_ok=0
+        fail=$((fail + 1))
+    fi
     for r in $REPOS; do
         if [ "$ARCH_FILTER" != "all" ] && [ "$ARCH_FILTER" != "$r" ]; then
             continue

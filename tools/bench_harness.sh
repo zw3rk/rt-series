@@ -109,22 +109,38 @@ cleanup_bench_containers() {
     if ! command -v docker >/dev/null 2>&1; then
         return 0
     fi
-    local cids
-    cids="$(docker ps -aq --filter "name=rt-bench-" 2>/dev/null || true)"
+    local cids rc=0
+    if ! cids="$(run_bounded 15 docker ps -aq --filter "name=rt-bench-")"; then
+        echo "ERROR: cleanup_bench_containers: 'docker ps -aq' failed" >&2
+        return 1
+    fi
     for cid in $cids; do
         local cname
-        cname="$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null || true)"
+        if ! cname="$(run_bounded 15 docker inspect --format '{{.Name}}' "$cid" 2>/dev/null)"; then
+            echo "ERROR: cleanup_bench_containers: 'docker inspect $cid' failed" >&2
+            rc=1
+            continue
+        fi
         case "$cname" in
-            *"-$$") docker rm -f "$cid" >/dev/null 2>&1 || true ;;
+            *"-$$")
+                if ! run_bounded 15 docker rm -f "$cid" >/dev/null 2>&1; then
+                    echo "ERROR: cleanup_bench_containers: 'docker rm -f $cid' failed" >&2
+                    rc=1
+                fi
+                ;;
         esac
     done
-    local lingering
-    lingering="$(docker ps --filter "name=rt-bench-" --format '{{.Names}}' 2>/dev/null | grep -E -- "-$$\$" || true)"
+    local lingering _post
+    if ! _post="$(run_bounded 15 docker ps --filter "name=rt-bench-" --format '{{.Names}}')"; then
+        echo "ERROR: cleanup_bench_containers: post-cleanup 'docker ps' failed" >&2
+        return 1
+    fi
+    lingering="$(printf '%s\n' "$_post" | grep -E -- "-$$\$" || true)"
     if [ -n "$lingering" ]; then
         echo "ERROR: Lingering benchmark container(s): $lingering" >&2
         return 1
     fi
-    return 0
+    return "$rc"
 }
 bench_exit_trap() {
     local rc=$?

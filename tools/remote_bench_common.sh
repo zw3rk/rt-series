@@ -31,6 +31,17 @@ run_bounded() {
     fi
 }
 
+# Shared translator environment block (written once): runs `run_bounded "$@"`
+# with the canonical cross-translator engine env. Callers stage the engine
+# selection in globals `_rt_a32`, `_rt_i686`, `_rt_eng` first.
+_rt_env_run() {
+    A32_INTERP="$_rt_a32" I686_NO_JIT="$_rt_i686" \
+    I686RT_ENGINE="$_rt_eng" RVRT_ENGINE="$_rt_eng" MIPS32RT_ENGINE="$_rt_eng" \
+    PPC32RT_ENGINE="$_rt_eng" SPARC32RT_ENGINE="$_rt_eng" LOONGARCH64RT_ENGINE="$_rt_eng" \
+    PPC64RT_ENGINE="$_rt_eng" MIPS64RT_ENGINE="$_rt_eng" SPARC64RT_ENGINE="$_rt_eng" \
+    run_bounded "$@"
+}
+
 # Print the canonical command prefix `<rt_bin> <engine_flags>` for `<repo>` and `<engine>`.
 rt_format_cmd_prefix() {
     _rfp_repo="$1"
@@ -39,9 +50,6 @@ rt_format_cmd_prefix() {
     case "$_rfp_repo" in
         i686rt|sparc32rt)
             printf '%s --engine %s --' "$_rfp_bin" "$_rfp_eng"
-            ;;
-        a32rt|rvrt|mips32rt|ppc32rt)
-            printf '%s --%s --' "$_rfp_bin" "$_rfp_eng"
             ;;
         *)
             printf '%s --%s --' "$_rfp_bin" "$_rfp_eng"
@@ -64,29 +72,21 @@ rt_run_bounded_translator() {
         _rrt_a32=1
         _rrt_i686=1
     fi
+    # i686rt|sparc32rt take `--engine <eng>`; every other repo takes `--<eng>`.
+    # The shared environment block below is written once; only the engine
+    # CLI flags vary by repo.
+    _rt_a32="$_rrt_a32"
+    _rt_i686="$_rrt_i686"
+    _rt_eng="$_rrt_eng"
     case "$_rrt_repo" in
         i686rt|sparc32rt)
-            A32_INTERP="$_rrt_a32" I686_NO_JIT="$_rrt_i686" \
-            I686RT_ENGINE="$_rrt_eng" RVRT_ENGINE="$_rrt_eng" MIPS32RT_ENGINE="$_rrt_eng" \
-            PPC32RT_ENGINE="$_rrt_eng" SPARC32RT_ENGINE="$_rrt_eng" LOONGARCH64RT_ENGINE="$_rrt_eng" \
-            PPC64RT_ENGINE="$_rrt_eng" MIPS64RT_ENGINE="$_rrt_eng" SPARC64RT_ENGINE="$_rrt_eng" \
-            run_bounded "$_rrt_secs" "$_rrt_bin" --engine "$_rrt_eng" -- "$_rrt_guest" "$@"
-            ;;
-        a32rt|rvrt|mips32rt|ppc32rt)
-            A32_INTERP="$_rrt_a32" I686_NO_JIT="$_rrt_i686" \
-            I686RT_ENGINE="$_rrt_eng" RVRT_ENGINE="$_rrt_eng" MIPS32RT_ENGINE="$_rrt_eng" \
-            PPC32RT_ENGINE="$_rrt_eng" SPARC32RT_ENGINE="$_rrt_eng" LOONGARCH64RT_ENGINE="$_rrt_eng" \
-            PPC64RT_ENGINE="$_rrt_eng" MIPS64RT_ENGINE="$_rrt_eng" SPARC64RT_ENGINE="$_rrt_eng" \
-            run_bounded "$_rrt_secs" "$_rrt_bin" "--$_rrt_eng" -- "$_rrt_guest" "$@"
+            _rt_env_run "$_rrt_secs" "$_rrt_bin" --engine "$_rrt_eng" -- "$_rrt_guest" "$@"
             ;;
         *)
-            A32_INTERP="$_rrt_a32" I686_NO_JIT="$_rrt_i686" \
-            I686RT_ENGINE="$_rrt_eng" RVRT_ENGINE="$_rrt_eng" MIPS32RT_ENGINE="$_rrt_eng" \
-            PPC32RT_ENGINE="$_rrt_eng" SPARC32RT_ENGINE="$_rrt_eng" LOONGARCH64RT_ENGINE="$_rrt_eng" \
-            PPC64RT_ENGINE="$_rrt_eng" MIPS64RT_ENGINE="$_rrt_eng" SPARC64RT_ENGINE="$_rrt_eng" \
-            run_bounded "$_rrt_secs" "$_rrt_bin" "--$_rrt_eng" -- "$_rrt_guest" "$@"
+            _rt_env_run "$_rrt_secs" "$_rrt_bin" "--$_rrt_eng" -- "$_rrt_guest" "$@"
             ;;
     esac
+    unset _rt_a32 _rt_i686 _rt_eng
 }
 
 # Execute `<hl_bin>` wrapping `<lrt_bin>` for `<repo>` with `<engine>` on `<guest_bin> [args...]`.
@@ -104,33 +104,27 @@ rt_run_bounded_hl() {
         _rrh_a32=1
         _rrh_i686=1
     fi
+    # Shared environment block via _rt_env_run (plus HL_EXACT_CLOCK=1); only
+    # the hl/lrt engine CLI flags vary by repo.
+    _rt_a32="$_rrh_a32"
+    _rt_i686="$_rrh_i686"
+    _rt_eng="$_rrh_eng"
     case "$_rrh_repo" in
         i686rt|sparc32rt)
-            HL_EXACT_CLOCK=1 A32_INTERP="$_rrh_a32" I686_NO_JIT="$_rrh_i686" \
-            I686RT_ENGINE="$_rrh_eng" RVRT_ENGINE="$_rrh_eng" MIPS32RT_ENGINE="$_rrh_eng" \
-            PPC32RT_ENGINE="$_rrh_eng" SPARC32RT_ENGINE="$_rrh_eng" LOONGARCH64RT_ENGINE="$_rrh_eng" \
-            PPC64RT_ENGINE="$_rrh_eng" MIPS64RT_ENGINE="$_rrh_eng" SPARC64RT_ENGINE="$_rrh_eng" \
-            run_bounded "$_rrh_secs" "$_rrh_hl" \
+            HL_EXACT_CLOCK=1 _rt_env_run "$_rrh_secs" "$_rrh_hl" \
                 "$_rrh_lrt" --engine "$_rrh_eng" -- "$_rrh_guest" "$@"
             ;;
         rvrt)
-            HL_EXACT_CLOCK=1 A32_INTERP="$_rrh_a32" I686_NO_JIT="$_rrh_i686" \
-            I686RT_ENGINE="$_rrh_eng" RVRT_ENGINE="$_rrh_eng" MIPS32RT_ENGINE="$_rrh_eng" \
-            PPC32RT_ENGINE="$_rrh_eng" SPARC32RT_ENGINE="$_rrh_eng" LOONGARCH64RT_ENGINE="$_rrh_eng" \
-            PPC64RT_ENGINE="$_rrh_eng" MIPS64RT_ENGINE="$_rrh_eng" SPARC64RT_ENGINE="$_rrh_eng" \
-            run_bounded "$_rrh_secs" "$_rrh_hl" \
+            HL_EXACT_CLOCK=1 _rt_env_run "$_rrh_secs" "$_rrh_hl" \
                 --rvrt-native \
                 "$_rrh_lrt" "--$_rrh_eng" -- "$_rrh_guest" "$@"
             ;;
         *)
-            HL_EXACT_CLOCK=1 A32_INTERP="$_rrh_a32" I686_NO_JIT="$_rrh_i686" \
-            I686RT_ENGINE="$_rrh_eng" RVRT_ENGINE="$_rrh_eng" MIPS32RT_ENGINE="$_rrh_eng" \
-            PPC32RT_ENGINE="$_rrh_eng" SPARC32RT_ENGINE="$_rrh_eng" LOONGARCH64RT_ENGINE="$_rrh_eng" \
-            PPC64RT_ENGINE="$_rrh_eng" MIPS64RT_ENGINE="$_rrh_eng" SPARC64RT_ENGINE="$_rrh_eng" \
-            run_bounded "$_rrh_secs" "$_rrh_hl" \
+            HL_EXACT_CLOCK=1 _rt_env_run "$_rrh_secs" "$_rrh_hl" \
                 "$_rrh_lrt" "--$_rrh_eng" -- "$_rrh_guest" "$@"
             ;;
     esac
+    unset _rt_a32 _rt_i686 _rt_eng
 }
 
 # Shared benchmark record validation: exactly one valid PASS record per

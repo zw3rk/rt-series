@@ -116,6 +116,23 @@ grind_skip() {
     echo "SKIP [$CURRENT_ARCH/$1]: $2"
 }
 
+# grind_has_compiler <cc-string>: true when <cc-string> names an installed
+# compiler (only the first word — the command — is probed, so multi-word
+# "compiler + ABI flags" strings like GRIND_CC work).
+grind_has_compiler() {
+    [ -n "${1:-}" ] && command -v "${1%% *}" >/dev/null 2>&1
+}
+
+# grind_run_compiler <cc-string> [args...]: compile with a bounded timeout.
+# The compiler string undergoes intentional word-splitting so embedded ABI
+# flags ("sparc64-linux-gnu-gcc -m32 -mcpu=v8") work seamlessly.
+grind_run_compiler() {
+    _grc_cc="$1"
+    shift
+    # shellcheck disable=SC2086
+    timeout --kill-after=30s 120s $_grc_cc "$@"
+}
+
 want_suite() {
     if [ "$SUITE_FILTER" = "all" ]; then return 0; fi
     if [ "$SUITE_FILTER" = "$1" ]; then return 0; fi
@@ -242,7 +259,15 @@ resolve_arch_defaults() {
             i686rt)        GRIND_CC="i686-linux-gnu-gcc" ;;
             mips32rt)      GRIND_CC="mipsel-linux-gnu-gcc" ;;
             ppc32rt)       GRIND_CC="powerpc-linux-gnu-gcc" ;;
-            sparc32rt)     GRIND_CC="sparc-linux-gnu-gcc" ;;
+            sparc32rt)
+                if command -v sparc64-linux-gnu-gcc >/dev/null 2>&1; then
+                    GRIND_CC="sparc64-linux-gnu-gcc -m32 -mcpu=v8"
+                elif command -v sparc-linux-gnu-gcc >/dev/null 2>&1; then
+                    GRIND_CC="sparc-linux-gnu-gcc"
+                else
+                    GRIND_CC="sparc64-linux-gnu-gcc -m32 -mcpu=v8"
+                fi
+                ;;
             rvrt)          GRIND_CC="riscv64-linux-gnu-gcc" ;;
             loongarch64rt) GRIND_CC="loongarch64-linux-gnu-gcc" ;;
             ppc64rt)       GRIND_CC="powerpc64le-linux-gnu-gcc" ;;
@@ -251,7 +276,7 @@ resolve_arch_defaults() {
         esac
     fi
     if [ -z "$GRIND_CXX" ] && [ -n "$GRIND_CC" ]; then
-        GRIND_CXX="$(printf '%s' "$GRIND_CC" | sed 's/gcc$/g++/')"
+        GRIND_CXX="$(printf '%s' "$GRIND_CC" | sed -e 's/-gcc /-g++ /' -e 's/-gcc$/-g++/' -e 's/^gcc /g++ /' -e 's/^gcc$/g++/')"
     fi
 }
 
@@ -400,7 +425,7 @@ run_gcc_torture_suite() {
         return 0
     fi
     _cc="${GRIND_CC:-}"
-    if [ -z "$_cc" ] || ! command -v "$_cc" >/dev/null 2>&1; then
+    if ! grind_has_compiler "$_cc"; then
         grind_skip "gcc-torture" "compiler '$_cc' for $CURRENT_ARCH not on PATH"
         return 0
     fi
@@ -422,7 +447,7 @@ run_gcc_torture_suite() {
         _base="$(basename "$src" .c)"
         for opt in O0 O2; do
             _bin="/tmp/grind_torture_${CURRENT_ARCH}_${_base}_${opt}_$$"
-            if timeout --kill-after=30s 120s "$_cc" -ffp-contract=off "-$opt" "$src" -o "$_bin" -lm >/dev/null 2>&1; then :; else _cc_rc=$?
+            if grind_run_compiler "$_cc" -ffp-contract=off "-$opt" "$src" -o "$_bin" -lm >/dev/null 2>&1; then :; else _cc_rc=$?
                 rm -f "$_bin"
                 if [ "$_cc_rc" -eq 124 ] || [ "$_cc_rc" -eq 137 ]; then grind_fail "gcc-torture" "$_base -$opt compilation timed out"; else grind_skip "gcc-torture" "$_base -$opt did not compile (target-specific, skipped)"; fi
                 continue
@@ -479,59 +504,66 @@ run_gcc_torture_suite() {
 # requires this middle program: generator SoftFloat expectations must
 # never be fed to the verifier directly, since that tests SoftFloat
 # against itself instead of the translated guest FP instructions. Uses
-# the caller's $_ver/$_op/$_rm/$_vec globals and the per-engine
-# /tmp/grind_testfloat log; the runner result file must hold a positive
-# verified case count or the engine fails.
+# the caller's $_ver/$_op/$_rm/$_vec globals and a per-engine
+# /tmp/grind_testfloat_<label> log; the runner result file must hold a
+# positive verified case count or the engine fails. The runner exit status
+# and captured stdout are preserved for the shared dual-engine comparison
+# in run_testfloat_suite (no second execution of $TESTFLOAT_RUNNER).
 run_testfloat_one_engine() {
     _tfo_label="$1"
     _tfo_wrap="$2"
     _tfo_res="/tmp/grind_testfloat_res_${CURRENT_ARCH}_${_tfo_label}_$$"
+    _tfo_keep="/tmp/grind_testfloat_kept_${CURRENT_ARCH}_${_tfo_label}_$$"
+    _tfo_rcfile="/tmp/grind_testfloat_rc_${CURRENT_ARCH}_${_tfo_label}_$$"
+    _tfo_log="/tmp/grind_testfloat_${_tfo_label}_$$.log"
+    rm -f "$_tfo_res" "$_tfo_keep" "$_tfo_rcfile" "$_tfo_log"
     if [ ! -s "$_vec" ]; then
         grind_fail "$_tfo_label" "empty generator vectors for '$_op'"
         return 0
     fi
     if [ -n "$_tfo_wrap" ]; then
-        if grind_run_guest 600 "$_tfo_wrap" "$TESTFLOAT_RUNNER" <"$_vec" >"$_tfo_res" 2>/tmp/grind_testfloat_$$.log; then
+        if grind_run_guest 600 "$_tfo_wrap" "$TESTFLOAT_RUNNER" <"$_vec" >"$_tfo_res" 2>"$_tfo_log"; then
             _tfo_rc=0
         else
             _tfo_rc=$?
         fi
     else
-        if timeout --kill-after=30s 600s "$TESTFLOAT_RUNNER" <"$_vec" >"$_tfo_res" 2>/tmp/grind_testfloat_$$.log; then
+        if timeout --kill-after=30s 600s "$TESTFLOAT_RUNNER" <"$_vec" >"$_tfo_res" 2>"$_tfo_log"; then
             _tfo_rc=0
         else
             _tfo_rc=$?
         fi
     fi
+    # Preserve the runner exit status and captured stdout for the shared
+    # dual-engine comparison below; run_testfloat_suite cleans them up.
+    printf '%s' "$_tfo_rc" > "$_tfo_rcfile"
+    cp "$_tfo_res" "$_tfo_keep" 2>/dev/null || true
     if [ "$_tfo_rc" -ne 0 ]; then
-        grind_fail "$_tfo_label" "guest runner exited non-zero (rc=$_tfo_rc, see /tmp/grind_testfloat_$$.log)"
-        rm -f "$_tfo_res"
+        grind_fail "$_tfo_label" "guest runner exited non-zero (rc=$_tfo_rc, see $_tfo_log)"
         return 0
     fi
     _tfo_cases="$(wc -l <"$_tfo_res" 2>/dev/null | tr -d '[:space:]')"
     case "$_tfo_cases" in
         '' | *[!0-9]* | 0)
             grind_fail "$_tfo_label" "runner produced no result cases for '$_op' (positive verified case count required)"
-            rm -f "$_tfo_res"
             return 0
             ;;
     esac
-    if timeout --kill-after=30s 600s "$_ver" "-r${_rm}" "$_op" <"$_tfo_res" >>/tmp/grind_testfloat_$$.log 2>&1; then
+    if timeout --kill-after=30s 600s "$_ver" "${TESTFLOAT_CHECK_FLAGS:--checkAll}" "-r${_rm}" "$_op" <"$_tfo_res" >>"$_tfo_log" 2>&1; then
         _tfo_rc=0
     else
         _tfo_rc=$?
     fi
-    rm -f "$_tfo_res"
     if [ "$_tfo_rc" -eq 0 ]; then
         # Clean verifier line is "In N tests, no errors found in ...":
         # require it, and keep it from matching the failure grep.
-        if grep -qi 'no errors found' /tmp/grind_testfloat_$$.log && ! grep -Eqi '(^|[^o] )errors? found|fail|mismatch' /tmp/grind_testfloat_$$.log; then
+        if grep -qi 'no errors found' "$_tfo_log" && ! grep -Eqi '(^|[^o] )errors? found|fail|mismatch' "$_tfo_log"; then
             grind_pass "$_tfo_label" "'$_op' ($_rm): $_tfo_cases cases verified clean"
         else
-            grind_fail "$_tfo_label" "verifier reported failures (see /tmp/grind_testfloat_$$.log)"
+            grind_fail "$_tfo_label" "verifier reported failures (see $_tfo_log)"
         fi
     else
-        grind_fail "$_tfo_label" "verifier exited non-zero (rc=$_tfo_rc, see /tmp/grind_testfloat_$$.log)"
+        grind_fail "$_tfo_label" "verifier exited non-zero (rc=$_tfo_rc, see $_tfo_log)"
     fi
 }
 
@@ -618,35 +650,40 @@ run_testfloat_suite() {
             grind_skip "testfloat-dbt" "GRIND_DBT not configured for $CURRENT_ARCH ($BACKEND); single-engine run"
         fi
     fi
+    # Dual-engine cross-check reuses the saved runner exit statuses and
+    # captured stdout from the testfloat-interp / testfloat-dbt runs above
+    # (no second execution of $TESTFLOAT_RUNNER per engine).
     if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
-        if grind_run_guest 600 "$GRIND_INTERP" "$TESTFLOAT_RUNNER" <"$_vec" >/tmp/grind_testfloat_cmp_i_$$ 2>/dev/null; then
-            _tfc_i=0
+        _tfc_i_rcf="/tmp/grind_testfloat_rc_${CURRENT_ARCH}_testfloat-interp_$$"
+        _tfc_d_rcf="/tmp/grind_testfloat_rc_${CURRENT_ARCH}_testfloat-dbt_$$"
+        _tfc_i_keep="/tmp/grind_testfloat_kept_${CURRENT_ARCH}_testfloat-interp_$$"
+        _tfc_d_keep="/tmp/grind_testfloat_kept_${CURRENT_ARCH}_testfloat-dbt_$$"
+        if [ -f "$_tfc_i_rcf" ] && [ -f "$_tfc_d_rcf" ] && [ -f "$_tfc_i_keep" ] && [ -f "$_tfc_d_keep" ]; then
+            _tfc_i="$(cat "$_tfc_i_rcf")"
+            _tfc_d="$(cat "$_tfc_d_rcf")"
+            if [ "$_tfc_i" != "$_tfc_d" ]; then
+                grind_fail "testfloat" "interp exit=$_tfc_i vs dbt exit=$_tfc_d on shared vectors"
+            elif [ "$_tfc_i" != "0" ]; then
+                grind_fail "testfloat" "runner exit=$_tfc_i on shared vectors (both engines agree)"
+            elif ! cmp -s "$_tfc_i_keep" "$_tfc_d_keep"; then
+                grind_fail "testfloat" "interp vs dbt runner output mismatch on shared vectors"
+            else
+                grind_pass "testfloat" "interp-vs-dbt runner outputs match on shared vectors"
+            fi
         else
-            _tfc_i=$?
+            grind_skip "testfloat" "interp-vs-dbt runner comparison skipped (an engine produced no saved output)"
         fi
-        if grind_run_guest 600 "$GRIND_DBT" "$TESTFLOAT_RUNNER" <"$_vec" >/tmp/grind_testfloat_cmp_d_$$ 2>/dev/null; then
-            _tfc_d=0
-        else
-            _tfc_d=$?
-        fi
-        if [ "$_tfc_i" -ne "$_tfc_d" ]; then
-            grind_fail "testfloat" "interp exit=$_tfc_i vs dbt exit=$_tfc_d on shared vectors"
-        elif [ "$_tfc_i" -ne 0 ]; then
-            grind_fail "testfloat" "runner exit=$_tfc_i on shared vectors (both engines agree)"
-        elif ! cmp -s /tmp/grind_testfloat_cmp_i_$$ /tmp/grind_testfloat_cmp_d_$$; then
-            grind_fail "testfloat" "interp vs dbt runner output mismatch on shared vectors"
-        else
-            grind_pass "testfloat" "interp-vs-dbt runner outputs match on shared vectors"
-        fi
-        rm -f /tmp/grind_testfloat_cmp_i_$$ /tmp/grind_testfloat_cmp_d_$$
     fi
+    for _tfo_l in testfloat testfloat-interp testfloat-dbt; do
+        rm -f "/tmp/grind_testfloat_res_${CURRENT_ARCH}_${_tfo_l}_$$" "/tmp/grind_testfloat_kept_${CURRENT_ARCH}_${_tfo_l}_$$" "/tmp/grind_testfloat_rc_${CURRENT_ARCH}_${_tfo_l}_$$" "/tmp/grind_testfloat_${_tfo_l}_$$.log"
+    done
     rm -f "$_vec" /tmp/grind_testfloat_$$.log
 }
 
 run_builtins_suite() {
     echo "== Grind [$CURRENT_ARCH]: compiler-rt builtin ABI helpers =="
     _cc="${GRIND_CC:-}"
-    if [ -z "$_cc" ] || ! command -v "$_cc" >/dev/null 2>&1; then
+    if ! grind_has_compiler "$_cc"; then
         grind_skip "compiler-rt" "compiler '$_cc' for $CURRENT_ARCH not on PATH"
         return 0
     fi
@@ -675,8 +712,7 @@ int main(void) {
         int32_t ov = 0;
         /* __mulosi4 returns the wrapped product; overflow flag via pointer. */
         int32_t prod = __mulosi4(1000000, 1000000, &ov);
-        if (ov != 1) fails++;
-        (void)prod;
+        if (ov != 1 || prod != (int32_t)0xD4A51000u) fails++;
         ov = 0;
         prod = __mulosi4(100, 200, &ov);
         if (ov != 0 || prod != 20000) fails++;
@@ -686,7 +722,7 @@ int main(void) {
     return 0;
 }
 EOF
-    if timeout --kill-after=30s 120s "$_cc" -std=c11 -O1 "$_src" -o "$_bin" -lm >/dev/null 2>&1; then :; else _br_cc_rc=$?
+    if grind_run_compiler "$_cc" -std=c11 -O1 "$_src" -o "$_bin" -lm >/dev/null 2>&1; then :; else _br_cc_rc=$?
         rm -f "$_src" "$_bin"
         if [ "$_br_cc_rc" -eq 124 ] || [ "$_br_cc_rc" -eq 137 ]; then grind_fail "compiler-rt" "builtin probe compilation timed out with $_cc"; else grind_skip "compiler-rt" "builtin probe did not compile with $_cc"; fi
         return 0
@@ -780,11 +816,15 @@ run_libc_ltp_suite() {
                 if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
                     if grind_run_guest 300 "$GRIND_INTERP" "$_b" >/tmp/grind_libc_i_$$ 2>&1; then _lci=0; else _lci=$?; fi
                     if grind_run_guest 300 "$GRIND_DBT" "$_b" >/tmp/grind_libc_d_$$ 2>&1; then _lcd=0; else _lcd=$?; fi
-                    rm -f /tmp/grind_libc_i_$$ /tmp/grind_libc_d_$$
                     if [ "$_lci" -ne "$_lcd" ]; then grind_fail "libc-ltp" "libc-test $_t interp exit=$_lci vs dbt exit=$_lcd";
                     elif [ "$_lci" -ne 0 ]; then grind_fail "libc-ltp" "libc-test $_t exit=$_lci (both engines agree)";
-                    else grind_pass "libc-ltp" "libc-test $_t (interp-vs-dbt exit match)"; fi
-                elif grind_run_guest 300 "$_wrap" "$_b" >/tmp/grind_libc_$$.log 2>&1; then grind_pass "libc-ltp" "libc-test $_t"; else grind_fail "libc-ltp" "libc-test $_t exit!=0"; fi
+                    elif ! cmp -s /tmp/grind_libc_i_$$ /tmp/grind_libc_d_$$; then grind_fail "libc-ltp" "libc-test $_t interp vs dbt output mismatch";
+                    elif [ ! -s /tmp/grind_libc_i_$$ ]; then grind_fail "libc-ltp" "libc-test $_t empty output";
+                    else grind_pass "libc-ltp" "libc-test $_t (interp-vs-dbt output match)"; fi
+                    rm -f /tmp/grind_libc_i_$$ /tmp/grind_libc_d_$$
+                elif grind_run_guest 300 "$_wrap" "$_b" >/tmp/grind_libc_$$.log 2>&1; then
+                    if [ -s /tmp/grind_libc_$$.log ]; then grind_pass "libc-ltp" "libc-test $_t"; else grind_fail "libc-ltp" "libc-test $_t empty output"; fi
+                else grind_fail "libc-ltp" "libc-test $_t exit!=0"; fi
             else
                 grind_skip "libc-ltp" "libc-test $_t not built"
             fi
@@ -798,14 +838,33 @@ run_libc_ltp_suite() {
         export LTPROOT="$LTP_DIR"; TMPDIR="${TMPDIR:-/tmp}"; export TMPDIR
         _ln=0
         if [ -n "${LTP_MANIFEST:-}" ] && [ -f "$LTP_MANIFEST" ]; then
-            while IFS= read -r _lb || [ -n "$_lb" ]; do case "$_lb" in ""|"#"*) continue ;; *.sh) continue ;; esac; [ -x "$_lb" ] || continue; _ln=$((_ln+1)); if [ "$_ln" -gt 50 ]; then break; fi; if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then if grind_run_guest 120 "$GRIND_INTERP" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then _li=0; else _li=$?; fi; if grind_run_guest 120 "$GRIND_DBT" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then _ld=0; else _ld=$?; fi; if [ "$_li" -ne "$_ld" ]; then grind_fail "ltp" "$(basename "$_lb") interp exit=$_li vs dbt exit=$_ld"; elif [ "$_li" -ne 0 ]; then grind_fail "ltp" "$(basename "$_lb") exit=$_li (both engines agree)"; else grind_pass "ltp" "$(basename "$_lb") (interp-vs-dbt exit match)"; fi; elif grind_run_guest 120 "$_wrap" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then grind_pass "ltp" "$(basename "$_lb")"; else grind_fail "ltp" "$(basename "$_lb") exit!=0"; fi; done < "$LTP_MANIFEST"
+            while IFS= read -r _lb || [ -n "$_lb" ]; do case "$_lb" in ""|"#"*) continue ;; *.sh) continue ;; esac; [ -x "$_lb" ] || continue; _ln=$((_ln+1)); if [ "$_ln" -gt 50 ]; then break; fi; run_ltp_one_binary "$_lb" "$_wrap"; done < "$LTP_MANIFEST"
         else
-            for _lb in "$LTP_DIR/testcases/bin"/* "$LTP_DIR/bin"/* "$LTP_DIR/testcases/kernel/syscalls"/*/*; do case "$_lb" in *.sh) continue ;; esac; [ -f "$_lb" ] && [ -x "$_lb" ] || continue; _ln=$((_ln+1)); if [ "$_ln" -gt 50 ]; then break; fi; if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then if grind_run_guest 120 "$GRIND_INTERP" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then _li=0; else _li=$?; fi; if grind_run_guest 120 "$GRIND_DBT" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then _ld=0; else _ld=$?; fi; if [ "$_li" -ne "$_ld" ]; then grind_fail "ltp" "$(basename "$_lb") interp exit=$_li vs dbt exit=$_ld"; elif [ "$_li" -ne 0 ]; then grind_fail "ltp" "$(basename "$_lb") exit=$_li (both engines agree)"; else grind_pass "ltp" "$(basename "$_lb") (interp-vs-dbt exit match)"; fi; elif grind_run_guest 120 "$_wrap" "$_lb" >/tmp/grind_ltp_$$.log 2>&1; then grind_pass "ltp" "$(basename "$_lb")"; else grind_fail "ltp" "$(basename "$_lb") exit!=0"; fi; done
+            for _lb in "$LTP_DIR/testcases/bin"/* "$LTP_DIR/bin"/* "$LTP_DIR/testcases/kernel/syscalls"/*/*; do case "$_lb" in *.sh) continue ;; esac; [ -f "$_lb" ] && [ -x "$_lb" ] || continue; _ln=$((_ln+1)); if [ "$_ln" -gt 50 ]; then break; fi; run_ltp_one_binary "$_lb" "$_wrap"; done
         fi
         rm -f /tmp/grind_ltp_$$.log
         if [ "$_ln" -eq 0 ]; then grind_fail "ltp" "LTP_DIR=$LTP_DIR yielded 0 binaries (check LTP install or LTP_MANIFEST)"; fi
     else
         grind_skip "ltp" "LTP_DIR unset (point at LTP install for syscall binaries)"
+    fi
+}
+
+# Run one LTP syscall binary under both engines (dual-engine exit match)
+# or the single configured wrapper, sharing one /tmp/grind_ltp log.
+run_ltp_one_binary() {
+    _lob_bin="$1"
+    _lob_wrap="$2"
+    if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
+        if grind_run_guest 120 "$GRIND_INTERP" "$_lob_bin" >/tmp/grind_ltp_$$.log 2>&1; then _li=0; else _li=$?; fi
+        if grind_run_guest 120 "$GRIND_DBT" "$_lob_bin" >/tmp/grind_ltp_$$.log 2>&1; then _ld=0; else _ld=$?; fi
+        if [ "$_li" -ne "$_ld" ]; then grind_fail "ltp" "$(basename "$_lob_bin") interp exit=$_li vs dbt exit=$_ld"
+        elif [ "$_li" -ne 0 ]; then grind_fail "ltp" "$(basename "$_lob_bin") exit=$_li (both engines agree)"
+        else grind_pass "ltp" "$(basename "$_lob_bin") (interp-vs-dbt exit match)"
+        fi
+    elif grind_run_guest 120 "$_lob_wrap" "$_lob_bin" >/tmp/grind_ltp_$$.log 2>&1; then
+        grind_pass "ltp" "$(basename "$_lob_bin")"
+    else
+        grind_fail "ltp" "$(basename "$_lob_bin") exit!=0"
     fi
 }
 
@@ -892,12 +951,12 @@ run_lmbench_suite() {
     if [ "$_bins" = "PATH" ]; then _b="bw_mmap"; else _b="$_bins/bw_mmap"; fi
     if { [ "$_bins" = "PATH" ] && command -v bw_mmap >/dev/null 2>&1; } || [ -x "$_b" ]; then
         if [ "$CURRENT_ARCH" != "host" ] && [ -n "${GRIND_INTERP:-}" ] && [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_INTERP}" != "${GRIND_DBT}" ]; then
-            if grind_run_guest 180 "$GRIND_INTERP" "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
+            if grind_run_guest 180 "$GRIND_INTERP" "$_b" 512m rdwr >/tmp/grind_lm_bw_i_$$ 2>&1; then
                 _lmi=0
             else
                 _lmi=$?
             fi
-            if grind_run_guest 180 "$GRIND_DBT" "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
+            if grind_run_guest 180 "$GRIND_DBT" "$_b" 512m rdwr >/tmp/grind_lm_bw_d_$$ 2>&1; then
                 _lmd=0
             else
                 _lmd=$?
@@ -906,51 +965,110 @@ run_lmbench_suite() {
                 grind_fail "lmbench" "bw_mmap interp exit=$_lmi vs dbt exit=$_lmd"
             elif [ "$_lmi" -ne 0 ]; then
                 grind_fail "lmbench" "bw_mmap exited non-zero or timed out (both engines agree)"
+            elif [ ! -s /tmp/grind_lm_bw_i_$$ ] || [ ! -s /tmp/grind_lm_bw_d_$$ ]; then
+                grind_fail "lmbench" "bw_mmap empty output"
             else
                 grind_pass "lmbench" "bw_mmap completed (interp-vs-dbt exit match)"
             fi
         elif grind_run_guest 180 "$_wrap" "$_b" 512m rdwr >/tmp/grind_lm_bw_$$.log 2>&1; then
-            grind_pass "lmbench" "bw_mmap completed"
+            if [ -s /tmp/grind_lm_bw_$$.log ]; then
+                grind_pass "lmbench" "bw_mmap completed"
+            else
+                grind_fail "lmbench" "bw_mmap empty output"
+            fi
         else
             grind_fail "lmbench" "bw_mmap exited non-zero or timed out"
         fi
     else
         grind_skip "lmbench" "bw_mmap not built"
     fi
-    rm -f /tmp/grind_lm_$$.log /tmp/grind_lm_bw_$$.log
+    rm -f /tmp/grind_lm_$$.log /tmp/grind_lm_bw_$$.log /tmp/grind_lm_bw_i_$$ /tmp/grind_lm_bw_d_$$
 }
 
-# Run a compiled differential binary across reference oracle (GRIND_QEMU or
-# GRIND_INTERP) and DBT (GRIND_DBT) and verify identical output.
+# Run a compiled differential binary against an independent reference oracle
+# (GRIND_QEMU) and every configured translator engine, verifying identical
+# output. Unlike run_gcc_torture (which skips without GRIND_QEMU unless
+# GRIND_ALLOW_NO_ORACLE=1), this gate must never silently treat GRIND_INTERP
+# as an independent oracle: without GRIND_QEMU it requires an explicit
+# GRIND_ALLOW_NO_ORACLE=1 opt-in and compares interp-vs-dbt only.
 run_differential_binary() {
     _rdb_suite="$1"
     _rdb_label="$2"
     _rdb_bin="$3"
-    _rdb_ref_wrap="${GRIND_QEMU:-${GRIND_INTERP:-}}"
-    _rdb_dbt_wrap="${GRIND_DBT:-}"
-    if [ -z "$_rdb_ref_wrap" ] || [ -z "$_rdb_dbt_wrap" ] || [ "$_rdb_ref_wrap" = "$_rdb_dbt_wrap" ]; then
-        grind_skip "$_rdb_suite" "differential soak requires distinct reference (GRIND_QEMU/GRIND_INTERP) and GRIND_DBT wrappers for $CURRENT_ARCH"
+    if [ "$CURRENT_ARCH" != "host" ] && [ -z "${GRIND_QEMU:-}" ] && [ "${GRIND_ALLOW_NO_ORACLE:-0}" != "1" ]; then
+        grind_skip "$_rdb_suite" "GRIND_QEMU oracle missing for $CURRENT_ARCH (GAP without independent oracle; set GRIND_ALLOW_NO_ORACLE=1 for interp-vs-dbt only)"
+        return 0
+    fi
+    if [ -n "${GRIND_QEMU:-}" ]; then
+        _rdb_engines=""
+        if [ -n "${GRIND_INTERP:-}" ] && [ "${GRIND_INTERP}" != "$GRIND_QEMU" ]; then
+            _rdb_engines="INTERP"
+        fi
+        if [ -n "${GRIND_DBT:-}" ] && [ "${GRIND_DBT}" != "$GRIND_QEMU" ]; then
+            _rdb_engines="${_rdb_engines:+$_rdb_engines }DBT"
+        fi
+        if [ -z "$_rdb_engines" ]; then
+            grind_skip "$_rdb_suite" "differential soak requires a translator engine (GRIND_INTERP/GRIND_DBT) distinct from GRIND_QEMU for $CURRENT_ARCH"
+            return 0
+        fi
+        _rdb_ref_out="/tmp/grind_diff_ref_$$.out"
+        if ! grind_run_guest 60 "$GRIND_QEMU" "$_rdb_bin" >"$_rdb_ref_out" 2>&1; then
+            grind_fail "$_rdb_suite" "$_rdb_label reference (GRIND_QEMU) wrapper exited non-zero"
+            rm -f "$_rdb_ref_out"
+            return 1
+        fi
+        _rdb_fail=0
+        # shellcheck disable=SC2086
+        for _rdb_eng in $_rdb_engines; do
+            case "$_rdb_eng" in
+                INTERP) _rdb_wrap="$GRIND_INTERP" ;;
+                DBT)    _rdb_wrap="$GRIND_DBT" ;;
+            esac
+            _rdb_dbt_out="/tmp/grind_diff_dbt_$$.out"
+            if ! grind_run_guest 60 "$_rdb_wrap" "$_rdb_bin" >"$_rdb_dbt_out" 2>&1; then
+                grind_fail "$_rdb_suite" "$_rdb_label $_rdb_eng wrapper exited non-zero"
+                _rdb_fail=1
+            elif ! cmp -s "$_rdb_ref_out" "$_rdb_dbt_out"; then
+                grind_fail "$_rdb_suite" "$_rdb_label $_rdb_eng vs GRIND_QEMU output mismatch"
+                _rdb_fail=1
+            fi
+            rm -f "$_rdb_dbt_out"
+        done
+        rm -f "$_rdb_ref_out"
+        if [ "$_rdb_fail" -ne 0 ]; then
+            return 1
+        fi
+        grind_pass "$_rdb_suite" "$_rdb_label QEMU-oracle differential OK"
+        return 0
+    fi
+    # No QEMU oracle with GRIND_ALLOW_NO_ORACLE=1: interp-vs-dbt only.
+    if [ -z "${GRIND_QEMU:-}" ] && [ "${GRIND_ALLOW_NO_ORACLE:-0}" != "1" ]; then
+        grind_skip "$_rdb_suite" "GRIND_QEMU oracle missing for $CURRENT_ARCH (GAP without independent oracle; set GRIND_ALLOW_NO_ORACLE=1 for interp-vs-dbt only)"
+        return 0
+    fi
+    if [ -z "${GRIND_INTERP:-}" ] || [ -z "${GRIND_DBT:-}" ] || [ "${GRIND_INTERP}" = "${GRIND_DBT}" ]; then
+        grind_skip "$_rdb_suite" "differential soak requires distinct GRIND_INTERP and GRIND_DBT wrappers for $CURRENT_ARCH (no external oracle)"
         return 0
     fi
     _rdb_ref_out="/tmp/grind_diff_ref_$$.out"
     _rdb_dbt_out="/tmp/grind_diff_dbt_$$.out"
-    if ! grind_run_guest 60 "$_rdb_ref_wrap" "$_rdb_bin" >"$_rdb_ref_out" 2>&1; then
-        grind_fail "$_rdb_suite" "$_rdb_label reference wrapper exited non-zero"
+    if ! grind_run_guest 60 "$GRIND_INTERP" "$_rdb_bin" >"$_rdb_ref_out" 2>&1; then
+        grind_fail "$_rdb_suite" "$_rdb_label interp wrapper exited non-zero"
         rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
         return 1
     fi
-    if ! grind_run_guest 60 "$_rdb_dbt_wrap" "$_rdb_bin" >"$_rdb_dbt_out" 2>&1; then
-        grind_fail "$_rdb_suite" "$_rdb_label DBT wrapper exited non-zero"
+    if ! grind_run_guest 60 "$GRIND_DBT" "$_rdb_bin" >"$_rdb_dbt_out" 2>&1; then
+        grind_fail "$_rdb_suite" "$_rdb_label dbt wrapper exited non-zero"
         rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
         return 1
     fi
     if ! cmp -s "$_rdb_ref_out" "$_rdb_dbt_out"; then
-        grind_fail "$_rdb_suite" "$_rdb_label reference vs DBT output mismatch"
+        grind_fail "$_rdb_suite" "$_rdb_label interp vs dbt output mismatch"
         rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
         return 1
     fi
     rm -f "$_rdb_ref_out" "$_rdb_dbt_out"
-    grind_pass "$_rdb_suite" "$_rdb_label reference-vs-DBT differential OK"
+    grind_pass "$_rdb_suite" "$_rdb_label interp-vs-dbt differential OK (no external oracle)"
     return 0
 }
 
@@ -992,7 +1110,7 @@ run_weekly_soak() {
     _cc="${GRIND_CC:-}"
     _cxx="${GRIND_CXX:-}"
     if want_suite csmith; then
-    if command -v csmith >/dev/null 2>&1 && [ -n "$_cc" ] && command -v "$_cc" >/dev/null 2>&1; then
+    if command -v csmith >/dev/null 2>&1 && grind_has_compiler "$_cc"; then
         _cinc="${CSMITH_INCLUDE:-/usr/include/csmith}"
         if [ ! -f "$_cinc/csmith.h" ]; then
             grind_skip "csmith" "csmith.h not found in '$_cinc'"
@@ -1002,7 +1120,7 @@ run_weekly_soak() {
             if timeout --kill-after=30s 60s csmith --seed "${CSMITH_SEED:-1}" > "$_csrc" 2>/dev/null; then _cs_gen_rc=0; else _cs_gen_rc=$?; fi
             if [ "$_cs_gen_rc" -eq 124 ] || [ "$_cs_gen_rc" -eq 137 ]; then grind_fail "csmith" "seed=${CSMITH_SEED:-1} generation timed out"; rm -f "$_csrc" "$_cbin"
             elif [ "$_cs_gen_rc" -ne 0 ]; then grind_fail "csmith" "seed=${CSMITH_SEED:-1} generation failed with csmith"; rm -f "$_csrc" "$_cbin"
-            elif timeout --kill-after=30s 120s "$_cc" -ffp-contract=off -O1 -I"$_cinc" "$_csrc" -o "$_cbin" -lm >/dev/null 2>&1; then run_differential_binary "csmith" "seed=${CSMITH_SEED:-1}" "$_cbin" || true; rm -f "$_csrc" "$_cbin"
+            elif grind_run_compiler "$_cc" -ffp-contract=off -O1 -I"$_cinc" "$_csrc" -o "$_cbin" -lm >/dev/null 2>&1; then run_differential_binary "csmith" "seed=${CSMITH_SEED:-1}" "$_cbin" || true; rm -f "$_csrc" "$_cbin"
             else _cs_cc_rc=$?; rm -f "$_csrc" "$_cbin"
                 if [ "$_cs_cc_rc" -eq 124 ] || [ "$_cs_cc_rc" -eq 137 ]; then grind_fail "csmith" "seed=${CSMITH_SEED:-1} compilation timed out with $_cc"; else grind_fail "csmith" "seed=${CSMITH_SEED:-1} compilation failed with $_cc"; fi
             fi
@@ -1029,11 +1147,11 @@ run_weekly_soak() {
                 if [ -f "$_yf" ]; then _ycpp_files="${_ycpp_files:+$_ycpp_files }$_yf"; fi
             done
             if [ -n "$_yc_files" ]; then
-                if [ -z "$_cc" ] || ! command -v "$_cc" >/dev/null 2>&1; then
+                if ! grind_has_compiler "$_cc"; then
                     grind_skip "yarpgen" "C compiler '$_cc' for $CURRENT_ARCH not on PATH"
                 else
                     # shellcheck disable=SC2086
-                    if timeout --kill-after=30s 120s "$_cc" -ffp-contract=off -O1 $_yc_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
+                    if grind_run_compiler "$_cc" -ffp-contract=off -O1 $_yc_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
                         run_differential_binary "yarpgen" "seed=${YARPGEN_SEED:-1}" "$_ydir/yarp_bin" || true
                     else
                         _yg_cc_rc=$?
@@ -1045,11 +1163,11 @@ run_weekly_soak() {
                     fi
                 fi
             elif [ -n "$_ycpp_files" ]; then
-                if [ -z "$_cxx" ] || ! command -v "$_cxx" >/dev/null 2>&1; then
+                if ! grind_has_compiler "$_cxx"; then
                     grind_skip "yarpgen" "C++ compiler '$_cxx' for $CURRENT_ARCH not on PATH"
                 else
                     # shellcheck disable=SC2086
-                    if timeout --kill-after=30s 120s "$_cxx" -ffp-contract=off -O1 $_ycpp_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
+                    if grind_run_compiler "$_cxx" -ffp-contract=off -O1 $_ycpp_files -o "$_ydir/yarp_bin" -lm >/dev/null 2>&1; then
                         run_differential_binary "yarpgen" "seed=${YARPGEN_SEED:-1}" "$_ydir/yarp_bin" || true
                     else
                         _yg_cxx_rc=$?

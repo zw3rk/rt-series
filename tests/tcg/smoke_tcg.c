@@ -27,6 +27,7 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 
+#include <math.h>
 #include <pthread.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -493,8 +494,27 @@ static void t_float_convs(void)
         /* NaN and infinity payloads must not trap the conversion path. */
         volatile double nan_v = 0.0 / 0.0;
         volatile double inf_v = 1.0 / 0.0;
-        (void)nan_v;
-        (void)inf_v;
+        volatile double ninf_v = -1.0 / 0.0;
+        volatile float nan_f = (float)nan_v;
+        volatile float inf_f = (float)inf_v;
+        volatile float ninf_f = (float)ninf_v;
+        volatile double nan_back = (double)nan_f;
+        volatile double inf_back = (double)inf_f;
+        volatile long nan_l = (long)nan_v;
+        volatile long inf_l = (long)inf_v;
+        volatile long ninf_l = (long)ninf_v;
+        (void)nan_l;
+        (void)inf_l;
+        (void)ninf_l;
+        if (!isnan(nan_f) || !isnan(nan_back)) {
+            tcg_fail("float_convs", "NaN payload lost in conversion");
+            return;
+        }
+        if (!isinf(inf_f) || !isinf(inf_back) || !isinf(ninf_f) ||
+            inf_f < 0.0f || ninf_f > 0.0f) {
+            tcg_fail("float_convs", "infinity payload or sign lost in conversion");
+            return;
+        }
     }
     {
         float f = 0.1f;
@@ -502,8 +522,10 @@ static void t_float_convs(void)
         for (int i = 0; i < 1000; i++) {
             d += (double)f;
         }
-        /* 0.1f * 1000 in double accumulation: known golden interval. */
-        if (!(d > 99.9 && d < 100.1)) {
+        /* 0.1f is 13421773 * 2^-27; every partial sum k * 13421773 * 2^-27
+         * for k = 1..1000 fits in 34 significant bits, so each is exact in
+         * binary64: the accumulated value is exactly 0x1.90000064p+6. */
+        if (fabs(d - 0x1.90000064p+6) > 1e-12) {
             tcg_fail("float_convs", "float accumulation out of range");
             return;
         }
