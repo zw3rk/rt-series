@@ -16,7 +16,7 @@ To achieve high-assurance convergence across all 11 repositories simultaneously 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Phase A: Static Hunting (11 Concurrent Read-Only Lanes)                     │
 │   Model: gpt-6-astra (codex exec -m gpt-6-astra --sandbox read-only)        │
-│   Output: lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md              │
+│   Output: lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-astra.md              │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
                                        ▼
@@ -41,7 +41,7 @@ To achieve high-assurance convergence across all 11 repositories simultaneously 
 │ Phase D: Independent Post-Remediation Verification (11 Concurrent Lanes)    │
 │   Model: claude-fable-5-1 (fallback: claude-opus-5-5 when unavailable)      │
 │   Input: Exact remediation commit(s) + original astra report + DEFECTS.md   │
-│   Output: lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-fable.md              │
+│   Output: lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-fable.md              │
 │           (Per-item verdict: VERIFIED | PARTIAL | REGRESSION)               │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
@@ -132,9 +132,9 @@ for attempt in 1 2 3; do
   cd /Users/angerman/Projects/zw3rk/<repo> && \
   timeout --kill-after=30s 900s codex exec -m gpt-6-astra --sandbox read-only \
     "<Subsystem Deep-Dive Prompt>" \
-    < /dev/null > /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md
-  if [ -s /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md ] && \
-     [ $(wc -l < /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md) -gt 5 ]; then
+    < /dev/null > /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-astra.md
+  if [ -s /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-astra.md ] && \
+     [ $(wc -l < /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-astra.md) -gt 5 ]; then
     exit 0
   fi
   sleep 15
@@ -150,9 +150,9 @@ exit 1
 
 ### Phase B: Cross-Runtime Clustering & `DEFECTS.md` Aggregation
 
-1. Read all 11 `lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md` reports.
+1. Read all 11 `lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-astra.md` reports.
 2. Group related defects into **Cross-Runtime Defect Clusters (`X-R<N>-1..K`)** at the top of `DEFECTS.md`. Whenever `astra` finds a subtle bug in one translator (e.g., big-endian `FUTEX_WAKE_OP` bitfields, `F_SETFL` flag clobbering, `s_cache_lock` missing from `pthread_atfork`, or `statx` timestamp signedness), link the sibling translators so `muse` checks whether the same bug exists in the sibling codebases.
-3. Archive the completed prior round into `Part II` of `DEFECTS.md` and commit `DEFECTS.md` + `lode/reviews/YYYY-MM-DD-defects-r<N>-*-astra.md` on `rt-series` `master`.
+3. Archive the completed prior round into `docs/archive/defects/` and commit `docs/DEFECTS.md` + `lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-*-astra.md` on `rt-series` `master`.
 
 ---
 
@@ -163,7 +163,7 @@ Launch `muse exec --yolo --parallel-tool-calls` across all repositories that hav
 ```sh
 cd /Users/angerman/Projects/zw3rk/<repo> && \
 timeout --kill-after=30s 1200s muse exec --yolo --parallel-tool-calls \
-  'Remediate all Round-<N> findings (<PREFIX>-R<N>-1..M) for <repo> documented in /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md and /Users/angerman/Projects/zw3rk/rt-series/DEFECTS.md.
+  'Remediate all Round-<N> findings (<PREFIX>-R<N>-1..M) for <repo> documented in /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-astra.md and /Users/angerman/Projects/zw3rk/rt-series/docs/DEFECTS.md.
    Rules:
    1. Make the smallest possible surgical diffs that fix each concrete behavioral defect without perturbing unrelated code or lock hierarchies.
    2. Enforce Curated C11 (-std=c11 -Werror=vla -pedantic -Wall -Wextra -Werror), zero .c unity includes, and <= 900 lines per .c/.h/.S file (make check-line-limits).
@@ -181,9 +181,9 @@ Once `muse exec` commits on `<repo>` `master`, run `claude-fable-5-1` (with auto
 ```sh
 cd /Users/angerman/Projects/zw3rk/<repo> && \
 timeout --kill-after=30s 900s sh -c '
-PROMPT="Review the latest Round-<N> remediation commit HEAD in /Users/angerman/Projects/zw3rk/<repo> against /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-astra.md and /Users/angerman/Projects/zw3rk/rt-series/DEFECTS.md.
+PROMPT="Review the latest Round-<N> remediation commit HEAD in /Users/angerman/Projects/zw3rk/<repo> against /Users/angerman/Projects/zw3rk/rt-series/lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-astra.md and /Users/angerman/Projects/zw3rk/rt-series/docs/DEFECTS.md.
 Classify each item as VERIFIED, PARTIAL, or REGRESSION, and check whether the surgical diff introduced any second-order edge cases (e.g. fork lock ordering, sign-extension, line limits, or unguarded fault paths). Output a concise markdown report."
-OUT="/Users/angerman/Projects/zw3rk/rt-series/lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-fable.md"
+OUT="/Users/angerman/Projects/zw3rk/rt-series/lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-fable.md"
 claude -p --model claude-fable-5-1 --effort high --permission-mode bypassPermissions "$PROMPT" < /dev/null > "$OUT" 2>&1 || true
 if grep -qi "reached your Fable limit" "$OUT" || [ "$(wc -l < "$OUT")" -lt 10 ]; then
   claude -p --model claude-opus-5-5 --effort high --permission-mode bypassPermissions "$PROMPT" < /dev/null > "$OUT"
@@ -195,10 +195,10 @@ fi
 
 ### Phase E: Post-`fable` Surgical Follow-Up & Round Closeout
 
-1. Read every `lode/reviews/YYYY-MM-DD-defects-r<N>-<repo>-fable.md` report.
+1. Read every `lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-<repo>-fable.md` report.
 2. For any repository where `fable` marked an item `PARTIAL` or `REGRESSION` (or identified a second-order hazard introduced by the fix), run a focused `muse exec` follow-up commit (`<repo>: Round-<N> post-fable follow-up (...)`) and re-verify `make check-line-limits && make test`.
 3. Confirm all 11 repositories are clean (`git status --porcelain` is empty) and pass `make check-line-limits`.
-4. Mark all Round-`<N>` checkboxes (`- [x]`) in `DEFECTS.md` and commit `DEFECTS.md` + `lode/reviews/YYYY-MM-DD-defects-r<N>-*-fable.md` on `rt-series` `master`.
+4. Mark all Round-`<N>` checkboxes (`- [x]`) in the round ledger (`docs/DEFECTS.md` / `docs/archive/defects/`) and commit with `lode/reviews/convergence/YYYY-MM-DD-defects-r<N>-*-fable.md` on `rt-series` `master`.
 
 ---
 

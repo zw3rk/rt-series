@@ -14,57 +14,32 @@ REQUIRED_DOCS := \
 	AGENTS.md \
 	CLAUDE.md \
 	LICENSE \
-	SPEC.md \
-	PLAN.md \
-	GOAL.md \
+	include/a32host.h \
+	docs/ARCHITECTURE.md \
+	docs/DEFECTS.md \
 	docs/FEATURE-MATRIX.md \
 	docs/HOST-CONTRACT.md \
 	docs/SOFTWARE-CATALOGUE.md \
-	docs/CATALOGUE-TODO.md \
-	docs/UNIFICATION-PLAN.md \
-	docs/PERF-PLAN.md \
-	docs/PERF-PLAN-P13.md \
-	docs/CLEAN-DRY-YAGNI-PLAN.md \
-	docs/lanes/wave-c1-catalogue.md \
+	docs/CONVERGENCE-AUDIT-PROCESS.md \
 	docs/bench/results-darwin5-full.tsv \
-	docs/lanes/wave-1-closeout.md \
-	docs/lanes/wave-2-rv32gc.md \
-	docs/lanes/wave-3-rt32-family.md \
-	docs/lanes/wave-4-rt64-family.md \
-	docs/lanes/wave-u-unification.md \
-	docs/lanes/wave-p-perf.md \
+	docs/archive/plans/SPEC.md \
+	docs/archive/plans/PLAN.md \
+	docs/archive/plans/UNIFICATION-PLAN.md \
+	docs/archive/plans/PERF-PLAN.md \
+	docs/archive/plans/PERF-PLAN-P13.md \
+	docs/archive/defects/rounds-01-12.md \
+	docs/archive/defects/rounds-13-18.md \
 	lode/README.md \
-	lode/STATE-OF-PLAY-2026-10-23.md \
 	lode/ISA-TRAP-AND-ABI-MATRIX.md \
-	lode/reviews/2026-10-23-astra-review-1.md \
-	lode/reviews/2026-10-23-astra-review-1-dispositions.md \
-	lode/reviews/2026-10-23-astra-review-2.md \
-	lode/reviews/2026-10-23-astra-review-2-dispositions.md \
-	lode/reviews/2026-10-26-astra-unification-review.md \
-	lode/reviews/2026-10-26-astra-unification-review-dispositions.md \
-	lode/reviews/2026-10-26-astra-unification-review-2.md \
-	lode/reviews/2026-10-26-astra-unification-review-2-dispositions.md \
-	lode/reviews/2026-10-26-astra-xhigh-unification-review-3.md \
-	lode/reviews/2026-10-26-fable-unification-review.md \
-	lode/reviews/2026-10-26-astra-xhigh-and-fable-dispositions.md \
-	lode/reviews/2026-10-28-perf-plan-astra.md \
-	lode/reviews/2026-10-28-perf-plan-fable.md \
-	lode/reviews/2026-10-29-perf-plan-p13-astra.md \
-	lode/reviews/2026-10-29-perf-plan-p13-fable.md \
-	lode/reviews/2026-10-28-clean-dry-yagni-a32-i686-ppc32-astra.md \
-	lode/reviews/2026-10-28-clean-dry-yagni-mips32-sparc32-rvrt-astra.md \
-	lode/reviews/2026-10-28-clean-dry-yagni-la64-ppc64-astra.md \
-	lode/reviews/2026-10-28-clean-dry-yagni-mips64-sparc64-series-astra.md \
-	lode/reviews/2026-10-28-clean-dry-yagni-dbt-subsystem-astra.md \
-	lode/reviews/2026-10-28-clean-dry-yagni-os-backends-astra.md \
-	lode/reviews/2026-10-28-clean-dry-yagni-vm-softtlb-astra.md \
-	lode/reviews/2026-10-28-clean-dry-yagni-interp-build-astra.md \
+	lode/STATE-OF-PLAY-2026-10-23.md \
 	tests/check_abi_invariants.c \
 	tests/bench_sys.h \
 	tests/bench_suite.c \
 	tools/bench_harness.sh \
 	tools/remote_bench_common.sh \
-	tools/run_catalogue.sh
+	tools/run_catalogue.sh \
+	tools/run_grind.sh \
+	tools/grind_suites.sh
 
 SIBLING_REPOS := \
 	../a32rt \
@@ -163,13 +138,14 @@ catalogue-grind-weekly: ## Run Tier W weekly soak (Tier N + Csmith/Yarpgen + ups
 check-catalogue: ## Syntax-check catalogue runners, verify wrappers, line limits, and uniform guests
 	sh -n tools/run_catalogue.sh
 	sh -n tools/run_grind.sh
+	sh -n tools/grind_suites.sh
 	sh -n tools/build_uniform_guests.sh
 	sh -n tools/parity_contract.sh
 	sh -n tools/remote_bench_common.sh
 	sh -n tools/remote_bench.sh
 	sh -n tools/remote_linux_inner.sh
 	bash -n tools/bench_harness.sh
-	@for f in include/*.h tests/*.c tests/*.h tests/tcg/*.c; do \
+	@for f in include/*.h tests/*.c tests/*.h tests/tcg/*.c tools/*.sh; do \
 		lines=$$(wc -l < "$$f" | tr -d ' '); \
 		if [ "$$lines" -gt 900 ]; then \
 			echo "FAIL: $$f exceeds 900 lines ($$lines)" >&2; \

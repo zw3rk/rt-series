@@ -1,9 +1,9 @@
 # `rt-series` Unified Host Contract (`A32H_ABI 1.0/1.1` & `HL_MEMORY_POLICY_RVRT`)
 
-Status: Specification v1.1 (2026-10-23; distinguishes implemented v1.0 baseline from Wave 1 v1.1 migrations)  
+Status: Implemented contract (documents the `--execfn` / `--image-fd` / `AT_EXECFD` invocation contract, `Provider A` / `Provider B` copy-on-write, and the standalone `backend_darwin.c` target)  
 Owner: Moritz Angermann <moritz@zw3rk.com>, zw3rk pte. ltd.  
 Shared header: [`include/a32host.h`](../include/a32host.h)  
-Companion references: [`../a32rt/docs/HOST-CONTRACT.md`](../../a32rt/docs/HOST-CONTRACT.md), [`../rvrt/docs/HOST-CONTRACT.md`](../../rvrt/docs/HOST-CONTRACT.md)
+Companion references: [`a32rt` host contract](https://github.com/zw3rk/a32rt/blob/master/docs/HOST-CONTRACT.md), [`rvrt` host contract](https://github.com/zw3rk/rvrt/blob/master/docs/HOST-CONTRACT.md)
 
 ---
 
@@ -33,7 +33,7 @@ No `rt-series` translator may `#include` headers from `hyper-linux` or link agai
 *(Note: Apple `RosettaLinux` handles `ELFCLASS64` `EM_X86_64` via `hl`'s dedicated TTBR1 `kbuf` + high-VA alias path and is never routed through `rt-series` translators.)*
 
 ### 2.1 Three-Layer Page-Size Contract (`4 KiB` Guest ABI vs `16 KiB` Darwin Backing vs `64 KiB` ELF Alignment)
-1. **Guest ABI Page Size (`AT_PAGESZ = 4096`, except `sparc64rt` with `AT_PAGESZ = 8192`)**: Every Class-A and Class-B translator except `sparc64rt` reports `AT_PAGESZ = 4096` (4 KiB) in the guest auxiliary vector; `sparc64rt` (Class-B SPARC V9, per `SPEC.md` D11) reports `AT_PAGESZ = 8192` (8 KiB) with 8 KiB guest `mmap`/`mprotect`/`munmap` alignment and paired 4 KiB Soft-TLB entries. Syscall-specific alignment, validation, and rounding rules match Linux (`rvrt/src/linux/memory.c:212`):
+1. **Guest ABI Page Size (`AT_PAGESZ = 4096`, except `sparc64rt` with `AT_PAGESZ = 8192`)**: Every Class-A and Class-B translator except `sparc64rt` reports `AT_PAGESZ = 4096` (4 KiB) in the guest auxiliary vector; `sparc64rt` (Class-B SPARC V9, per [ARCHITECTURE.md](ARCHITECTURE.md) D11) reports `AT_PAGESZ = 8192` (8 KiB) with 8 KiB guest `mmap`/`mprotect`/`munmap` alignment and paired 4 KiB Soft-TLB entries. Syscall-specific alignment, validation, and rounding rules match Linux (`rvrt/src/linux/memory.c:212`):
    - `mmap` / `mmap2`: non-zero `addr` with `MAP_FIXED` / `MAP_FIXED_NOREPLACE` and `addr % 4096 != 0` returns **`-EINVAL`**; `offset % 4096 != 0` returns **`-EINVAL`**; `len == 0` returns **`-EINVAL`**; positive `len` rounds up to a 4 KiB page multiple for the mapped VMA extent.
    - `mprotect` / `munmap`: `addr % 4096 != 0` returns **`-EINVAL`**; `munmap` with `len == 0` returns **`-EINVAL`** while `mprotect` with `len == 0` succeeds as a no-op; positive `len` rounds up to 4 KiB.
    - `mremap`: `old_address % 4096 != 0` (or `new_address % 4096 != 0` under `MREMAP_FIXED`) returns **`-EINVAL`**; `new_size == 0` returns **`-EINVAL`**; `old_size` and `new_size` round up to 4 KiB.
@@ -50,32 +50,29 @@ No `rt-series` translator may `#include` headers from `hyper-linux` or link agai
 
 ## 3. CLI, `argv`, & Descriptor Invocation Contract
 
-### 3.1 Implemented Baseline vs. Coordinated Wave 1 Protocol
-Currently in the sibling repositories:
-- **Class B (`rvrt`)** uses:
-  ```text
-  rvrt-linux-aarch64 [OPTIONS] -- <TARGET_PATH> <GUEST_ARGV0> [<GUEST_ARGS>...]
-  ```
-  where `<TARGET_PATH>` is the executable path (or `--image-fd FD` supplies the open descriptor and `--execfn PATH` overrides `AT_EXECFN`), and `<GUEST_ARGV0>` is the guest's `argv[0]`.
-- **Class A (`a32rt`, `i686rt`) and `hyper-linux` (`src/a32.c:323`, `src/i686.c`)** currently emit:
-  ```text
-  <rt> [OPTIONS] -- <GUEST_ARGV0> [<GUEST_ARGS>...]
-  ```
-  without a separate `<TARGET_PATH>` token after `--`! Under `hyper-linux`, `hl` passes the target file via `AT_EXECFD` in the translator's `auxv` (or `<GUEST_ARGV0>` is opened when `AT_EXECFD` is absent).
+### 3.1 Descriptor & `argv` Invocation Contract
 
-**Coordinated Wave 1 Rules (Fixing `a32rt` D18 and `i686rt` D23 — Consumers Land Before Producer)**:
-1. **Consumer-First Migration Order**: Because current `a32rt/src/main.c:123` and `i686rt/src/main.c:77` reject unknown CLI options, **consumer CLI parser updates (`L-A32-2` in `a32rt/src/main.c` and `L-I686-3` in `i686rt/src/main.c`) MUST land before `hyper-linux` (`L-HL-1` in `src/a32.c`, `src/i686.c`) begins emitting `--execfn`**!
-   - When `--execfn <PATH>` is provided, `exec_path = <PATH>` and every token after `--` (`argv[i..]`) is passed verbatim as `guest_argv[0..]` (preserving custom `argv[0]` even for zero additional args).
-   - When `--execfn` is NOT provided, `argv[i]` after `--` serves as both `exec_path` and `guest_argv[0]` (preserving backward compatibility with `<rt> -- ./binary arg1`).
-2. **Valid `AT_EXECFD == 0` Detection & Descriptor Hygiene**:
-   - Because file descriptor `0` is a valid open descriptor when stdin was closed before `execve`, runtimes MUST detect `AT_EXECFD` presence via:
-     ```c
-     errno = 0;
-     unsigned long aux_execfd = getauxval(AT_EXECFD);
-     int exec_fd = (errno == 0) ? (int)aux_execfd : -1;
-     ```
-     (or by scanning the raw `auxv` array on stack entry for an `AT_EXECFD` key), and NEVER treat `getauxval(AT_EXECFD) == 0` as "absent" without checking `errno` / `auxv` key presence!
-   - Both `a32rt` (`L-A32-2`) and `i686rt` (`L-I686-3`) must consume `exec_fd` (or `--image-fd FD`) to load the main ELF image and `close(exec_fd)` after mapping segments. Closing the loader-private `exec_fd` leaves `0, 1, 2` **and any ordinary caller-inherited file descriptors (`>= 3`)** untouched for the guest.
+Every translator implements the same invocation contract:
+
+```text
+<rt> [OPTIONS] --execfn <PATH> --image-fd <FD> -- <GUEST_ARGV0> [<GUEST_ARGS>...]
+```
+
+- When `--execfn <PATH>` is provided, `exec_path = <PATH>` and every token after `--` (`argv[i..]`) is passed verbatim as `guest_argv[0..]` (preserving custom `argv[0]` even for zero additional args).
+- When `--execfn` is NOT provided, `argv[i]` after `--` serves as both `exec_path` and `guest_argv[0]` (so `<rt> -- ./binary arg1` keeps working).
+- When `--image-fd <FD>` (or `AT_EXECFD` in the auxiliary vector) supplies an open descriptor for the guest main ELF image, the translator loads the image from that descriptor and `close`s it after mapping segments. Under `hyper-linux`, `hl` passes the target file via `AT_EXECFD` in the translator's `auxv`.
+
+**Valid `AT_EXECFD == 0` detection & descriptor hygiene.** Because file descriptor `0` is a valid open descriptor when stdin was closed before `execve`, runtimes detect `AT_EXECFD` presence via:
+
+```c
+errno = 0;
+unsigned long aux_execfd = getauxval(AT_EXECFD);
+int exec_fd = (errno == 0) ? (int)aux_execfd : -1;
+```
+
+(or by scanning the raw `auxv` array on stack entry for an `AT_EXECFD` key), and never treat `getauxval(AT_EXECFD) == 0` as "absent" without checking `errno` / `auxv` key presence. Closing the loader-private `exec_fd` leaves `0, 1, 2` **and any ordinary caller-inherited file descriptors (`>= 3`)** untouched for the guest.
+
+The contract holds identically on all three targets: standalone Linux (`backend_linux.c` + `Provider A` in-place COW), `hyper-linux` (`backend_linux.c` + `Provider B` Stage-1 COW), and standalone macOS (`backend_darwin.c` + `Provider A` over the Soft-TLB).
 
 ### 3.2 Standard CLI Flags and Environment Variables
 Each translator uses its upper-case prefix `<RT>` (without a trailing underscore: `A32RT`, `I686RT`, `RVRT`, `MIPS32RT`, `PPC32RT`, `SPARC32RT`, `LOONGARCH64RT`, `PPC64RT`, `MIPS64RT`, `SPARC64RT`):
@@ -134,14 +131,14 @@ All Class-A 32-bit translators vendor [`include/a32host.h`](../include/a32host.h
 
 ## 5. Class-B Host Contract (`HL_MEMORY_POLICY_RVRT` & `rvrt` Substrate)
 
-All Class-B translators (`rvrt` for RV64GC & RV32GC, `loongarch64rt`, `ppc64rt`, `mips64rt`, `sparc64rt`) adhere to the complete contract defined in [`../rvrt/docs/HOST-CONTRACT.md`](../../rvrt/docs/HOST-CONTRACT.md):
+All Class-B translators (`rvrt` for RV64GC & RV32GC, `loongarch64rt`, `ppc64rt`, `mips64rt`, `sparc64rt`) adhere to the complete contract defined in the [`rvrt` host contract](https://github.com/zw3rk/rvrt/blob/master/docs/HOST-CONTRACT.md):
 
 1. **Three Separate Authority Policies (Never Conflated)**:
    - **`--cache-authority=auto|hyper-linux-apfs-acl-v1`**: Controls persistent AOT cache admission. `auto` certifies local Linux `ext4`/`tmpfs` ACL absence only and declines APFS; `hyper-linux-apfs-acl-v1` requires the qualified `hyper-linux` APFS ACL xattr facade (`system.posix_acl_access` synthesis). It does **not** authorize `RLIMIT_FSIZE=0` family backing!
    - **`--file-identity=auto|hyper-linux-apfs-v1`**: Controls read-only file-backed futex identity (`st_dev`/`st_ino` stability). `auto` accepts verified Linux `tmpfs`; `hyper-linux-apfs-v1` is required on `hyper-linux` APFS.
    - **`--family-authority=auto|hyper-linux-apfs-acl-v1`**: Controls bounded hard-zero (`RLIMIT_FSIZE=0`) SysV/inode-locator family backing (`make test-family-authority-cli-hl`). Separate from `--cache-authority`.
 2. **Descriptor Ownership, Validated Images, & Internal `--resume-v7`**:
-   - Per [`../rvrt/docs/HOST-CONTRACT.md:338`](../../rvrt/docs/HOST-CONTRACT.md) and `rvrt/src/runtime/initial_image.c:36`, `--image-fd FD` may be **any nonnegative file descriptor (`FD >= 0`, including descriptor `0` when stdin is closed)** referencing a regular ELF file, provided `FD != runtime_fd`. The `>= 3` restriction applies strictly to the borrowed **`runtime_fd`** (`runtime_fd < 3` is rejected), and ELF loading uses position-independent `pread()` so it does not depend on the descriptor's current file offset. `rv_initial_image_prepare` consumes `owned_image_fd` except when `fd == runtime_fd`, which returns `EINVAL` without closing the borrowed `runtime_fd`.
+   - Per the [`rvrt` host contract](https://github.com/zw3rk/rvrt/blob/master/docs/HOST-CONTRACT.md) and `rvrt/src/runtime/initial_image.c:36`, `--image-fd FD` may be **any nonnegative file descriptor (`FD >= 0`, including descriptor `0` when stdin is closed)** referencing a regular ELF file, provided `FD != runtime_fd`. The `>= 3` restriction applies strictly to the borrowed **`runtime_fd`** (`runtime_fd < 3` is rejected), and ELF loading uses position-independent `pread()` so it does not depend on the descriptor's current file offset. `rv_initial_image_prepare` consumes `owned_image_fd` except when `fd == runtime_fd`, which returns `EINVAL` without closing the borrowed `runtime_fd`.
    - Dynamic `PT_INTERP` loading pins both the main executable and interpreter descriptors and binds both file identities into dynamic AOT cache keys.
    - `--resume-v7` is a **private internal same-PID `execve` continuation vector**, NOT a public CLI option, and does not expose source-enabled family admission from the ordinary CLI.
 3. **Shared Arena & Runtime Identity**:

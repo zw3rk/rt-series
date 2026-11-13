@@ -1,7 +1,7 @@
 /*
  * tests/check_abi_invariants.c — Compile-time and runtime verification of frozen
  * ABI structures, offsets, signal frames, context layouts, and HWCAP masks in
- * `rt-series` (SPEC.md, docs/HOST-CONTRACT.md, docs/lanes/).
+ * `rt-series` (docs/ARCHITECTURE.md, docs/HOST-CONTRACT.md).
  *
  * Copyright 2026 Moritz Angermann <moritz@zw3rk.com>, zw3rk pte. ltd.
  * SPDX-License-Identifier: Apache-2.0

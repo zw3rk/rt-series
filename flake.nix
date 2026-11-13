@@ -83,6 +83,52 @@
             mips64rt      = mips64rt.packages.${system}.mips64rt;
             sparc64rt     = sparc64rt.packages.${system}.sparc64rt;
           };
+          mkDarwinTranslator = name: src: makeTarget: binRel:
+            pkgs.clangStdenv.mkDerivation {
+              pname = "${name}-darwin";
+              version = "0.1.0";
+              inherit src;
+              nativeBuildInputs = [ pkgs.gnumake pkgs.coreutils ];
+              dontConfigure = true;
+              buildPhase = "make ${makeTarget}";
+              installPhase = ''
+                mkdir -p $out/bin
+                install -m0755 ${binRel} $out/bin/${name}-darwin
+                ln -sf ${name}-darwin "$out/bin/${name}-darwin-arm64"
+              '';
+            };
+          darwinTranslators =
+            if system == "aarch64-darwin" then
+              let
+                darwinPkgs = {
+                  a32rt-darwin         = mkDarwinTranslator "a32rt" a32rt "build-darwin" "_build/a32rt-darwin";
+                  i686rt-darwin        = mkDarwinTranslator "i686rt" i686rt "_build/i686rt-darwin" "_build/i686rt-darwin";
+                  mips32rt-darwin      = mkDarwinTranslator "mips32rt" mips32rt "build-darwin" "_build/mips32rt-darwin";
+                  ppc32rt-darwin       = mkDarwinTranslator "ppc32rt" ppc32rt "build-darwin" "_build/ppc32rt-darwin";
+                  sparc32rt-darwin     = mkDarwinTranslator "sparc32rt" sparc32rt "build-darwin" "_build/sparc32rt-darwin";
+                  rvrt-darwin          = mkDarwinTranslator "rvrt" rvrt "-j8 HOST_LIBTOOL=${pkgs.darwin.cctools}/bin/libtool _build/rvrt-darwin-arm64" "_build/rvrt-darwin-arm64";
+                  loongarch64rt-darwin = mkDarwinTranslator "loongarch64rt" loongarch64rt "DARWIN_CC=clang build-darwin" "_build/loongarch64rt-darwin-arm64";
+                  ppc64rt-darwin       = mkDarwinTranslator "ppc64rt" ppc64rt "_build/ppc64rt-darwin" "_build/ppc64rt-darwin";
+                  mips64rt-darwin      = mkDarwinTranslator "mips64rt" mips64rt "_build/mips64rt-darwin" "_build/mips64rt-darwin";
+                  sparc64rt-darwin     = mkDarwinTranslator "sparc64rt" sparc64rt "DARWIN_TARGET=arm64-apple-darwin build-darwin" "_build/sparc64rt-darwin-arm64";
+                };
+                all-translators-darwin = pkgs.symlinkJoin {
+                  name = "rt-series-all-translators-darwin-0.1.0";
+                  paths = [
+                    darwinPkgs.a32rt-darwin
+                    darwinPkgs.i686rt-darwin
+                    darwinPkgs.mips32rt-darwin
+                    darwinPkgs.ppc32rt-darwin
+                    darwinPkgs.sparc32rt-darwin
+                    darwinPkgs.rvrt-darwin
+                    darwinPkgs.loongarch64rt-darwin
+                    darwinPkgs.ppc64rt-darwin
+                    darwinPkgs.mips64rt-darwin
+                    darwinPkgs.sparc64rt-darwin
+                  ];
+                };
+              in darwinPkgs // { inherit all-translators-darwin; }
+            else { };
           all-translators = pkgs.symlinkJoin {
             name = "rt-series-all-translators-0.1.0";
             paths = [
@@ -96,9 +142,11 @@
               translators.ppc64rt
               translators.mips64rt
               translators.sparc64rt
+            ] ++ nixpkgs.lib.optionals (system == "aarch64-darwin") [
+              darwinTranslators.all-translators-darwin
             ];
           };
-        in translators // {
+        in translators // darwinTranslators // {
           inherit all-translators;
           default = all-translators;
         }
@@ -133,13 +181,12 @@
             clang -std=c11 -Wall -Wextra -Werror=vla -pedantic -I${self}/include \
               -o ./check_abi_invariants ${self}/tests/check_abi_invariants.c
             ./check_abi_invariants
-            for f in README.md AGENTS.md CLAUDE.md LICENSE SPEC.md PLAN.md GOAL.md DEFECTS.md \
-                     docs/HOST-CONTRACT.md docs/UNIFICATION-PLAN.md docs/FEATURE-MATRIX.md \
-                     docs/CONVERGENCE-AUDIT-PROCESS.md \
-                     docs/lanes/wave-1-closeout.md docs/lanes/wave-2-rv32gc.md \
-                     docs/lanes/wave-3-rt32-family.md docs/lanes/wave-4-rt64-family.md \
-                     lode/README.md lode/STATE-OF-PLAY-2026-10-23.md lode/ISA-TRAP-AND-ABI-MATRIX.md \
-                     tests/check_abi_invariants.c; do
+            for f in README.md AGENTS.md CLAUDE.md LICENSE include/a32host.h tests/check_abi_invariants.c \
+                     docs/ARCHITECTURE.md docs/DEFECTS.md docs/HOST-CONTRACT.md docs/FEATURE-MATRIX.md \
+                     docs/SOFTWARE-CATALOGUE.md docs/CONVERGENCE-AUDIT-PROCESS.md \
+                     docs/archive/plans/SPEC.md docs/archive/plans/PLAN.md docs/archive/plans/UNIFICATION-PLAN.md \
+                     docs/archive/defects/rounds-01-12.md docs/archive/defects/rounds-13-18.md \
+                     lode/README.md lode/ISA-TRAP-AND-ABI-MATRIX.md; do
               test -s "${self}/$f"
             done
             mkdir -p "$out"

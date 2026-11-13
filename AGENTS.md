@@ -10,16 +10,16 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
 
 | Document | Role |
 |---|---|
-| [`README.md`](README.md) | Series overview: existing vs. missing guest runtimes, width/address-space classes, example CPUs, and business objectives. |
-| [`SPEC.md`](SPEC.md) | Master technical specification covering all existing runtimes (`a32rt`, `i686rt`, `rvrt`, `hyper-linux` integration) and all missing/unqualified runtimes (`rv32gc`, `mips32rt`, `ppc32rt`, `sparc32rt`, `loongarch64rt`, `ppc64rt`, `mips64rt`, `sparc64rt`). |
-| [`PLAN.md`](PLAN.md) | Master implementation plan tailored to **Muse Spark** (`Coordinator + Parallel Worker-Lane Worktree DAG`, phase gates, frozen headers, exclusive file ownership, single-command acceptance checks, and Wave 1–5 execution schedule). |
-| [`GOAL.md`](GOAL.md) | Executable `/goal` prompt for coordinator sessions executing the Unification & Dual-Backend Architecture Program (`docs/UNIFICATION-PLAN.md` Rev 4 + `docs/lanes/wave-u-unification.md`). |
-| [`docs/UNIFICATION-PLAN.md`](docs/UNIFICATION-PLAN.md) | Master 10-translator Unification & Dual-Backend Architecture Plan (Rev 4): uniform 5-module layout, 7-instruction Soft-TLB, in-place non-relocating COW, 6-step `tgkill` quiescence, `Provider A` & `Provider B` (`hyper-linux`), and dual `backend_linux.c` / `backend_darwin.c` targets. |
+| [`README.md`](README.md) | Series overview: 10 translators, 11 guest ISAs in 16 ABI variants, address-space classes, benchmarks, and documentation map. |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Technical architecture manual: address-space classes, uniform 5-module layout, 7-instruction Soft-TLB, in-place non-relocating COW, dual host backends, and cross-ISA design decisions. |
 | [`docs/HOST-CONTRACT.md`](docs/HOST-CONTRACT.md) | Unified host contract for Class-A 32-bit 4 GiB-window runtimes (`A32H_ABI 1.0/1.1`, `/dev/a32host`, `include/a32host.h`) and Class-B 64-bit full-address-space runtimes (`HL_MEMORY_POLICY_RVRT`, `hyper-linux-apfs-acl-v1`, `hl_translators[]` auto-dispatch). |
+| [`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md) | Cross-runtime feature, execution-engine, SIMD/FPU, syscall/signal/thread, and qualification matrix across all 10 translators. |
+| [`docs/SOFTWARE-CATALOGUE.md`](docs/SOFTWARE-CATALOGUE.md) | Real-world software qualification catalogue (`T1`–`T5`) and unified 4-target benchmark harness. |
 | [`docs/CONVERGENCE-AUDIT-PROCESS.md`](docs/CONVERGENCE-AUDIT-PROCESS.md) | Authoritative multi-agent convergence audit & remediation playbook (`gpt-6-astra` hunting $\rightarrow$ cross-runtime clustering $\rightarrow$ `muse exec` surgical remediation $\rightarrow$ `claude-fable-5-1` / fallback `claude-opus-5-5` verification), parabola oscillation model, step-size annealing, and 6-subsystem deep-dive schedule. |
-| [`DEFECTS.md`](DEFECTS.md) | Master cross-repository defect, Curated-C11, and subsystem deep-dive checklist across all 11 repositories (active round + archived rounds). |
-| [`docs/lanes/`](docs/lanes/) | Per-wave task cards (`wave-u-unification.md`, `wave-1-closeout.md`, `wave-2-rv32gc.md`, `wave-3-rt32-family.md`, `wave-4-rt64-family.md`). |
-| [`lode/`](lode/) | Engineering lode: cross-repo state-of-play audit (`lode/STATE-OF-PLAY-2026-10-23.md`), 11-architecture ISA/syscall/signal matrix (`lode/ISA-TRAP-AND-ABI-MATRIX.md`), and `astra` (`gpt-6-astra`) review transcripts (`lode/reviews/`). |
+| [`docs/DEFECTS.md`](docs/DEFECTS.md) | Defect ledger executive summary: Rounds 1–18 plus the Post-Round-12 Fast-Path Restoration Round, `0` open defects; full checklists in `docs/archive/defects/`. |
+| [`lode/ISA-TRAP-AND-ABI-MATRIX.md`](lode/ISA-TRAP-AND-ABI-MATRIX.md) | 11-architecture ISA, trap, and ABI reference matrix (ELF, endianness, registers, delay slots, TLS, atomics, syscalls, vDSO, signal frames). |
+| [`docs/archive/`](docs/archive/) | Historical campaign plans (`plans/`), per-wave task cards (`lanes/`), and archived defect rounds (`defects/`). |
+| [`lode/`](lode/) | Engineering lode: historical baseline snapshot (`lode/STATE-OF-PLAY-2026-10-23.md`), the ISA matrix above, and review transcripts (`lode/reviews/` in 4 organized subdirectories). |
 
 ---
 
@@ -32,7 +32,7 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
      - Negotiates host capabilities via `/dev/a32host` (`include/a32host.h`, `A32H_ABI 1.0/1.1`).
    - **Class B — 64-Bit Full Address Space (plus RV32GC in `rvrt`)**: `rvrt` (`EM_RISCV` RV64GC & RV32GC), `loongarch64rt` (`EM_LOONGARCH` LA64), `ppc64rt` (`EM_PPC64` `ppc64le` ELFv2), `mips64rt` (`EM_MIPS` N64/N32), and `sparc64rt` (`EM_SPARCV9` SPARC V9).
      - Strict separation of Guest VA (`uint64_t`), Translator VA, and Host GPA. Never truncate 64-bit guest addresses or force a 64-bit guest into a 4 GiB window.
-     - Reuses `rvrt`'s family coordination substrate (`.<rt>-family-<pid>-<seq>`, canonical `family_mm`, `family_shmem`, `family_file`, `rv_file_caps` SCM broker, deterministic FIFO turn scheduler, race-free `safe_syscall_a64.S`, and same-PID `execve` packed bootstrap).
+     - Shares the unified Class-B `vm64` substrate (`src/vm/vm64.c`, `Provider A` / `Provider B` in-place non-relocating COW, family shared-memory inode/EOF table, 6-step `tgkill` / `SIGUSR2` quiescence, race-free `safe_syscall`, and same-PID `execve` bootstrap).
      - Integrates with `hyper-linux` via `HL_MEMORY_POLICY_RVRT`, the 1 GiB disjoint shared arena (`rvrt_shared`), `hyper-linux-apfs-acl-v1` AOT cache authority, and the `hl_translators[]` dispatch table.
 2. **Language, Toolchain & Artifact Discipline**:
    - **Curated C11** (`-std=c11 -Werror=vla -pedantic -Wall -Wextra`) + minimal AArch64 assembly. No VLAs, no Annex K (`*_s`), no `<threads.h>`, no `_Generic`, no `sprintf`/`strcpy`/`strcat`.
@@ -49,7 +49,7 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
 ## 3. Muse Spark Workflow & Concurrency Rules
 
 1. **Coordinator + Worker-Lane Split**:
-   - The **Coordinator** owns `master`, the dependency DAG, frozen headers/interfaces, task cards (`docs/lanes/`), batch reviews, `--no-ff` or `--ff-only` merges, and phase-level Review Checkpoints (`RC`). The Coordinator does no repetitive table/handler/fixture grunt work.
+   - The **Coordinator** owns `master`, the dependency DAG, frozen headers/interfaces, task cards (`docs/archive/lanes/`), batch reviews, `--no-ff` or `--ff-only` merges, and phase-level Review Checkpoints (`RC`). The Coordinator does no repetitive table/handler/fixture grunt work.
    - **Worker Lanes** run in isolated git worktrees (`../<repo>-<lane>` on branch `lane/<phase>-<lane>` or `.muse/worktrees/subagent-v2-...`). Each lane has **exclusive file ownership**, codes against **frozen read-only headers**, and runs **one deterministic acceptance check** once.
 2. **Escalation Protocol**:
    - A worker lane stops and escalates to the Coordinator when: (1) its acceptance check fails twice, (2) it needs any edit to a frozen header or unowned file, or (3) the task card or spec is ambiguous.

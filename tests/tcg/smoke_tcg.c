@@ -2,7 +2,7 @@
  * tests/tcg/smoke_tcg.c — Curated QEMU tests/tcg/multiarch smoke.
  *
  * Minute-scale Tier M gate mirroring the multiarch cases that break
- * linux-user translators (docs/CATALOGUE-TODO.md section 3):
+ * linux-user translators (docs/SOFTWARE-CATALOGUE.md section 3):
  *   signals, segfault (si_signo/si_code/si_addr), prot-none, test-mmap
  *   (explicit guest page size so Darwin 16 KiB hosts exercise sub-page
  *   protection), munmap-pthread, testthread, float_convs, sha1.

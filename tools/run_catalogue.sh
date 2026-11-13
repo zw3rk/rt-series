@@ -1,7 +1,7 @@
 #!/bin/sh
 # tools/run_catalogue.sh — Multi-Architecture Tiered Software Qualification Runner
 #
-# Commands (execution budgets from docs/CATALOGUE-TODO.md):
+# Commands (execution budgets from docs/SOFTWARE-CATALOGUE.md; see docs/archive/plans/CATALOGUE-TODO.md):
 #   smoke          : Tier S (<2 min total). Per-repo parity_suite.sh or `make check`
 #                    with per-repo timeout (default 240s); fails when any
 #                    PARITY_SUMMARY reports skip>0 unless CATALOGUE_ALLOW_SKIP=1.
