@@ -11,11 +11,12 @@ engineering documentation.
 ## 1. Series Overview & Standalone Zero-Dependency Invariant
 
 `rt-series` is a family of 10 user-mode binary translators that run foreign
-Linux userspace on AArch64 hosts. Five translators cover 32-bit guests
-(`a32rt` for AArch32, `i686rt` for x86-32, `mips32rt`, `ppc32rt`, `sparc32rt`
-for SPARC V8) and five cover 64-bit guests (`rvrt` for RV64GC and RV32GC,
-`loongarch64rt`, `ppc64rt` for `ppc64le` ELFv2, `mips64rt` for N64/N32, and
-`sparc64rt` for SPARC V9).
+Linux userspace (and, in `a32rt`, 32-bit iOS `armv7`/`armv7s` Mach-O userspace)
+on AArch64 hosts. Five translators cover 32-bit guests (`a32rt` for AArch32
+Linux ELF32 and 32-bit iOS Mach-O, `i686rt` for x86-32, `mips32rt`, `ppc32rt`,
+`sparc32rt` for SPARC V8) and five cover 64-bit guests (`rvrt` for RV64GC and
+RV32GC, `loongarch64rt`, `ppc64rt` for `ppc64le` ELFv2, `mips64rt` for N64/N32,
+and `sparc64rt` for SPARC V9).
 
 Every translator repository is standalone and zero-dependency: it builds with
 only static `musl` libc plus the host system libraries, and it never imports a
@@ -94,7 +95,7 @@ Every repository uses the same five source modules:
 | `src/interp/` | Portable Curated-C11 reference interpreter, the correctness oracle |
 | `src/dbt/` | AArch64 DBT engine (`dbt.c`, `a64_emit.c`, block cache, chaining, IBTC, RAS), per-ISA emitters, `trampoline_a64.S`, `difftest.c` lockstep verifier, and `aot/` (persistent cache format plus relative `dbt_mem_site_t[]` tables) |
 | `src/vm/` | Guest address space and fault recovery (`vm32.c` for Class A, `vm64.c` for Class B, `vm_file.c` for file-backed COW) |
-| `src/os/` | Guest Linux ABI normalization (syscalls, signals, threads, `execve`, `/proc/self` synthesis) plus `backend_linux.c` and `backend_darwin.c` |
+| `src/os/` | Guest Linux ABI normalization (syscalls, signals, threads, `execve`, `/proc/self` synthesis) plus `backend_linux.c` and `backend_darwin.c` (and `src/ios/` in `a32rt` for 32-bit iOS `MH_MAGIC`/`FAT_MAGIC` Mach-O loading, `dyld` binding, `_COMM_PAGE`, and Darwin/XNU `svc #0x80` BSD/Mach/ARM traps) |
 
 All modules obey one source discipline:
 

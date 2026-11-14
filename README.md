@@ -1,12 +1,13 @@
 # rt-series
 
 `rt-series` is the `zw3rk` family of 10 standalone, zero-dependency user-mode
-binary translators that run foreign Linux userspace — 11 guest ISAs in 16 ABI
-variants — on AArch64 hosts: native `aarch64-linux`, standalone macOS on Apple
-Silicon, and Apple Silicon under `hyper-linux` (`hl`). Each translator pairs a
-portable interpreter with an AArch64 DBT engine plus a persistent AOT cache,
-and every guest ISA outruns `qemu-user` TCG on the same machine (`1.07x–3.13x`
-on Apple M4, see [Benchmarks](#benchmarks-apple-m4) below).
+binary translators that run foreign Linux userspace — 11 guest ISAs in 16+ ABI
+variants (plus 32-bit iOS `armv7`/`armv7s` Mach-O in `a32rt`) — on AArch64
+hosts: native `aarch64-linux`, standalone macOS on Apple Silicon, and Apple
+Silicon under `hyper-linux` (`hl`). Each translator pairs a portable
+interpreter with an AArch64 DBT engine plus a persistent AOT cache, and every
+guest ISA outruns `qemu-user` TCG on the same machine (`1.07x–3.13x` on Apple
+M4, see [Benchmarks](#benchmarks-apple-m4) below).
 
 ## Quickstart: Build & Run in Three Ways
 
@@ -87,7 +88,7 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | AArch64 | Native | The host | Apple M4, AWS Graviton4, AmpereOne | Runs natively; the translators cover every other ISA. |
 | x86-64 | Native (Rosetta) | [Rosetta](https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment) | AMD Ryzen, Intel Core | Covered on macOS through Rosetta, not through a translator. |
-| AArch32 (`armhf`, A32 + Thumb-2) | Class A | [a32rt](https://github.com/zw3rk/a32rt) | Cortex-A7 (Raspberry Pi 2), Cortex-A15 | Installed armhf userspace: Raspberry Pi OS, older Debian, board SDKs. |
+| AArch32 (`armhf`/`armel` ELF & 32-bit iOS `armv7`/`armv7s` Mach-O) | Class A | [a32rt](https://github.com/zw3rk/a32rt) | Cortex-A7 (Raspberry Pi 2), Apple A6/A6X | `armhf`/`armel` Linux userspace (Raspberry Pi OS, Debian, Alpine) **and** 32-bit iOS Mach-O (`MH_MAGIC` / `FAT_MAGIC`, Darwin/XNU `svc #0x80`). |
 | x86 32-bit (`i686`) | Class A | [i686rt](https://github.com/zw3rk/i686rt) | Pentium III, Athlon XP | Legacy i386 Linux binaries and i386 multiarch sysroots. |
 | MIPS32 (`mipsel` / `mips`, O32) | Class A | [mips32rt](https://github.com/zw3rk/mips32rt) | Ingenic XBurst JZ4770, MediaTek MT7620 | Router and IoT firmware, including OpenWrt on MIPS 24Kc parts. |
 | PowerPC 32-bit (classic + e500v2 SPE) | Class A | [ppc32rt](https://github.com/zw3rk/ppc32rt) | PowerPC 750 (G3), NXP P1021 | Avionics, defense, and industrial boards on long-life 32-bit PowerPC. |

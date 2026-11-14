@@ -10,7 +10,7 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
 
 | Document | Role |
 |---|---|
-| [`README.md`](README.md) | Series overview: 10 translators, 11 guest ISAs in 16 ABI variants, address-space classes, benchmarks, and documentation map. |
+| [`README.md`](README.md) | Series overview: 10 translators, 11 guest ISAs in 17 ABI/OS variants, address-space classes, benchmarks, and documentation map. |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Technical architecture manual: address-space classes, uniform 5-module layout, 7-instruction Soft-TLB, in-place non-relocating COW, dual host backends, and cross-ISA design decisions. |
 | [`docs/HOST-CONTRACT.md`](docs/HOST-CONTRACT.md) | Unified host contract for Class-A 32-bit 4 GiB-window runtimes (`A32H_ABI 1.0/1.1`, `/dev/a32host`, `include/a32host.h`) and Class-B 64-bit full-address-space runtimes (`HL_MEMORY_POLICY_RVRT`, `hyper-linux-apfs-acl-v1`, `hl_translators[]` auto-dispatch). |
 | [`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md) | Cross-runtime feature, execution-engine, SIMD/FPU, syscall/signal/thread, and qualification matrix across all 10 translators. |
@@ -26,7 +26,7 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
 ## 2. Series Architectural Invariants
 
 1. **Two Address-Space Classes**:
-   - **Class A — 32-Bit Fixed 4 GiB Window (`[G, G + 4 GiB)`)**: `a32rt` (`EM_ARM`), `i686rt` (`EM_386`), `mips32rt` (`EM_MIPS` O32), `ppc32rt` (`EM_PPC` classic + e500v2 SPE), and `sparc32rt` (`EM_SPARC` V8 / LEON).
+   - **Class A — 32-Bit Fixed 4 GiB Window (`[G, G + 4 GiB)`)**: `a32rt` (`EM_ARM` Linux + 32-bit iOS `MH_MAGIC`/`FAT_MAGIC` `armv7`/`armv7s`), `i686rt` (`EM_386`), `mips32rt` (`EM_MIPS` O32), `ppc32rt` (`EM_PPC` classic + e500v2 SPE), and `sparc32rt` (`EM_SPARC` V8 / LEON).
      - Copy-first reuse of the proven `rt32_` substrate (`vm.c`, `elf32.c`, `stack32.c`, `host.c`, `a64_emit.[ch]`, JIT cache/chaining/IBTC/RAS core, signal multiplexing, `/proc/self/*` synthesis). **Never extract a premature shared `librt32` library across repos**; each translator stays a standalone zero-dependency repository.
      - Parametric window base `G` held in reserved register `x20` (`xG`); all 32-bit effective addresses wrap in `W` registers before adding `xG` (`[x20, wAddr, uxtw]`). Under `hyper-linux`, `G = 0x1_0000_0000` (4 GiB offset mode).
      - Negotiates host capabilities via `/dev/a32host` (`include/a32host.h`, `A32H_ABI 1.0/1.1`).
