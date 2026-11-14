@@ -1,25 +1,33 @@
 # `rt-series` Defect Ledger — Executive Summary
 
-**Status: Rounds 1–18 plus the Post-Round-12 Fast-Path Restoration Round are
-100% resolved — `0` open defects across all 11 repositories.**
+**Status: Rounds 1–19 plus the Post-Round-12 Fast-Path Restoration Round are
+100% resolved (`0` open defects across all 10 translators and all 17 ABI/OS
+variants, including `a32rt` 32-bit iOS `armv7`/`armv7s` Mach-O).**
 
-Every finding ever filed against the 10 translator repositories and the
-`rt-series` harness itself has been remediated on `master`, re-verified by an
-independent review pass, and checked off. This document is the executive
-summary. The full checklists live in the archive:
+Every finding filed in Rounds 1–19 across the 10 translator repositories and
+the `rt-series` harness has been remediated on `master`, re-verified by an
+independent review pass, and checked off. Round 19 (`19 / 19` resolved in
+`cc3d3aa`) audited and converged `a32rt`'s 32-bit iOS (`armv7`/`armv7s`)
+Mach-O & XNU personality (`8d87576 -> cc3d3aa`), paired with [`PERF.md`](PERF.md)
+(`A32-IOS-P1`..`A32-IOS-P9`, `9 / 9` resolved). The full checklists live in the
+archive:
 
 - [Rounds 1–12](archive/defects/rounds-01-12.md) — broad sweeps plus the six
   orthogonal subsystem deep-dives and the fast-path restoration sign-off.
 - [Rounds 13–18](archive/defects/rounds-13-18.md) — five-lens review plus the
   16-loop multi-review, `191 / 191` resolved.
+- [Round 19 (`a32rt` 32-bit iOS & DBT audit)](archive/defects/round-19-a32rt-ios.md) —
+  6-subsystem audit + 8-track verification (`A32-IOS-D1`..`A32-IOS-D19`), `19 / 19` resolved.
+- [Performance ledger (`PERF.md`)](PERF.md) — Wave P1–P13 baselines plus Round 19
+  `a32rt` NEON `FPCR` coalescing, PIC interworking, and loader/DBT fast paths (`A32-IOS-P1`..`A32-IOS-P9`, `9 / 9` resolved).
 - [Convergence audit process](CONVERGENCE-AUDIT-PROCESS.md) — the hunting,
   clustering, remediation, and verification playbook behind every round.
 
 ## 1. Current Converged State (All 11 Repositories)
 
-| Repository | Converged `master` | Rounds 13–18 | Verification gates |
+| Repository | Converged `master` | Rounds 13–19 | Verification gates |
 | --- | --- | ---: | --- |
-| [a32rt](https://github.com/zw3rk/a32rt) | `25ef1aa` | `19 / 19` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [a32rt](https://github.com/zw3rk/a32rt) | `cc3d3aa` | `38 / 38` | ELF32 + iOS (`61/61`) PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [i686rt](https://github.com/zw3rk/i686rt) | `226c880` | `17 / 17` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [mips32rt](https://github.com/zw3rk/mips32rt) | `a0794d2` | `18 / 18` | `make check`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [ppc32rt](https://github.com/zw3rk/ppc32rt) | `4a35f01` | `20 / 20` | `make check`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
@@ -30,7 +38,7 @@ summary. The full checklists live in the archive:
 | [mips64rt](https://github.com/zw3rk/mips64rt) | `71ac358` | `15 / 15` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [sparc64rt](https://github.com/zw3rk/sparc64rt) | `5486608` | `19 / 19` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [rt-series](https://github.com/zw3rk/rt-series) | umbrella harness | `17 / 17` | `make check && make check-catalogue` PASS |
-| **Total, Rounds 13–18** | | **`191 / 191`** | **100% verified, `0` open** |
+| **Total, Rounds 13–19** | | **`210 / 210`** | **100% verified, `0` open** |
 
 ## 2. How Convergence Was Reached
 
@@ -87,6 +95,8 @@ item was confirmed by two independent read-only checks and remediated on
   [archive/defects/rounds-01-12.md](archive/defects/rounds-01-12.md).
 - Rounds 13–18, per-repository findings with audited revisions:
   [archive/defects/rounds-13-18.md](archive/defects/rounds-13-18.md).
+- Round 19, `a32rt` 32-bit iOS (`armv7`/`armv7s`) & Thumb-2/DBT audit (`19 / 19` resolved):
+  [archive/defects/round-19-a32rt-ios.md](archive/defects/round-19-a32rt-ios.md).
 - Audit and remediation playbook (hunting, clustering, surgical fixes,
   independent verification, step-size annealing):
   [CONVERGENCE-AUDIT-PROCESS.md](CONVERGENCE-AUDIT-PROCESS.md).
@@ -101,14 +111,14 @@ summary tables above traces to its exact evidence.
 
 A repository counts as converged only while all of these pass on `master`:
 
-1. `tests/parity_suite.sh` (or `make check`) — `0 FAIL, 0 GAP, 0 SKIP`.
+1. `tests/parity_suite.sh` (or `make check` / `make test-ios`) — `0 FAIL, 0 GAP, 0 SKIP`.
 2. `--difftest` lockstep runs — `0` divergences between `interp` and `dbt`.
 3. `--full` 5-workload benchmark — `ALL_PASS` with deterministic CRC match.
-4. AOT cold-emit to warm-reload cycle on a real guest ELF.
+4. AOT cold-emit to warm-reload cycle on guest binaries (`blocks_compiled=0`).
 5. `make check-line-limits` — every file within the line ceiling, no unity
    includes, strict Curated-C11 warnings clean.
 
-**Bottom line: Rounds 1–18 and the restoration round are fully resolved
+**Bottom line: Rounds 1–19 and the restoration round are fully resolved
 (`1,180` round 1–12 items, `7 / 7` restored fast paths, `191 / 191` round
-13–18 items). There are `0` open defects. New work starts from this ledger;
-it does not reopen it.**
+13–18 items, and `19 / 19` round 19 `a32rt` iOS items). There are `0` open
+defects. New work starts from this ledger; it does not reopen it.**
