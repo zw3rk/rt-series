@@ -10,16 +10,16 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
 
 | Document | Role |
 |---|---|
-| [`README.md`](README.md) | Series overview: 10 translators, 11 guest ISAs in 17 ABI/OS variants, address-space classes, benchmarks, and documentation map. |
+| [`README.md`](README.md) | Series overview: 11 translators, 12 guest ISAs in 19+ ABI/OS variants, address-space classes, benchmarks, and documentation map. |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Technical architecture manual: address-space classes, uniform 5-module layout, 7-instruction Soft-TLB, in-place non-relocating COW, dual host backends, and cross-ISA design decisions. |
-| [`docs/HOST-CONTRACT.md`](docs/HOST-CONTRACT.md) | Unified host contract for Class-A 32-bit 4 GiB-window runtimes (`A32H_ABI 1.0/1.1`, `/dev/a32host`, `include/a32host.h`) and Class-B 64-bit full-address-space runtimes (`HL_MEMORY_POLICY_RVRT`, `hyper-linux-apfs-acl-v1`, `hl_translators[]` auto-dispatch). |
-| [`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md) | Cross-runtime feature, execution-engine, SIMD/FPU, syscall/signal/thread, and qualification matrix across all 10 translators. |
+| [`docs/HOST-CONTRACT.md`](docs/HOST-CONTRACT.md) | Unified host contract for Class-A 32-bit 4 GiB-window runtimes (`A32H_ABI 1.0–1.2`, `/dev/a32host`, `include/a32host.h`, `G02` external Darwin trap bridge) and Class-B 64-bit full-address-space runtimes (`HL_MEMORY_POLICY_RVRT`, `hyper-linux-apfs-acl-v1`, `hl_translators[]` auto-dispatch). |
+| [`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md) | Cross-runtime feature, execution-engine, SIMD/FPU, syscall/signal/thread, and qualification matrix across all 11 translators. |
 | [`docs/SOFTWARE-CATALOGUE.md`](docs/SOFTWARE-CATALOGUE.md) | Real-world software qualification catalogue (`T1`–`T5`) and unified 4-target benchmark harness. |
 | [`docs/CONVERGENCE-AUDIT-PROCESS.md`](docs/CONVERGENCE-AUDIT-PROCESS.md) | Authoritative multi-agent convergence audit & remediation playbook (`gpt-6-astra` hunting $\rightarrow$ cross-runtime clustering $\rightarrow$ `muse exec` surgical remediation $\rightarrow$ `claude-fable-5-1` / fallback `claude-opus-5-5` verification), parabola oscillation model, step-size annealing, and 6-subsystem deep-dive schedule. |
-| [`docs/DEFECTS.md`](docs/DEFECTS.md) | Defect ledger executive summary: Rounds 1–20 plus the Post-Round-12 Fast-Path Restoration Round, `0` open defects; full checklists in `docs/archive/defects/`. |
-| [`docs/PERF.md`](docs/PERF.md) | Series performance baseline and optimization ledger across all 11 Linux ELF guest architectures plus Rounds 19–20 `a32rt` 32-bit iOS (`armv7`/`armv7s`) & backend codegen waves. |
-| [`lode/ISA-TRAP-AND-ABI-MATRIX.md`](lode/ISA-TRAP-AND-ABI-MATRIX.md) | 11-architecture ISA, trap, and ABI reference matrix (ELF, endianness, registers, delay slots, TLS, atomics, syscalls, vDSO, signal frames). |
-| [`docs/plans/`](docs/plans/README.md) | Active distributed expansion plans (`s390xrt`, `ppc64rt` big-endian ELFv1, `ppc-darwin` + `ppc-darwin-ui`, and the `a32rt/src/ios -> hyper-linux` personality boundary). |
+| [`docs/DEFECTS.md`](docs/DEFECTS.md) | Defect ledger executive summary: Rounds 1–21 plus the Post-Round-12 Fast-Path Restoration Round, `0` open defects; full checklists in `docs/archive/defects/`. |
+| [`docs/PERF.md`](docs/PERF.md) | Series performance baseline and optimization ledger across all 12 Linux ELF guest architectures plus Rounds 19–21 (`a32rt` iOS/backend, `ppc64` BE ELFv1, and `s390xrt`). |
+| [`lode/ISA-TRAP-AND-ABI-MATRIX.md`](lode/ISA-TRAP-AND-ABI-MATRIX.md) | ISA, trap, and ABI reference matrix (ELF, endianness, registers, delay slots, TLS, atomics, syscalls, vDSO, signal frames). |
+| [`docs/plans/`](docs/plans/README.md) | Distributed expansion plans (`s390xrt`, `ppc64rt` big-endian ELFv1, `ppc-darwin` + `a32rt-slim` `hyper-linux` `darwin32` personality converged; `ppc-darwin-ui` active in `hyper-linux`). |
 | [`docs/archive/`](docs/archive/) | Historical campaign plans (`plans/`), per-wave task cards (`lanes/`), and archived defect rounds (`defects/`). |
 | [`lode/`](lode/) | Engineering lode: historical baseline snapshot (`lode/STATE-OF-PLAY-2026-10-23.md`), the ISA matrix above, and review transcripts (`lode/reviews/` in 4 organized subdirectories). |
 
@@ -28,11 +28,11 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
 ## 2. Series Architectural Invariants
 
 1. **Two Address-Space Classes**:
-   - **Class A — 32-Bit Fixed 4 GiB Window (`[G, G + 4 GiB)`)**: `a32rt` (`EM_ARM` Linux + 32-bit iOS `MH_MAGIC`/`FAT_MAGIC` `armv7`/`armv7s`), `i686rt` (`EM_386`), `mips32rt` (`EM_MIPS` O32), `ppc32rt` (`EM_PPC` classic + e500v2 SPE), and `sparc32rt` (`EM_SPARC` V8 / LEON).
-     - Copy-first reuse of the proven `rt32_` substrate (`vm.c`, `elf32.c`, `stack32.c`, `host.c`, `a64_emit.[ch]`, JIT cache/chaining/IBTC/RAS core, signal multiplexing, `/proc/self/*` synthesis). **Never extract a premature shared `librt32` library across repos**; each translator stays a standalone zero-dependency repository.
+   - **Class A — 32-Bit Fixed 4 GiB Window (`[G, G + 4 GiB)`)**: `a32rt` (`EM_ARM` Linux + external `A32H_ABI 1.2` `a32rt-slim` & standalone 32-bit iOS `armv7`/`armv7s`), `i686rt` (`EM_386`), `mips32rt` (`EM_MIPS` O32), `ppc32rt` (`EM_PPC` classic + e500v2 SPE + PowerPC 7400 G4 Darwin CPU/`G02` bridge), and `sparc32rt` (`EM_SPARC` V8 / LEON).
+     - Copy-first reuse of the proven `rt32_` substrate (`vm.c`, `elf32.c`, `stack32.c`, `host.c`, `a64_emit.[ch]`, JIT cache/chaining/IBTC/RAS core, signal multiplexing, `/proc/self/*` synthesis). **Never extract a premature shared `librt32` library across repos**; each translator stays a standalone zero-dependency repository, and 32-bit Darwin Mach-O/`dyld`/CommPage/Mach/BSD/UI services live in `hyper-linux/src/darwin32/` behind the narrow `G02` (`A32H_ABI 1.2`) trap contract.
      - Parametric window base `G` held in reserved register `x20` (`xG`); all 32-bit effective addresses wrap in `W` registers before adding `xG` (`[x20, wAddr, uxtw]`). Under `hyper-linux`, `G = 0x1_0000_0000` (4 GiB offset mode).
-     - Negotiates host capabilities via `/dev/a32host` (`include/a32host.h`, `A32H_ABI 1.0/1.1`).
-   - **Class B — 64-Bit Full Address Space (plus RV32GC in `rvrt`)**: `rvrt` (`EM_RISCV` RV64GC & RV32GC), `loongarch64rt` (`EM_LOONGARCH` LA64), `ppc64rt` (`EM_PPC64` `ppc64le` ELFv2), `mips64rt` (`EM_MIPS` N64/N32), and `sparc64rt` (`EM_SPARCV9` SPARC V9).
+     - Negotiates host capabilities via `/dev/a32host` (`include/a32host.h`, `A32H_ABI 1.0–1.2`).
+   - **Class B — 64-Bit Full Address Space (plus RV32GC in `rvrt`)**: `rvrt` (`EM_RISCV` RV64GC & RV32GC), `loongarch64rt` (`EM_LOONGARCH` LA64), `ppc64rt` (`EM_PPC64` `ppc64le` ELFv2 & big-endian `ppc64` ELFv1 `.opd`), `mips64rt` (`EM_MIPS` N64/N32), `sparc64rt` (`EM_SPARCV9` SPARC V9), and `s390xrt` (`EM_S390` 64-bit big-endian z/Architecture z13).
      - Strict separation of Guest VA (`uint64_t`), Translator VA, and Host GPA. Never truncate 64-bit guest addresses or force a 64-bit guest into a 4 GiB window.
      - Shares the unified Class-B `vm64` substrate (`src/vm/vm64.c`, `Provider A` / `Provider B` in-place non-relocating COW, family shared-memory inode/EOF table, 6-step `tgkill` / `SIGUSR2` quiescence, race-free `safe_syscall`, and same-PID `execve` bootstrap).
      - Integrates with `hyper-linux` via `HL_MEMORY_POLICY_RVRT`, the 1 GiB disjoint shared arena (`rvrt_shared`), `hyper-linux-apfs-acl-v1` AOT cache authority, and the `hl_translators[]` dispatch table.

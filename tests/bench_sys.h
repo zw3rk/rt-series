@@ -283,6 +283,97 @@ __asm__(
     "    bl _start_c\n"
 );
 
+#elif defined(__powerpc64__)
+static inline long sys_call(long nr, long a0, long a1, long a2)
+{
+    register long r0 __asm__("r0") = nr;
+    register long r3 __asm__("r3") = a0;
+    register long r4 __asm__("r4") = a1;
+    register long r5 __asm__("r5") = a2;
+    unsigned long cr = 0UL;
+    __asm__ volatile(
+        "sc\n\t"
+        "mfcr %1"
+        : "+r"(r3), "=r"(cr), "+r"(r0), "+r"(r4), "+r"(r5)
+        :
+        : "r6", "r7", "r8", "r9", "r10", "r11", "r12", "cr0", "ctr", "memory"
+    );
+    return (cr & 0x10000000UL) != 0UL ? -r3 : r3;
+}
+#define FS_32BIT_TIME 0
+#define NR_WRITE       4U
+#define NR_GETPID      20U
+#define NR_EXIT_GROUP  234U
+#define NR_CLOCK_GETTIME 246U
+#if defined(_CALL_ELF) && _CALL_ELF == 1
+__asm__(
+    ".section .opd,\"aw\",@progbits\n"
+    ".globl _start\n"
+    ".p2align 3\n"
+    "_start:\n"
+    "    .quad _start_code\n"
+    "    .quad .TOC.\n"
+    "    .quad 0\n"
+    ".text\n"
+    ".p2align 2\n"
+    ".globl _start_code\n"
+    "_start_code:\n"
+    "    mr 3, 1\n"
+    "    clrrdi 1, 1, 4\n"
+    "    stdu 1, -112(1)\n"
+    "    lis 12, _start_c@ha\n"
+    "    ori 12, 12, _start_c@l\n"
+    "    ld 0, 0(12)\n"
+    "    ld 2, 8(12)\n"
+    "    ld 11, 16(12)\n"
+    "    mtctr 0\n"
+    "    bctrl\n"
+    "    trap\n"
+);
+#else
+__asm__(
+    ".text\n"
+    ".globl _start\n"
+    ".type _start, @function\n"
+    "_start:\n"
+    "    mr 3, 1\n"
+    "    clrrdi 1, 1, 4\n"
+    "    stdu 1, -32(1)\n"
+    "    bl _start_c\n"
+);
+#endif
+
+#elif defined(__s390x__)
+static inline long sys_call(long nr, long a0, long a1, long a2)
+{
+    register long r1 __asm__("1") = nr;
+    register long r2 __asm__("2") = a0;
+    register long r3 __asm__("3") = a1;
+    register long r4 __asm__("4") = a2;
+    __asm__ volatile(
+        "svc 0"
+        : "+d"(r2)
+        : "d"(r1), "d"(r3), "d"(r4)
+        : "memory", "cc"
+    );
+    return r2;
+}
+#define FS_32BIT_TIME 0
+#define NR_WRITE       4U
+#define NR_GETPID      20U
+#define NR_EXIT_GROUP  248U
+#define NR_CLOCK_GETTIME 260U
+__asm__(
+    ".text\n"
+    ".globl _start\n"
+    ".type _start, @function\n"
+    "_start:\n"
+    "    lgr %r2, %r15\n"
+    "    nill %r15, 0xfff0\n"
+    "    aghi %r15, -160\n"
+    "    brasl %r14, _start_c\n"
+);
+
 #else
 #error "Unsupported freestanding target architecture"
 #endif

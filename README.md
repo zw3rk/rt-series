@@ -1,13 +1,13 @@
 # rt-series
 
-`rt-series` is the `zw3rk` family of 10 standalone, zero-dependency user-mode
-binary translators that run foreign Linux userspace — 11 guest ISAs in 16+ ABI
-variants (plus 32-bit iOS `armv7`/`armv7s` Mach-O in `a32rt`) — on AArch64
-hosts: native `aarch64-linux`, standalone macOS on Apple Silicon, and Apple
-Silicon under `hyper-linux` (`hl`). Each translator pairs a portable
-interpreter with an AArch64 DBT engine plus a persistent AOT cache, and every
-guest ISA outruns `qemu-user` TCG on the same machine (`1.07x–3.13x` on Apple
-M4, see [Benchmarks](#benchmarks-apple-m4) below).
+`rt-series` is the `zw3rk` family of 11 standalone, zero-dependency user-mode
+binary translators that run foreign Linux and 32-bit Darwin userspace — 12 guest
+ISAs in 19+ ABI/OS variants (including big-endian `s390x` z13, dual-endian
+`ppc64le`/`ppc64` ELFv2/ELFv1, and external `A32H_ABI 1.2` 32-bit PowerPC G4 &
+ARMv7 Darwin Mach-O via `hyper-linux`) — on AArch64 hosts: native
+`aarch64-linux`, standalone macOS on Apple Silicon, and Apple Silicon under
+`hyper-linux` (`hl`). Each translator pairs a portable interpreter with an
+AArch64 DBT engine plus a persistent AOT cache.
 
 ## Quickstart: Build & Run in Three Ways
 
@@ -88,25 +88,26 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | AArch64 | Native | The host | Apple M4, AWS Graviton4, AmpereOne | Runs natively; the translators cover every other ISA. |
 | x86-64 | Native (Rosetta) | [Rosetta](https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment) | AMD Ryzen, Intel Core | Covered on macOS through Rosetta, not through a translator. |
-| AArch32 (`armhf`/`armel` ELF & 32-bit iOS `armv7`/`armv7s` Mach-O) | Class A | [a32rt](https://github.com/zw3rk/a32rt) | Cortex-A7 (Raspberry Pi 2), Apple A6/A6X | `armhf`/`armel` Linux userspace (Raspberry Pi OS, Debian, Alpine) **and** 32-bit iOS Mach-O (`MH_MAGIC` / `FAT_MAGIC`, Darwin/XNU `svc #0x80`). |
+| AArch32 (`armhf`/`armel` ELF & 32-bit Darwin `armv7`/`armv7s` Mach-O) | Class A | [a32rt](https://github.com/zw3rk/a32rt) | Cortex-A7 (Raspberry Pi 2), Apple A6/A6X | `armhf`/`armel` Linux userspace, slim external `A32H_ABI 1.2` (`a32rt-slim` + `hl/src/darwin32/`), and standalone 32-bit iOS Mach-O. |
 | x86 32-bit (`i686`) | Class A | [i686rt](https://github.com/zw3rk/i686rt) | Pentium III, Athlon XP | Legacy i386 Linux binaries and i386 multiarch sysroots. |
 | MIPS32 (`mipsel` / `mips`, O32) | Class A | [mips32rt](https://github.com/zw3rk/mips32rt) | Ingenic XBurst JZ4770, MediaTek MT7620 | Router and IoT firmware, including OpenWrt on MIPS 24Kc parts. |
-| PowerPC 32-bit (classic + e500v2 SPE) | Class A | [ppc32rt](https://github.com/zw3rk/ppc32rt) | PowerPC 750 (G3), NXP P1021 | Avionics, defense, and industrial boards on long-life 32-bit PowerPC. |
+| PowerPC 32-bit (classic, e500v2 SPE & 7400 G4 Darwin Mach-O) | Class A | [ppc32rt](https://github.com/zw3rk/ppc32rt) | PowerPC 750/7400 (G3/G4), NXP P1021 | Avionics/industrial 32-bit PowerPC Linux **and** Mac OS X 10.4/10.5 PowerPC Mach-O via `A32H_ABI 1.2` (`hl/src/darwin32/`). |
 | SPARC V8 (`sparc32`) | Class A | [sparc32rt](https://github.com/zw3rk/sparc32rt) | Gaisler LEON3, LEON4 | SPARC V8 Linux userspace for spacecraft programs with long service life. |
 | RISC-V 64-bit (`riscv64`, RV64GC) | Class B | [rvrt](https://github.com/zw3rk/rvrt) | SiFive U74, T-Head C910 | riscv64 userspace from boards moving into products. |
 | RISC-V 32-bit (`riscv32`, RV32GC) | Class B | [rvrt](https://github.com/zw3rk/rvrt) | Nuclei N300FD | Embedded RISC-V (`ILP32D`) userspace, qualified inside `rvrt`. |
 | LoongArch 64-bit (`loongarch64`) | Class B | [loongarch64rt](https://github.com/zw3rk/loongarch64rt) | Loongson 3A6000, 3B6000 | Current Loongson PCs and servers (`LP64D` + LSX/LASX). |
-| Power ISA 64-bit (`ppc64le`, ELFv2) | Class B | [ppc64rt](https://github.com/zw3rk/ppc64rt) | POWER9 (Talos II), Power11 | `ppc64le` Linux (RHEL, SLES, Ubuntu on Power) with VSX. |
+| Power ISA 64-bit (`ppc64le` ELFv2 & `ppc64` BE ELFv1) | Class B | [ppc64rt](https://github.com/zw3rk/ppc64rt) | POWER9 (Talos II), IBM POWER7/Power11 | Little-endian `ppc64le` ELFv2 **and** big-endian `ppc64` ELFv1 (`.opd` function descriptors) with VMX/VSX. |
 | MIPS64 (`mips64el` / `mips64`, N64 & N32) | Class B | [mips64rt](https://github.com/zw3rk/mips64rt) | Loongson 3A3000, Cavium Octeon III | Older Loongson systems and Octeon network-processor userspace. |
 | SPARC V9 (`sparc64`) | Class B | [sparc64rt](https://github.com/zw3rk/sparc64rt) | Oracle SPARC M8, Fujitsu SPARC64 XII | 64-bit SPARC V9 Linux userspace (stack bias 2047, quad FP, VIS). |
+| IBM z/Architecture 64-bit (`s390x`, z13) | Class B | `s390xrt` *(local repo)* | IBM z13, LinuxONE | 64-bit big-endian `EM_S390` Linux userspace (2/4/6-byte variable-length ISA, BFP + 128-bit Vector Facility). |
 
-All 10 translators are qualified across static and dynamic `musl` and `glibc`
-userlands with `0` open defects; see [`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md)
-and [`docs/DEFECTS.md`](docs/DEFECTS.md). Active expansion plans — standalone
-Class-B **`s390xrt`** (`EM_S390`), big-endian **`ppc64` ELFv1** in `ppc64rt`,
-and the **`hyper-linux` Darwin/XNU personality** (`ppc-darwin`, `ppc-darwin-ui`,
-and migrating `a32rt/src/ios/` into `hl` so `a32rt` and `ppc32rt` stay small) —
-are indexed in [`docs/plans/README.md`](docs/plans/README.md).
+All 11 translators are qualified with `0` open defects; see
+[`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md) and
+[`docs/DEFECTS.md`](docs/DEFECTS.md). Distributed expansion plans — including
+the converged `s390xrt`, `ppc64rt` big-endian ELFv1, and `hyper-linux`
+`darwin32` (`ppc-darwin` + `a32rt-slim`) tracks plus the active `ppc-darwin-ui`
+workstream in `hyper-linux` — are indexed in
+[`docs/plans/README.md`](docs/plans/README.md).
 
 ## Benchmarks (Apple M4)
 
@@ -137,8 +138,10 @@ qemu-user` compares that fastest `rt-series` DBT result to `qemu-user` TCG.
 | **RISC-V 32** (`riscv32`) | `rvrt` | `26,093` | **`25,046`** | `38,657` | `26,750` | **1.07x** | `5,073,356` |
 | **LoongArch64** (`loongarch64`) | `loongarch64rt` | **`38,786`** | `39,222` | `49,558` | `43,724` | **1.13x** | `2,927,333` |
 | **Power ISA 64** (`ppc64le`) | `ppc64rt` | **`35,243`** | `35,681` | `44,710` | `68,920` | **1.96x** | `4,284,855` |
+| **Power ISA 64 BE** (`ppc64` ELFv1) | `ppc64rt` | **`55,511`** | — | `73,737` | `68,920` | **1.24x** | — |
 | **MIPS64** (`mips64el`) | `mips64rt` | **`23,785`** | `25,150` | `47,080` | `42,229` | **1.78x** | `1,425,215` |
 | **SPARC V9** (`sparc64`) | `sparc64rt` | **`51,386`** | `51,428` | `60,051` | `69,027` | **1.34x** | `10,651,648` |
+| **z/Architecture** (`s390x` z13) | `s390xrt` | **`1,189,724`** | — | `1,708,332` | — | *(initial z13 DBT baseline)* | — |
 
 <details><summary>Per-Workload Breakdown — Darwin DBT vs. Linux DBT vs. qemu-user TCG (µs)</summary>
 

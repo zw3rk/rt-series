@@ -1,18 +1,21 @@
 # `rt-series` Defect Ledger — Executive Summary
 
-**Status: Rounds 1–20 plus the Post-Round-12 Fast-Path Restoration Round are
+**Status: Rounds 1–21 plus the Post-Round-12 Fast-Path Restoration Round are
 100% resolved (`0` open defects).**
 
-Every finding filed in Rounds 1–20 across the 10 translator repositories and
-the `rt-series` harness has been remediated on `master`, re-verified by an
-independent review pass, and checked off. Round 19 (`19 / 19` resolved in
-`cc3d3aa`) audited and converged `a32rt`'s 32-bit iOS (`armv7`/`armv7s`)
-Mach-O & XNU personality (`8d87576 -> cc3d3aa`), and Round 20 (`6 / 6` resolved
-in `6bf6d76` / `100af25`) remediated `a32rt`'s backend RAS/IBTC dispatch,
-16-byte Soft-TLB, 22-slot VFP/NEON register cache, Regime A2 AOT persistence,
-and reference-interpreter `VDUP.32`/`VNMLS` precision alongside [`PERF.md`](PERF.md)
-(`A32-R20-P0`..`A32-R20-P15`, `16 / 16` resolved). The full checklists live in
-the archive:
+Every finding filed in Rounds 1–21 across the 11 translator repositories, the
+`hyper-linux` `darwin32` personality workstream, and the `rt-series` harness has
+been remediated on `master`, re-verified by an independent review pass, and
+checked off. Round 19 (`19 / 19` resolved in `cc3d3aa`) audited and converged
+`a32rt`'s 32-bit iOS (`armv7`/`armv7s`) Mach-O & XNU personality, Round 20
+(`6 / 6` resolved in `6bf6d76` / `100af25`) remediated `a32rt`'s backend
+RAS/IBTC dispatch, 16-byte Soft-TLB, 22-slot VFP/NEON register cache, and
+Regime A2 AOT persistence, and Round 21 (`36 / 36` resolved across 5 concurrent
+campaign tracks) converged standalone Class-B `s390xrt` (`8410b2c`), `ppc64rt`
+big-endian ELFv1 (`09832a3`), `ppc32rt` Darwin G4 CPU & `A32H_ABI 1.2` `G02`
+bridge (`a2ccdfc`), `a32rt` `G02` bridge & `a32rt-slim` decoupling (`a53ee27`),
+and `hyper-linux` unified 32-bit PowerPC/ARM Darwin personality (`b8cc19a0` on
+`darwin32/personality`). The full checklists live in the archive:
 
 - [Rounds 1–12](archive/defects/rounds-01-12.md) — broad sweeps plus the six
   orthogonal subsystem deep-dives and the fast-path restoration sign-off.
@@ -27,22 +30,24 @@ the archive:
 - [Convergence audit process](CONVERGENCE-AUDIT-PROCESS.md) — the hunting,
   clustering, remediation, and verification playbook behind every round.
 
-## 1. Current Converged State (All 11 Repositories)
+## 1. Current Converged State (All 12 Repositories + `darwin32`)
 
-| Repository | Converged `master` | Rounds 13–20 | Verification gates |
+| Repository | Converged `master` | Rounds 13–21 | Verification gates |
 | --- | --- | ---: | --- |
-| [a32rt](https://github.com/zw3rk/a32rt) | `6bf6d76` | `44 / 44` | ELF32 + iOS (`61/61`) PASS, A1/A2 AOT (`blocks_compiled=0`), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [a32rt](https://github.com/zw3rk/a32rt) | `a53ee27` | `51 / 51` | ELF32 + iOS (`61/61`) + `a32rt-slim` `A32H_ABI 1.2` HVF E2E (`rc=42`), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [i686rt](https://github.com/zw3rk/i686rt) | `226c880` | `17 / 17` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [mips32rt](https://github.com/zw3rk/mips32rt) | `a0794d2` | `18 / 18` | `make check`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [ppc32rt](https://github.com/zw3rk/ppc32rt) | `4a35f01` | `20 / 20` | `make check`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [ppc32rt](https://github.com/zw3rk/ppc32rt) | `a2ccdfc` | `25 / 25` | `make check` (8 suites), G4 Altivec + `A32H_ABI 1.2` HVF E2E (`rc=37`), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [sparc32rt](https://github.com/zw3rk/sparc32rt) | `1dd1f22` | `20 / 20` | `make check`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [rvrt](https://github.com/zw3rk/rvrt) | `f978775` | `14 / 14` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [loongarch64rt](https://github.com/zw3rk/loongarch64rt) | `c98e960` | `14 / 14` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [ppc64rt](https://github.com/zw3rk/ppc64rt) | `8ec83bc` | `18 / 18` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [ppc64rt](https://github.com/zw3rk/ppc64rt) | `09832a3` | `27 / 27` | `ppc64le` ELFv2 + `ppc64` BE ELFv1 (`check-be`, `vmx_reserve+8`, AOT), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [mips64rt](https://github.com/zw3rk/mips64rt) | `71ac358` | `15 / 15` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [sparc64rt](https://github.com/zw3rk/sparc64rt) | `5486608` | `19 / 19` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| `s390xrt` *(local)* | `8410b2c` | `12 / 12` | `make check` (5 z13 torture ELFs + `14/14` DBT/AOT), shadow-VM `--difftest` 0 divergences, `--full` bench `ALL_PASS` (`darwin` & `hl` HVF) |
+| `hyper-linux` (`darwin32`) | `b8cc19a0` | `3 / 3` | `1,376/1,376` host unit checks, `test-darwin32-os-srv` (`92/92`), live HVF PPC32 (`rc=37`) & ARM32 slim (`rc=42`) PASS |
 | [rt-series](https://github.com/zw3rk/rt-series) | umbrella harness | `17 / 17` | `make check && make check-catalogue` PASS |
-| **Total, Rounds 13–20** | | **`216 / 216`** | **100% verified, `0` open** |
+| **Total, Rounds 13–21** | | **`252 / 252`** | **100% verified, `0` open** |
 
 ## 2. How Convergence Was Reached
 

@@ -91,3 +91,16 @@ Tracked in [`a32rt/PERF.md`](../../a32rt/PERF.md) (`A32-R20-P0`..`A32-R20-P15`, 
 | **Linux DBT — iOS `armv7s` (R20 Cold / Warm AOT)** | `1,931` / `1,961` | `1,431` / `1,424` | **`4,574` / `4,588`** | `5,413` / `5,475` | **`34` / `35`** | **`13,383` / `13,483`** | **`2.40×` `vfp_simd`** (**`8.05×` vs. `8d87576`**), **`27.6×` `syscalls`**, **`1.63×` total** |
 | **Linux DBT — ELF32 `armhf` (R20 Cold / Warm AOT)** | **`1,629` / `1,655`** | `1,538` / `1,491` | **`689` / `689`** | `5,291` / `5,429` | `869` / `881` | **`10,016` / `10,145`** | **`1.42×` `coremark`**, **`2.02×` `vfp_simd`**, **`1.20×` total** vs. R19 (`12,045 µs`) |
 | **Linux DBT — ELF32 `thumb` (R20 Cold / Warm AOT)** | `1,904` / `1,905` | `1,532` / `1,531` | **`690` / `690`** | `5,386` / `5,354` | `895` / `894` | **`10,407` / `10,374`** | **`2.06×` `vfp_simd`**, **`1.17×` total** vs. R19 (`11,829 µs`) |
+
+---
+
+## 4. Round 21: `ppc64rt` Big-Endian ELFv1 (`09832a3`) & `s390xrt` z13 (`8410b2c`) Baselines
+
+Measured with [`tests/bench_suite.c`](../tests/bench_suite.c) (`--full`, freestanding `-DBENCH_FREESTANDING=1`, deterministic CRC match `ALL_PASS` across all 5 workloads):
+
+| Guest Target | Runtime (`master`) | Host Target | `coremark` (`µs`) | `chacha20` (`µs`) | `vfp_simd` (`µs`) | `calls_ibtc` (`µs`) | `syscalls` (`µs`) | `total_us` (`µs`) | Status |
+|---|---|---|---:|---:|---:|---:|---:|---:|---|
+| **`ppc64` BE ELFv1** (`.opd`) | `ppc64rt` (`09832a3`) | Darwin `arm64` DBT | `25,766` | `3,914` | `8,313` | `17,107` | `411` | **`55,511`** | `ALL_PASS` (`1.24×` faster than `qemu-ppc64`) |
+| **`ppc64` BE ELFv1** (`.opd`) | `ppc64rt` (`09832a3`) | `hyper-linux` (`hl` HVF) DBT | `24,506` | `2,998` | `9,634` | `18,868` | `17,731` | **`73,737`** | `ALL_PASS` |
+| **`s390x` z13** (`EM_S390`) | `s390xrt` (`8410b2c`) | Darwin `arm64` DBT | `117,751` | `623,199` | `261,025` | `187,253` | `496` | **`1,189,724`** | `ALL_PASS` (`0` `--difftest` divergences) |
+| **`s390x` z13** (`EM_S390`) | `s390xrt` (`8410b2c`) | `hyper-linux` (`hl` HVF) DBT | `128,438` | `851,373` | `447,986` | `255,640` | `24,895` | **`1,708,332`** | `ALL_PASS` |
