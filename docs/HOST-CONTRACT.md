@@ -1,4 +1,4 @@
-# `rt-series` Unified Host Contract (`A32H_ABI 1.0/1.1` & `HL_MEMORY_POLICY_RVRT`)
+# `rt-series` Unified Host Contract (`A32H_ABI 1.0–1.2` & `HL_MEMORY_POLICY_RVRT`)
 
 Status: Implemented contract (documents the `--execfn` / `--image-fd` / `AT_EXECFD` invocation contract, `Provider A` / `Provider B` copy-on-write, and the standalone `backend_darwin.c` target)  
 Owner: Moritz Angermann <moritz@zw3rk.com>, zw3rk pte. ltd.  
@@ -126,6 +126,12 @@ All Class-A 32-bit translators vendor [`include/a32host.h`](../include/a32host.h
 3. **D190 & `i686rt` C8 (`<RT>_WINDOW` environment ordering)**: `hyper-linux` must inject `<RT>_WINDOW=<hint>` into `guest_env` **before** `hl_build_initial_stack()` on initial launch (fixing `C8` where `guest_env` was materialized from `environ` before `finalize`'s `setenv`) **and** merge it into the child environment on `sys_execve()`, and `a32host_ioctl(A32H_GET_INFO)` must honor `HL_<RT>_WINDOW` / `<RT>_WINDOW` if set.
 4. **D191 (Restrict `A32H_GET_INFO` to `/dev/a32host` fds)**: Remove the duplicate `case A32H_GET_INFO:` from the generic fallback switch in `hyper-linux/src/syscall_io.c` so `ioctl(fd, A32H_GET_INFO, &info)` on non-`/dev/a32host` fds returns `-ENOTTY`.
 5. **File-backed `mremap` (`hyper-linux/src/syscall.c:3204`, required by `a32rt` D19)**: Extend `hl_sys_mremap` so growing or moving (`MREMAP_MAYMOVE` / `MREMAP_FIXED`) a file-backed `MAP_SHARED` VMA preserves its backing host file descriptor and offset rather than failing with `-ENOSYS` or converting to private anonymous memory.
+
+### 4.4 `A32H_ABI 1.2` — Narrow Cross-Repo 32-Bit Darwin/XNU Execution Contract (`G02`)
+Defined in [`include/a32host.h`](../include/a32host.h) (`A32H_ABI_MINOR_DARWIN = 2U`, `A32H_CAP_DARWIN_PERSONALITY = 1ULL << 12`) to keep Class-A 32-bit translators (`a32rt`, `ppc32rt`) small while delegating all Mach-O/FAT loading, `dyld`, CommPage, BSD/Mach traps, stubs, native framework bundles, and UI to `hyper-linux` (`hl`):
+- **`A32H_DARWIN_BOOT` (`0xc0806105UL`, `128`-byte `a32h_darwin_boot_t`)**: Translator passes `arch` (`A32H_ARCH_ARM32 = 1` or `A32H_ARCH_PPC32 = 2`), `window_base` (`G`), and an `a32h_darwin_vmap_t[]` buffer; `hl` returns initial VMAs (`va`, `len`, `prot`, `flags`) to seed the translator's `vm32` / Soft-TLB tracker, `entry_pc`, `entry_sp`, `entry_r0`, `entry_cpsr_or_msr`, `commpage_va` (`0xFFFF4000` ARM32 iOS / `0xFFFF8000` PPC32 Darwin), `aot_personality_hash` (mixed into the persistent AOT cache key for cross-personality isolation), and `initial_tid`.
+- **`A32H_DARWIN_TRAP` (`0xc0806106UL`, `128`-byte `a32h_darwin_trap_t` + `1024`-byte `a32h_darwin_cpu_state_t`)**: Translator reports typed exits (`A32H_DEXIT_SVC_TRAP`, `A32H_DEXIT_FAULT` with precise `fault_va`, `fault_kind`, `fault_is_prot`, and `fault_syndrome`, `A32H_DEXIT_BKPT`, `A32H_DEXIT_ILLEGAL`, `A32H_DEXIT_THREAD_EXIT`) and applies `hl`'s `reply_action` bitmask (`A32H_DACT_FLUSH_ICACHE`, `A32H_DACT_SYNC_VM_PROT`, `A32H_DACT_SPAWN_THREAD`, `A32H_DACT_DELIVER_SIGNAL`, `A32H_DACT_EXIT_PROCESS`) before resuming at updated `state->pc`. Common traps transfer only the GPR/control prefix unless `A32H_DSTATE_NEED_FULL` / signal / thread switches request full `fpr[32]` / `vr[32]` synchronization.
+- Standalone host unit tests exercise the identical wire structs in-process via `a32h_darwin_handler_fn` without requiring HVF.
 
 ---
 
