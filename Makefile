@@ -29,6 +29,8 @@ REQUIRED_DOCS := \
 	docs/archive/plans/PERF-PLAN-P13.md \
 	docs/archive/defects/rounds-01-12.md \
 	docs/archive/defects/rounds-13-18.md \
+	docs/plans/README.md \
+	docs/plans/darwin-personality-boundary.md \
 	lode/README.md \
 	lode/ISA-TRAP-AND-ABI-MATRIX.md \
 	lode/STATE-OF-PLAY-2026-10-23.md \
@@ -52,6 +54,7 @@ SIBLING_REPOS := \
 	../ppc64rt \
 	../mips64rt \
 	../sparc64rt \
+	../s390xrt \
 	../hyper-linux
 
 .PHONY: help all build test check check-headers check-abi-invariants check-bench-host check-docs check-siblings status bench-build bench-smoke bench-run catalogue-smoke catalogue-qualify catalogue-grind-nightly catalogue-grind-weekly check-catalogue check-p3-torture check-tcg-smoke clean

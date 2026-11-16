@@ -102,7 +102,11 @@ flowchart LR
 
 All 10 translators are qualified across static and dynamic `musl` and `glibc`
 userlands with `0` open defects; see [`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md)
-and [`docs/DEFECTS.md`](docs/DEFECTS.md).
+and [`docs/DEFECTS.md`](docs/DEFECTS.md). Active expansion plans — standalone
+Class-B **`s390xrt`** (`EM_S390`), big-endian **`ppc64` ELFv1** in `ppc64rt`,
+and the **`hyper-linux` Darwin/XNU personality** (`ppc-darwin`, `ppc-darwin-ui`,
+and migrating `a32rt/src/ios/` into `hl` so `a32rt` and `ppc32rt` stay small) —
+are indexed in [`docs/plans/README.md`](docs/plans/README.md).
 
 ## Benchmarks (Apple M4)
 

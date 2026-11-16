@@ -19,6 +19,7 @@ Follow `~/.config/ai/AGENTS.md`, `~/.config/ai/C_GUIDELINES.md`, and the sibling
 | [`docs/DEFECTS.md`](docs/DEFECTS.md) | Defect ledger executive summary: Rounds 1–20 plus the Post-Round-12 Fast-Path Restoration Round, `0` open defects; full checklists in `docs/archive/defects/`. |
 | [`docs/PERF.md`](docs/PERF.md) | Series performance baseline and optimization ledger across all 11 Linux ELF guest architectures plus Rounds 19–20 `a32rt` 32-bit iOS (`armv7`/`armv7s`) & backend codegen waves. |
 | [`lode/ISA-TRAP-AND-ABI-MATRIX.md`](lode/ISA-TRAP-AND-ABI-MATRIX.md) | 11-architecture ISA, trap, and ABI reference matrix (ELF, endianness, registers, delay slots, TLS, atomics, syscalls, vDSO, signal frames). |
+| [`docs/plans/`](docs/plans/README.md) | Active distributed expansion plans (`s390xrt`, `ppc64rt` big-endian ELFv1, `ppc-darwin` + `ppc-darwin-ui`, and the `a32rt/src/ios -> hyper-linux` personality boundary). |
 | [`docs/archive/`](docs/archive/) | Historical campaign plans (`plans/`), per-wave task cards (`lanes/`), and archived defect rounds (`defects/`). |
 | [`lode/`](lode/) | Engineering lode: historical baseline snapshot (`lode/STATE-OF-PLAY-2026-10-23.md`), the ISA matrix above, and review transcripts (`lode/reviews/` in 4 organized subdirectories). |
 
