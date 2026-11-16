@@ -26,6 +26,14 @@ _Static_assert(offsetof(a32h_info_t, page_size) == 24, "page_size offset");
 _Static_assert(offsetof(a32h_info_t, aot_socket) == 32, "aot_socket offset");
 _Static_assert(offsetof(a32h_info_t, _reserved) == 140, "_reserved offset");
 _Static_assert(A32H_GET_INFO == 0x81006101UL, "A32H_GET_INFO ioctl number");
+_Static_assert(A32H_DARWIN_BOOT == 0xc0806105UL, "A32H_DARWIN_BOOT ioctl number");
+_Static_assert(A32H_DARWIN_TRAP == 0xc0806106UL, "A32H_DARWIN_TRAP ioctl number");
+_Static_assert(sizeof(a32h_darwin_vmap_t) == 16, "a32h_darwin_vmap_t is 16 B");
+_Static_assert(sizeof(a32h_darwin_boot_t) == 128, "a32h_darwin_boot_t is 128 B");
+_Static_assert(sizeof(a32h_darwin_cpu_state_t) == 1024, "a32h_darwin_cpu_state_t is 1024 B");
+_Static_assert(offsetof(a32h_darwin_cpu_state_t, fpr) == 0x0b0, "fpr at 0x0b0");
+_Static_assert(offsetof(a32h_darwin_cpu_state_t, vr) == 0x1b0, "vr at 0x1b0");
+_Static_assert(sizeof(a32h_darwin_trap_t) == 128, "a32h_darwin_trap_t is 128 B");
 
 /* --------------------------------------------------------------------------
  * 2. i386 Linux UAPI _fpstate_32 layout (arch/x86/include/uapi/asm/sigcontext.h)
