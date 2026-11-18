@@ -30,6 +30,10 @@ REQUIRED_DOCS := \
 	docs/archive/plans/PERF-PLAN-P13.md \
 	docs/archive/defects/rounds-01-12.md \
 	docs/archive/defects/rounds-13-18.md \
+	docs/archive/defects/round-19-a32rt-ios.md \
+	docs/archive/defects/round-20-a32rt-perf.md \
+	docs/archive/defects/round-21-expansion.md \
+	docs/archive/defects/round-22-parity-t14.md \
 	docs/plans/README.md \
 	docs/plans/darwin-personality-boundary.md \
 	lode/README.md \

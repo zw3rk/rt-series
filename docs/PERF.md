@@ -111,7 +111,7 @@ Measured with [`tests/bench_suite.c`](../tests/bench_suite.c) (`--full`, freesta
 
 Round 22 upgrades both remaining baseline-only translators to production DBT and re-measures the full 6-column matrix (`tests/bench_suite.c --full`, deterministic CRC `ALL_PASS` on every cell):
 
-- **`s390xrt` (`a45d529`)** — replaced the Round 21 C-helper DBT with a native AArch64 W^X block JIT (in-place block cache + Soft-TLB + `FPC`/`VR` vector lowering): Darwin DBT `1,189,724 µs -> 54,196 µs` (**`22.0×`**), Linux DBT **`37,578 µs`** (**`2.36×` faster than `qemu-s390x`** at `88,818 µs`).
+- **`s390xrt` (`ca8f0c5`)** — replaced the Round 21 C-helper DBT with a native AArch64 W^X block JIT (in-place block cache + Soft-TLB + `FPC`/`VR` vector lowering): Darwin DBT `1,189,724 µs -> 54,196 µs` (**`22.0×`**), Linux DBT **`37,578 µs`** (**`2.36×` faster than `qemu-s390x`** at `88,818 µs`).
 - **`ppc64rt` (`b37b021`)** — 64K-entry IBTC + scaled Soft-TLB, POWER8 fast paths (`maddld`/`setb`/`setbcr`) and VMX/VSX vector lowering across both `ppc64le` ELFv2 and `ppc64` BE ELFv1 (`.opd`): BE ELFv1 Darwin DBT `55,511 µs -> 49,974 µs`, Linux DBT **`48,195 µs`** (**`2.10×` faster than same-run `qemu-ppc64`** at `101,013 µs`, `1.43×` vs the calm `68,920 µs` `qemu-ppc64le` reference).
 
 ### 5.1 Complete 6-Column Series Performance Table (All 13 Linux ELF Guest Targets)
@@ -143,10 +143,10 @@ Fastest `rt-series` DBT per row is **bold**; `Speedup` compares it against same-
 | `ppc64` BE ELFv1 (`ppc64rt` @ `b37b021`) | `hl-dbt` | `24,506` | `2,998` | `9,634` | `18,868` | `17,731` | **`73,737`** | `ALL_PASS` |
 | `ppc64` BE ELFv1 (`ppc64rt` @ `b37b021`) | `darwin-interp` | `3,281,397` | `1,522,677` | `2,245,285` | `5,528,716` | `9,481` | `12,587,556` | `ALL_PASS` |
 | `ppc64` BE ELFv1 (`ppc64rt` @ `b37b021`) | `linux-interp` | `1,505,498` | `1,167,927` | `1,216,042` | `3,275,064` | `8,489` | `7,173,020` | `ALL_PASS` |
-| `s390x` z13 (`s390xrt` @ `a45d529`) | `darwin-dbt` | `9,112` | `29,449` | `6,307` | `8,811` | `517` | **`54,196`** | `ALL_PASS` |
-| `s390x` z13 (`s390xrt` @ `a45d529`) | `linux-dbt` | `5,568` | `18,895` | `4,515` | `7,650` | `950` | **`37,578`** | `ALL_PASS` |
-| `s390x` z13 (`s390xrt` @ `a45d529`) | `hl-dbt` | — | — | — | — | — | **`73,800`** | `ALL_PASS` |
-| `s390x` z13 (`s390xrt` @ `a45d529`) | `darwin-interp` | `467,242` | `551,438` | `484,343` | `1,241,957` | `3,677` | `2,748,657` | `ALL_PASS` |
-| `s390x` z13 (`s390xrt` @ `a45d529`) | `linux-interp` | — | — | — | — | — | `2,236,349` | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `ca8f0c5`) | `darwin-dbt` | `9,112` | `29,449` | `6,307` | `8,811` | `517` | **`54,196`** | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `ca8f0c5`) | `linux-dbt` | `5,568` | `18,895` | `4,515` | `7,650` | `950` | **`37,578`** | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `ca8f0c5`) | `hl-dbt` | — | — | — | — | — | **`73,800`** | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `ca8f0c5`) | `darwin-interp` | `467,242` | `551,438` | `484,343` | `1,241,957` | `3,677` | `2,748,657` | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `ca8f0c5`) | `linux-interp` | — | — | — | — | — | `2,236,349` | `ALL_PASS` |
 
 *(Totals are best-trial `total_us`; per-workload cells are independent per-workload minima, so a row's cells need not sum to its total. `s390x` `hl-dbt` / `linux-interp` per-workload splits were not recorded — only best-trial totals.)*
