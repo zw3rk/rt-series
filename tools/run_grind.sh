@@ -49,7 +49,7 @@ while [ $# -gt 0 ]; do
 done
 
 case "$ARCH_FILTER" in
-    all|host|a32rt|i686rt|mips32rt|ppc32rt|sparc32rt|rvrt|loongarch64rt|ppc64rt|mips64rt|sparc64rt) ;;
+    all|host|a32rt|i686rt|mips32rt|ppc32rt|sparc32rt|rvrt|loongarch64rt|ppc64rt|mips64rt|sparc64rt|s390xrt) ;;
     *)
         echo "ERROR: Invalid --arch '$ARCH_FILTER'" >&2
         exit 2
@@ -277,6 +277,7 @@ resolve_arch_defaults() {
             ppc64rt)       GRIND_CC="powerpc64le-linux-gnu-gcc" ;;
             mips64rt)      GRIND_CC="mips64el-linux-gnuabi64-gcc" ;;
             sparc64rt)     GRIND_CC="sparc64-linux-gnu-gcc" ;;
+            s390xrt)       GRIND_CC="s390x-linux-gnu-gcc" ;;
         esac
     fi
     if [ -z "$GRIND_CXX" ] && [ -n "$GRIND_CC" ]; then

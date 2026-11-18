@@ -202,6 +202,16 @@ _start:
     syscall 0
 EOF
                     ;;
+                s390x*)
+                    cat << 'EOF' > "$_cms_out"
+    .text
+    .global _start
+_start:
+    lghi %r2, 42
+    lghi %r1, 1
+    svc 0
+EOF
+                    ;;
                 *)
                     return 1
                     ;;
@@ -340,4 +350,31 @@ catalogue_run_tier4() {
     else
         note_skip "T4" "make -j2"
     fi
+}
+
+# Shared host/guest helpers moved here from tools/run_catalogue.sh so both
+# files stay <= 900 lines (run_catalogue.sh sources this file at startup).
+
+# Portable bounded command runner for host-gate docker probes: prefers
+# `timeout --kill-after`, then `gtimeout`, then a perl alarm fallback.
+run_bounded_cmd() {
+    _rbc_secs="$1"
+    shift
+    if command -v timeout >/dev/null 2>&1; then
+        timeout --kill-after=10s "${_rbc_secs}s" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout --kill-after=10s "${_rbc_secs}s" "$@"
+    else
+        perl -e 'alarm shift; exec @ARGV' "$_rbc_secs" "$@"
+    fi
+}
+
+# Guest-payload Tier 3 helper: LuaJIT has no JIT backend on these guest
+# arches, so `luajit` JIT traces are EXPECTED-SKIP, never a skip failure.
+is_luajit_expected_missing() {
+    _arch_norm="$(printf '%s' "${CATALOGUE_ARCH:-$(uname -m 2>/dev/null || echo unknown)}" | tr 'A-Z' 'a-z')"
+    case "$_arch_norm" in
+        sparc*|loongarch64|riscv*|ppc64*|powerpc64*|s390x*) return 0 ;;
+        *) return 1 ;;
+    esac
 }

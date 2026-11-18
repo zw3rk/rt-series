@@ -19,6 +19,7 @@ REQUIRED_DOCS := \
 	docs/DEFECTS.md \
 	docs/FEATURE-MATRIX.md \
 	docs/HOST-CONTRACT.md \
+	docs/PERF.md \
 	docs/SOFTWARE-CATALOGUE.md \
 	docs/CONVERGENCE-AUDIT-PROCESS.md \
 	docs/bench/results-darwin5-full.tsv \
@@ -157,11 +158,11 @@ check-catalogue: ## Syntax-check catalogue runners, verify wrappers, line limits
 	done
 	test -x tests/catalogue/run_catalogue.sh
 	test -x tools/build_uniform_guests.sh
-	for abi in armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le mips64el mips64eb sparc64; do \
+	for abi in armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le ppc64 mips64el mips64eb sparc64 s390x; do \
 		test -x _build/uniform/$$abi/p3_torture || { echo "MISSING _build/uniform/$$abi/p3_torture (run tools/build_uniform_guests.sh)" >&2; exit 1; }; \
 		test -x _build/uniform/$$abi/smoke_tcg || { echo "MISSING _build/uniform/$$abi/smoke_tcg (run tools/build_uniform_guests.sh)" >&2; exit 1; }; \
 	done
-	@echo "CHECK-CATALOGUE OK (28 uniform guests present)"
+	@echo "CHECK-CATALOGUE OK (32 uniform guests present)"
 
 check-p3-torture: ## Build and run the P3 signal/VM/atomic torture suite on the host
 	@mkdir -p $(BUILD)

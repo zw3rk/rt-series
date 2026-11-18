@@ -93,9 +93,10 @@ arch_repo() {
         sparc32)            echo "sparc32rt" ;;
         riscv64|riscv32)    echo "rvrt" ;;
         loongarch64)        echo "loongarch64rt" ;;
-        ppc64le)            echo "ppc64rt" ;;
+        ppc64le|ppc64be)    echo "ppc64rt" ;;
         mips64el|mips64)    echo "mips64rt" ;;
         sparc64)            echo "sparc64rt" ;;
+        s390x)              echo "s390xrt" ;;
         *)                  return 1 ;;
     esac
 }
@@ -184,9 +185,11 @@ arch_qemu() {
         riscv32)            echo "qemu-riscv32" ;;
         loongarch64)        echo "qemu-loongarch64" ;;
         ppc64le)            echo "qemu-ppc64le" ;;
+        ppc64be)            echo "qemu-ppc64" ;;
         mips64el)           echo "qemu-mips64el" ;;
         mips64)             echo "qemu-mips64" ;;
         sparc64)            echo "qemu-sparc64" ;;
+        s390x)              echo "qemu-s390x" ;;
         *)                  return 1 ;;
     esac
 }
@@ -216,7 +219,11 @@ find_darwin_rt() {
 }
 
 find_hl_bin() {
-    for cand in "$PROJECTS_DIR/hyper-linux-u4/_build/hl" "$PROJECTS_DIR/hyper-linux/_build/hl"; do
+    if [ -n "${HL:-}" ] && [ -x "$HL" ]; then
+        echo "$HL"
+        return 0
+    fi
+    for cand in "$PROJECTS_DIR/hyper-linux-darwin32/_build/hl" "$PROJECTS_DIR/hyper-linux-u4/_build/hl" "$PROJECTS_DIR/hyper-linux/_build/hl"; do
         if [ -x "$cand" ]; then
             echo "$cand"
             return 0
@@ -268,6 +275,16 @@ build_guest_bins() {
             "$clang_raw" --target=aarch64-unknown-linux-gnu $fs_flags -c "$SRC_FILE" -o "$BENCH_DIR/bench-aarch64.o" && \
             "$lld_raw" -m aarch64linux -Bstatic --no-dynamic-linker --image-base=0x00400000 -e _start "$BENCH_DIR/bench-aarch64.o" -o "$BENCH_DIR/bench-aarch64.tmp.$$" && \
             mv "$BENCH_DIR/bench-aarch64.tmp.$$" "$BENCH_DIR/bench-aarch64" && rm -f "$BENCH_DIR/bench-aarch64.o" || true
+        fi
+        if need_bench_rebuild "$BENCH_DIR/bench-ppc64be"; then
+            "$clang_raw" --target=powerpc64-unknown-linux-gnu -mabi=elfv1 -mcpu=pwr8 $fs_flags -c "$SRC_FILE" -o "$BENCH_DIR/bench-ppc64be.o" && \
+            "$lld_raw" -m elf64ppc -Bstatic --no-dynamic-linker --image-base=0x10000000 -e _start "$BENCH_DIR/bench-ppc64be.o" -o "$BENCH_DIR/bench-ppc64be.tmp.$$" && \
+            mv "$BENCH_DIR/bench-ppc64be.tmp.$$" "$BENCH_DIR/bench-ppc64be" && cp -f "$BENCH_DIR/bench-ppc64be" "$BENCH_DIR/bench-ppc64be.opd" && rm -f "$BENCH_DIR/bench-ppc64be.o" || true
+        fi
+        if need_bench_rebuild "$BENCH_DIR/bench-s390x"; then
+            "$clang_raw" --target=s390x-unknown-linux-gnu -march=z13 $fs_flags -c "$SRC_FILE" -o "$BENCH_DIR/bench-s390x.o" && \
+            "$lld_raw" -m elf64_s390 -Bstatic --no-dynamic-linker --image-base=0x01000000 -e _start "$BENCH_DIR/bench-s390x.o" -o "$BENCH_DIR/bench-s390x.tmp.$$" && \
+            mv "$BENCH_DIR/bench-s390x.tmp.$$" "$BENCH_DIR/bench-s390x" && rm -f "$BENCH_DIR/bench-s390x.o" || true
         fi
     fi
     if need_bench_rebuild "$BENCH_DIR/bench-darwin-arm64" && command -v cc >/dev/null 2>&1; then
@@ -346,7 +363,8 @@ build_guest_bins() {
                     gcc-riscv64-linux-gnu libc6-dev-riscv64-cross \
                     gcc-loongarch64-linux-gnu libc6-dev-loong64-cross \
                     gcc-powerpc64le-linux-gnu libc6-dev-ppc64el-cross \
-                    gcc-mips64el-linux-gnuabi64 libc6-dev-mips64el-cross >/dev/null
+                    gcc-mips64el-linux-gnuabi64 libc6-dev-mips64el-cross \
+                    gcc-s390x-linux-gnu libc6-dev-s390x-cross >/dev/null
 
                 mkdir -p /w/_build/bench
                 CFLAGS="-std=c11 -O2 -static -Wall -Wextra -Werror -Werror=vla -pedantic"
@@ -365,6 +383,7 @@ build_guest_bins() {
                 powerpc64le-linux-gnu-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-ppc64le
                 mips64el-linux-gnuabi64-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-mips64el
                 sparc64-linux-gnu-gcc $CFLAGS /w/tests/bench_suite.c -o /w/_build/bench/bench-sparc64
+                s390x-linux-gnu-gcc $CFLAGS -march=z13 /w/tests/bench_suite.c -o /w/_build/bench/bench-s390x
             '
         cleanup_bench_containers
     fi

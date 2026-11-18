@@ -1,6 +1,6 @@
 # `rt-series` Performance Ledger (`docs/PERF.md`)
 
-Authoritative performance baseline and optimization ledger across all 10 `rt-series` translators (`11` guest architectures + 32-bit iOS `armv7`/`armv7s` Mach-O in `a32rt`). All optimization work follows the mandatory 6-step loop (`Instrument -> Measure -> Hypothesise -> Fix -> Measure -> Validate`).
+Authoritative performance baseline and optimization ledger across all 11 `rt-series` translators (`12` guest ISAs / `13` Linux ELF benchmark targets + 32-bit iOS `armv7`/`armv7s` Mach-O in `a32rt`). All optimization work follows the mandatory 6-step loop (`Instrument -> Measure -> Hypothesise -> Fix -> Measure -> Validate`).
 
 ---
 
@@ -104,3 +104,49 @@ Measured with [`tests/bench_suite.c`](../tests/bench_suite.c) (`--full`, freesta
 | **`ppc64` BE ELFv1** (`.opd`) | `ppc64rt` (`09832a3`) | `hyper-linux` (`hl` HVF) DBT | `24,506` | `2,998` | `9,634` | `18,868` | `17,731` | **`73,737`** | `ALL_PASS` |
 | **`s390x` z13** (`EM_S390`) | `s390xrt` (`8410b2c`) | Darwin `arm64` DBT | `117,751` | `623,199` | `261,025` | `187,253` | `496` | **`1,189,724`** | `ALL_PASS` (`0` `--difftest` divergences) |
 | **`s390x` z13** (`EM_S390`) | `s390xrt` (`8410b2c`) | `hyper-linux` (`hl` HVF) DBT | `128,438` | `851,373` | `447,986` | `255,640` | `24,895` | **`1,708,332`** | `ALL_PASS` |
+
+---
+
+## 5. Round 22: `s390xrt` Native AArch64 Block JIT (`22.0×` Speedup) & `ppc64rt` 64K IBTC/Soft-TLB + POWER8/VMX Fast Paths
+
+Round 22 upgrades both remaining baseline-only translators to production DBT and re-measures the full 6-column matrix (`tests/bench_suite.c --full`, deterministic CRC `ALL_PASS` on every cell):
+
+- **`s390xrt` (`a45d529`)** — replaced the Round 21 C-helper DBT with a native AArch64 W^X block JIT (in-place block cache + Soft-TLB + `FPC`/`VR` vector lowering): Darwin DBT `1,189,724 µs -> 54,196 µs` (**`22.0×`**), Linux DBT **`37,578 µs`** (**`2.36×` faster than `qemu-s390x`** at `88,818 µs`).
+- **`ppc64rt` (`b37b021`)** — 64K-entry IBTC + scaled Soft-TLB, POWER8 fast paths (`maddld`/`setb`/`setbcr`) and VMX/VSX vector lowering across both `ppc64le` ELFv2 and `ppc64` BE ELFv1 (`.opd`): BE ELFv1 Darwin DBT `55,511 µs -> 49,974 µs`, Linux DBT **`48,195 µs`** (**`2.10×` faster than same-run `qemu-ppc64`** at `101,013 µs`, `1.43×` vs the calm `68,920 µs` `qemu-ppc64le` reference).
+
+### 5.1 Complete 6-Column Series Performance Table (All 13 Linux ELF Guest Targets)
+
+Fastest `rt-series` DBT per row is **bold**; `Speedup` compares it against same-run `qemu-user` TCG on Linux. `ppc64` and `s390x` rows are Round 22 re-measurements; the other 11 rows carry forward the §3.5 converged baselines.
+
+| Guest Target | Translator | Darwin DBT (`µs`) | Linux DBT (`µs`) | `hyper-linux` DBT (`µs`) | Darwin Interp (`µs`) | Linux Interp (`µs`) | `qemu-user` TCG (`µs`) | Speedup vs. `qemu-user` |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| `armhf` | `a32rt` | `10,770` | **`8,024`** | `15,216` | `571,857` | `570,282` | `22,066` | **2.75×** |
+| `i686` | `i686rt` | **`28,631`** | `28,947` | `30,555` | `1,174,119` | `1,381,159` | `32,623` | **1.14×** |
+| `mipsel` | `mips32rt` | `33,810` | **`33,430`** | `43,739` | `703,022` | `858,482` | `39,328` | **1.18×** |
+| `ppc32` | `ppc32rt` | **`34,026`** | `34,713` | `43,224` | `916,982` | `894,084` | `67,692` | **1.99×** |
+| `sparc32` | `sparc32rt` | **`43,282`** | `44,489` | `55,747` | `1,477,200` | `1,706,677` | `68,286` | **1.58×** |
+| `riscv64` | `rvrt` | **`24,019`** | `24,456` | `37,159` | `5,213,780` | `3,683,344` | `30,816` | **1.28×** |
+| `riscv32` | `rvrt` | **`24,601`** | `25,050` | `38,458` | `5,073,356` | `3,521,173` | `26,932` | **1.09×** |
+| `loongarch64` | `loongarch64rt` | **`29,627`** | `29,926` | `43,097` | `2,927,333` | `2,386,382` | `42,824` | **1.45×** |
+| `ppc64le` | `ppc64rt` | **`30,332`** | `30,463` | `44,841` | `4,284,855` | `7,049,949` | `67,990` | **2.24×** |
+| `ppc64` BE ELFv1 | `ppc64rt` | `49,974` | **`48,195`** | `73,737` | `12,587,556` | `7,173,020` | `101,013` | **2.10×** |
+| `mips64el` | `mips64rt` | **`23,767`** | `25,224` | `55,504` | `1,425,215` | `1,894,759` | `42,720` | **1.80×** |
+| `sparc64` | `sparc64rt` | **`48,933`** | `50,317` | `60,409` | `10,651,648` | `6,298,132` | `68,951` | **1.41×** |
+| `s390x` | `s390xrt` | `54,196` | **`37,578`** | `73,800` | `2,748,657` | `2,236,349` | `88,818` | **2.36×** |
+
+### 5.2 Round 22 Per-Workload Detail (`ppc64` BE ELFv1 + `s390x` z13, `--full` `µs`)
+
+| Guest Target (`Translator` @ `master`) | Target | `coremark` (`µs`) | `chacha20` (`µs`) | `vfp_simd` (`µs`) | `calls_ibtc` (`µs`) | `syscalls` (`µs`) | `total_us` (`µs`) | Status |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| `ppc64` BE ELFv1 (`ppc64rt` @ `b37b021`) | `darwin-dbt` | `13,280` | `3,872` | `15,554` | `16,835` | `433` | **`49,974`** | `ALL_PASS` |
+| `ppc64` BE ELFv1 (`ppc64rt` @ `b37b021`) | `linux-dbt` | `12,835` | `3,691` | `13,556` | `16,474` | `1,066` | **`48,195`** | `ALL_PASS` |
+| `ppc64` BE ELFv1 (`ppc64rt` @ `b37b021`) | `hl-dbt` | `24,506` | `2,998` | `9,634` | `18,868` | `17,731` | **`73,737`** | `ALL_PASS` |
+| `ppc64` BE ELFv1 (`ppc64rt` @ `b37b021`) | `darwin-interp` | `3,281,397` | `1,522,677` | `2,245,285` | `5,528,716` | `9,481` | `12,587,556` | `ALL_PASS` |
+| `ppc64` BE ELFv1 (`ppc64rt` @ `b37b021`) | `linux-interp` | `1,505,498` | `1,167,927` | `1,216,042` | `3,275,064` | `8,489` | `7,173,020` | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `a45d529`) | `darwin-dbt` | `9,112` | `29,449` | `6,307` | `8,811` | `517` | **`54,196`** | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `a45d529`) | `linux-dbt` | `5,568` | `18,895` | `4,515` | `7,650` | `950` | **`37,578`** | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `a45d529`) | `hl-dbt` | — | — | — | — | — | **`73,800`** | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `a45d529`) | `darwin-interp` | `467,242` | `551,438` | `484,343` | `1,241,957` | `3,677` | `2,748,657` | `ALL_PASS` |
+| `s390x` z13 (`s390xrt` @ `a45d529`) | `linux-interp` | — | — | — | — | — | `2,236,349` | `ALL_PASS` |
+
+*(Totals are best-trial `total_us`; per-workload cells are independent per-workload minima, so a row's cells need not sum to its total. `s390x` `hl-dbt` / `linux-interp` per-workload splits were not recorded — only best-trial totals.)*

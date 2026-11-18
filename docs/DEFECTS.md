@@ -1,21 +1,26 @@
 # `rt-series` Defect Ledger — Executive Summary
 
-**Status: Rounds 1–21 plus the Post-Round-12 Fast-Path Restoration Round are
+**Status: Rounds 1–22 plus the Post-Round-12 Fast-Path Restoration Round are
 100% resolved (`0` open defects).**
 
-Every finding filed in Rounds 1–21 across the 11 translator repositories, the
+Every finding filed in Rounds 1–22 across the 11 translator repositories, the
 `hyper-linux` `darwin32` personality workstream, and the `rt-series` harness has
 been remediated on `master`, re-verified by an independent review pass, and
 checked off. Round 19 (`19 / 19` resolved in `cc3d3aa`) audited and converged
 `a32rt`'s 32-bit iOS (`armv7`/`armv7s`) Mach-O & XNU personality, Round 20
 (`6 / 6` resolved in `6bf6d76` / `100af25`) remediated `a32rt`'s backend
 RAS/IBTC dispatch, 16-byte Soft-TLB, 22-slot VFP/NEON register cache, and
-Regime A2 AOT persistence, and Round 21 (`36 / 36` resolved across 5 concurrent
+Regime A2 AOT persistence, Round 21 (`36 / 36` resolved across 5 concurrent
 campaign tracks) converged standalone Class-B `s390xrt` (`8410b2c`), `ppc64rt`
 big-endian ELFv1 (`09832a3`), `ppc32rt` Darwin G4 CPU & `A32H_ABI 1.2` `G02`
 bridge (`a2ccdfc`), `a32rt` `G02` bridge & `a32rt-slim` decoupling (`a53ee27`),
 and `hyper-linux` unified 32-bit PowerPC/ARM Darwin personality (`b8cc19a0` on
-`darwin32/personality`). The full checklists live in the archive:
+`darwin32/personality`), and Round 22 promotes `s390xrt` to a full
+multi-process OS with a native AArch64 W^X block JIT (`a45d529`), upgrades
+`ppc64rt` to dual-ABI 64K IBTC/Soft-TLB coverage (`b37b021`), and qualifies
+`T1`–`T4` `guest-payload` across all 11 translators (`681 PASS, 0 FAIL,
+0 GAP, 0 SKIP`; `T1`–`T4` `ALL_OK` on every sysroot). The full checklists live
+in the archive:
 
 - [Rounds 1–12](archive/defects/rounds-01-12.md) — broad sweeps plus the six
   orthogonal subsystem deep-dives and the fast-path restoration sign-off.
@@ -34,20 +39,20 @@ and `hyper-linux` unified 32-bit PowerPC/ARM Darwin personality (`b8cc19a0` on
 
 | Repository | Converged `master` | Rounds 13–21 | Verification gates |
 | --- | --- | ---: | --- |
-| [a32rt](https://github.com/zw3rk/a32rt) | `a53ee27` | `51 / 51` | ELF32 + iOS (`61/61`) + `a32rt-slim` `A32H_ABI 1.2` HVF E2E (`rc=42`), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [i686rt](https://github.com/zw3rk/i686rt) | `226c880` | `17 / 17` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [mips32rt](https://github.com/zw3rk/mips32rt) | `a0794d2` | `18 / 18` | `make check`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [ppc32rt](https://github.com/zw3rk/ppc32rt) | `a2ccdfc` | `25 / 25` | `make check` (8 suites), G4 Altivec + `A32H_ABI 1.2` HVF E2E (`rc=37`), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [sparc32rt](https://github.com/zw3rk/sparc32rt) | `1dd1f22` | `20 / 20` | `make check`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [rvrt](https://github.com/zw3rk/rvrt) | `f978775` | `14 / 14` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [loongarch64rt](https://github.com/zw3rk/loongarch64rt) | `c98e960` | `14 / 14` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [ppc64rt](https://github.com/zw3rk/ppc64rt) | `09832a3` | `27 / 27` | `ppc64le` ELFv2 + `ppc64` BE ELFv1 (`check-be`, `vmx_reserve+8`, AOT), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [mips64rt](https://github.com/zw3rk/mips64rt) | `71ac358` | `15 / 15` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| [sparc64rt](https://github.com/zw3rk/sparc64rt) | `5486608` | `19 / 19` | parity PASS, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| `s390xrt` *(local)* | `8410b2c` | `12 / 12` | `make check` (5 z13 torture ELFs + `14/14` DBT/AOT), shadow-VM `--difftest` 0 divergences, `--full` bench `ALL_PASS` (`darwin` & `hl` HVF) |
+| [a32rt](https://github.com/zw3rk/a32rt) | `5959599` | `53 / 53` | R22 `45/0/0/0` + `T1`–`T4` `29/29 ALL_OK`, ELF32 + iOS (`61/61`) + `a32rt-slim` `A32H_ABI 1.2` HVF E2E (`rc=42`), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [i686rt](https://github.com/zw3rk/i686rt) | `deffa5e` | `17 / 17` | R22 `41/0/0/0` + `T1`–`T4` `29/29 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [mips32rt](https://github.com/zw3rk/mips32rt) | `bf9f0bc` | `18 / 18` | R22 `142/0/0/0` + `T1`–`T4` `29/29 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [ppc32rt](https://github.com/zw3rk/ppc32rt) | `2dfe7d0` | `25 / 25` | R22 `106/0/0/0` + `T1`–`T4` `29/29 ALL_OK`, G4 Altivec + `A32H_ABI 1.2` HVF E2E (`rc=37`), `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [sparc32rt](https://github.com/zw3rk/sparc32rt) | `1dd1f22` | `20 / 20` | R22 `31/0/0/0`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [rvrt](https://github.com/zw3rk/rvrt) | `b237770` | `14 / 14` | R22 `68/0/0/0` + `T1`–`T4` `28/28 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [loongarch64rt](https://github.com/zw3rk/loongarch64rt) | `a748562` | `14 / 14` | R22 `53/0/0/0` + `T1`–`T4` `29/29 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [ppc64rt](https://github.com/zw3rk/ppc64rt) | `b37b021` | `27 / 27` | R22 `70/0/0/0` (ELFv2 + BE ELFv1) + `T1`–`T4` `28/28 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [mips64rt](https://github.com/zw3rk/mips64rt) | `9371083` | `15 / 15` | R22 `59/0/0/0` + `T1`–`T4` `29/29 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [sparc64rt](https://github.com/zw3rk/sparc64rt) | `0100cc5` | `19 / 19` | R22 `32/0/0/0` + `T1`–`T4` `28/28 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| `s390xrt` *(local)* | `a45d529` | `12 / 12` | R22 `34/0/0/0` + `T1`–`T4` `28/28 ALL_OK` (Alpine `s390x`), native W^X block JIT Linux DBT `37,578 µs`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | `hyper-linux` (`darwin32`) | `b8cc19a0` | `3 / 3` | `1,376/1,376` host unit checks, `test-darwin32-os-srv` (`92/92`), live HVF PPC32 (`rc=37`) & ARM32 slim (`rc=42`) PASS |
 | [rt-series](https://github.com/zw3rk/rt-series) | umbrella harness | `17 / 17` | `make check && make check-catalogue` PASS |
-| **Total, Rounds 13–21** | | **`252 / 252`** | **100% verified, `0` open** |
+| **Total, Rounds 13–21** | | **`254 / 254`** | **100% verified, `0` open** |
 
 ## 2. How Convergence Was Reached
 
@@ -82,6 +87,24 @@ followed by sixteen focused re-review loops over integer ALU behavior, FP
 narrowing, uncalled definitions, host errno mapping, and memory/atomics. Every
 item was confirmed by two independent read-only checks and remediated on
 `master`.
+
+**Round 22, series-wide performance & `T1`–`T4` qualification convergence.**
+Two late defects were filed and closed: `a32rt` (`5959599`) fixed 2
+`grp_emit_grouped` defects in `src/core/core_emit_mem.c` — a Regime A2
+cross-page cold slow-path fallthrough into `cold_emit_fault` and a hot-path
+`w22` pre-indexed writeback clobber — restoring `test-m7-armhf` and
+`test-m8-glibc-armhf` dynamic `PASS` and `45/0/0/0` parity; and `i686rt`
+(`deffa5e`) fixed a `[MEDIUM]` `pselect6_time64` `+12` padding mask defect.
+The round otherwise promotes the last two baseline-only translators to
+production DBT and extends the real-world software catalogue to every sysroot. `s390xrt` moves from single-process + C-helper DBT to full
+multi-process/multi-thread `fork`/`vfork`/`clone`/`execve`/`wait4` with a
+native AArch64 W^X block JIT (`22.0×` Darwin DBT, `2.36×` faster than
+`qemu-s390x`); `ppc64rt` gains dual-ABI (ELFv2 + BE ELFv1 `.opd`) 64K
+IBTC/Soft-TLB coverage with POWER8/VMX fast paths (`2.10×` vs same-run
+`qemu-ppc64`); and `run_catalogue.sh guest-payload` passes `T1`–`T4`
+(`29` checks) on all 11 translators with `0 FAIL, 0 GAP, 0 SKIP` (`681`
+parity rows total). The standing gates in §5 below now include the Round 22
+parity + `guest-payload` counts per repository (see §1).
 
 ## 3. Fast-Path Restoration Results
 
@@ -129,8 +152,10 @@ A repository counts as converged only while all of these pass on `master`:
 5. `make check-line-limits` — every file within the line ceiling, no unity
    includes, strict Curated-C11 warnings clean.
 
-**Bottom line: Rounds 1–20 and the restoration round are fully resolved
+**Bottom line: Rounds 1–22 and the restoration round are fully resolved
 (`1,180` round 1–12 items, `7 / 7` restored fast paths, `191 / 191` round
-13–18 items, `19 / 19` round 19 `a32rt` iOS items, and `6 / 6` round 20
-`a32rt` backend/precision items). There are `0` open defects. New work starts
-from this ledger; it does not reopen it.**
+13–18 items, `19 / 19` round 19 `a32rt` iOS items, `6 / 6` round 20
+`a32rt` backend/precision items, `36 / 36` round 21 expansion items, and the
+Round 22 perf + `T1`–`T4` qualification gates green on all 11 translators).
+There are `0` open defects. New work starts from this ledger; it does not
+reopen it.**

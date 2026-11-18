@@ -3,11 +3,11 @@
 #
 # Builds tests/p3_torture.c (-lm) and tests/tcg/smoke_tcg.c (-lm) into
 #   _build/uniform/<abi>/{p3_torture,smoke_tcg}
-# for all 14 guest ABIs (10 translators):
+# for all 16 guest ABIs (11 translators):
 #   armhf, armel (a32rt), i686 (i686rt), mipsel, mips (mips32rt),
 #   ppc32 (ppc32rt), sparc32 (sparc32rt), riscv64, riscv32 (rvrt),
-#   loongarch64 (loongarch64rt), ppc64le (ppc64rt),
-#   mips64el, mips64eb (mips64rt), sparc64 (sparc64rt).
+#   loongarch64 (loongarch64rt), ppc64le, ppc64 (ppc64rt),
+#   mips64el, mips64eb (mips64rt), sparc64 (sparc64rt), s390x (s390xrt).
 #
 # Every ABI builds inside one bounded Docker run:
 #   timeout --kill-after=30s 180s docker run --rm --name "rt-u-${_abi}-$$" ...
@@ -256,6 +256,30 @@ build_riscv32() {
         "
 }
 
+build_ppc64_be() {
+    if ! want_abi ppc64; then return 0; fi
+    if already_built ppc64; then echo "SKIP [ppc64]: present and up-to-date"; return 0; fi
+    mkdir -p "$OUT_DIR/ppc64"
+    _cname="rt-u-ppc64-$$"
+    track_owned_container "$_cname"
+    echo "== Building uniform guests for ppc64 BE ELFv1 (container=$_cname) =="
+    timeout --kill-after=30s 240s docker run --rm --name "$_cname" \
+        --platform linux/amd64 \
+        -v "$ROOT_DIR:/w" -w /w debian:trixie-slim bash -c "
+            set -eu
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y -qq gcc-powerpc64-linux-gnu libc6-dev-ppc64-cross
+            mkdir -p /w/_build/uniform/ppc64 /tmp/p64be
+            printf '#include <stdint.h>\n#define BE_MKFN(fn, p) uint64_t _opd_##fn[3] = { (uint64_t)(uintptr_t)(p), 0, 0 }; void *_opdp_##fn = _opd_##fn; memcpy(&(fn), &_opdp_##fn, sizeof(fn))\n' > /tmp/p64be/p3_be.h
+            sed 's/memcpy(&fn, &p, sizeof(fn));/BE_MKFN(fn, p);/' /w/tests/p3_torture.c > /tmp/p64be/p3_torture_be.c
+            powerpc64-linux-gnu-gcc -O1 -std=gnu11 -static -pthread -D_GNU_SOURCE -include /tmp/p64be/p3_be.h -I/w/tests /tmp/p64be/p3_torture_be.c -lm -o /w/_build/uniform/ppc64/p3_torture.tmp.$$
+            powerpc64-linux-gnu-gcc $COMMON_CFLAGS /w/tests/tcg/smoke_tcg.c -lm -o /w/_build/uniform/ppc64/smoke_tcg.tmp.$$
+            mv /w/_build/uniform/ppc64/p3_torture.tmp.$$ /w/_build/uniform/ppc64/p3_torture
+            mv /w/_build/uniform/ppc64/smoke_tcg.tmp.$$ /w/_build/uniform/ppc64/smoke_tcg
+        "
+}
+
 build_trixie_abi armhf   "gcc-arm-linux-gnueabihf libc6-dev-armhf-cross" "arm-linux-gnueabihf-gcc"
 build_trixie_abi armel   "gcc-arm-linux-gnueabi libc6-dev-armel-cross"   "arm-linux-gnueabi-gcc"
 build_trixie_abi i686    "gcc-i686-linux-gnu libc6-dev-i386-cross"       "i686-linux-gnu-gcc"
@@ -267,9 +291,11 @@ build_trixie_abi riscv64 "gcc-riscv64-linux-gnu libc6-dev-riscv64-cross" "riscv6
 build_riscv32
 build_image_abi  loongarch64 "loongarch64rt-l3a-tool:latest"             "loongarch64-linux-gnu-gcc"
 build_image_abi  ppc64le     "ppc64rt-l3a-tool:latest"                   "powerpc64le-linux-gnu-gcc"
+build_ppc64_be
 build_image_abi  mips64el    "mips64rt-parity-env:trixie"                "mips64el-linux-gnuabi64-gcc -mabi=64"
 build_image_abi  mips64eb    "mips64rt-parity-env:trixie"                "mips64-linux-gnuabi64-gcc -mabi=64"
 build_image_abi  sparc64     "sparc64rt-l6a-tool:latest"                 "sparc64-linux-gnu-gcc"
+build_trixie_abi s390x       "gcc-s390x-linux-gnu libc6-dev-s390x-cross" "s390x-linux-gnu-gcc -march=z13"
 
 cleanup_owned_containers || exit 1
 verify_no_lingering_containers || exit 1

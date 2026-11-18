@@ -49,7 +49,7 @@ make check && make check-catalogue
 
 `nix develop` opens the unified cross-compilation and audit shell;
 `make check` runs the fast acceptance gate and `make check-catalogue` runs the
-real-world software qualification catalogue across all 10 translators.
+real-world software qualification catalogue across all 11 translators.
 
 ## Architecture at a Glance
 
@@ -138,10 +138,10 @@ qemu-user` compares that fastest `rt-series` DBT result to `qemu-user` TCG.
 | **RISC-V 32** (`riscv32`) | `rvrt` | `26,093` | **`25,046`** | `38,657` | `26,750` | **1.07x** | `5,073,356` |
 | **LoongArch64** (`loongarch64`) | `loongarch64rt` | **`38,786`** | `39,222` | `49,558` | `43,724` | **1.13x** | `2,927,333` |
 | **Power ISA 64** (`ppc64le`) | `ppc64rt` | **`35,243`** | `35,681` | `44,710` | `68,920` | **1.96x** | `4,284,855` |
-| **Power ISA 64 BE** (`ppc64` ELFv1) | `ppc64rt` | **`55,511`** | — | `73,737` | `68,920` | **1.24x** | — |
+| **Power ISA 64 BE** (`ppc64` ELFv1) | `ppc64rt` | `49,974` | **`48,195`** | `73,737` | `101,013` | **2.10x** | `12,587,556` |
 | **MIPS64** (`mips64el`) | `mips64rt` | **`23,785`** | `25,150` | `47,080` | `42,229` | **1.78x** | `1,425,215` |
 | **SPARC V9** (`sparc64`) | `sparc64rt` | **`51,386`** | `51,428` | `60,051` | `69,027` | **1.34x** | `10,651,648` |
-| **z/Architecture** (`s390x` z13) | `s390xrt` | **`1,189,724`** | — | `1,708,332` | — | *(initial z13 DBT baseline)* | — |
+| **z/Architecture** (`s390x` z13) | `s390xrt` | `54,196` | **`37,578`** | `73,800` | `88,818` | **2.36x** | `2,748,657` |
 
 <details><summary>Per-Workload Breakdown — Darwin DBT vs. Linux DBT vs. qemu-user TCG (µs)</summary>
 
@@ -156,8 +156,10 @@ qemu-user` compares that fastest `rt-series` DBT result to `qemu-user` TCG.
 | `riscv32` (`rvrt`) | Darwin / Linux / QEMU | `5,081` / `5,095` / `1,615` | `2,634` / `2,651` / `1,292` | `10,238` / `8,743` / `11,091` | `7,525` / `7,561` / `11,816` | `615` / `996` / `936` | `26,093` / **`25,046`** / `26,750` |
 | `loongarch64` (`loongarch64rt`) | Darwin / Linux / QEMU | `5,993` / `5,981` / `2,527` | `1,990` / `1,984` / `1,455` | `22,089` / `22,136` / `30,639` | `8,057` / `8,019` / `7,988` | `657` / `1,102` / `1,115` | **`38,786`** / `39,222` / `43,724` |
 | `ppc64le` (`ppc64rt`) | Darwin / Linux / QEMU | `10,133` / `10,064` / `3,093` | `1,799` / `1,802` / `1,180` | `8,107` / `8,104` / `50,715` | `14,631` / `14,646` / `12,940` | `573` / `1,065` / `992` | **`35,243`** / `35,681` / `68,920` |
+| `ppc64` BE ELFv1 (`ppc64rt`) | Darwin / Linux / QEMU | `13,280` / `12,835` / `12,794` | `3,872` / `3,691` / `1,486` | `15,554` / `13,556` / `68,174` | `16,835` / `16,474` / `17,368` | `433` / `1,066` / `1,191` | `49,974` / **`48,195`** / `101,013` |
 | `mips64el` (`mips64rt`) | Darwin / Linux / QEMU | `7,184` / `7,100` / `2,544` | `2,479` / `2,481` / `1,449` | `3,378` / `3,357` / `29,290` | `10,065` / `10,066` / `8,047` | `679` / `2,146` / `899` | **`23,785`** / `25,150` / `42,229` |
 | `sparc64` (`sparc64rt`) | Darwin / Linux / QEMU | `11,691` / `11,475` / `4,418` | `4,268` / `4,073` / `1,325` | `16,227` / `16,150` / `30,966` | `18,747` / `18,810` / `31,362` | `453` / `920` / `956` | **`51,386`** / `51,428` / `69,027` |
+| `s390x` (`s390xrt`) | Darwin / Linux / QEMU | `9,112` / `5,568` / — | `29,449` / `18,895` / — | `6,307` / `4,515` / — | `8,811` / `7,650` / — | `517` / `950` / — | `54,196` / **`37,578`** / `88,818` |
 
 </details>
 

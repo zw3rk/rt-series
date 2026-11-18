@@ -7,9 +7,9 @@
 # Copyright 2026 Moritz Angermann <moritz@zw3rk.com>, zw3rk pte. ltd.
 # SPDX-License-Identifier: Apache-2.0
 
-ARCH_LIST="armhf:a32rt:qemu-arm i686:i686rt:qemu-i386 mipsel:mips32rt:qemu-mipsel ppc32:ppc32rt:qemu-ppc sparc32:sparc32rt:qemu-sparc riscv64:rvrt:qemu-riscv64 riscv32:rvrt:qemu-riscv32 loongarch64:loongarch64rt:qemu-loongarch64 ppc64le:ppc64rt:qemu-ppc64le mips64el:mips64rt:qemu-mips64el sparc64:sparc64rt:qemu-sparc64"
+ARCH_LIST="armhf:a32rt:qemu-arm i686:i686rt:qemu-i386 mipsel:mips32rt:qemu-mipsel ppc32:ppc32rt:qemu-ppc sparc32:sparc32rt:qemu-sparc riscv64:rvrt:qemu-riscv64 riscv32:rvrt:qemu-riscv32 loongarch64:loongarch64rt:qemu-loongarch64 ppc64le:ppc64rt:qemu-ppc64le ppc64be:ppc64rt:qemu-ppc64 mips64el:mips64rt:qemu-mips64el sparc64:sparc64rt:qemu-sparc64 s390x:s390xrt:qemu-s390x"
 
-ALL_RT_REPOS="a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64rt sparc64rt"
+ALL_RT_REPOS="a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64rt sparc64rt s390xrt"
 
 REMOTE_BENCH_TIMEOUT="${REMOTE_BENCH_TIMEOUT:-90}"
 REMOTE_LIMA_TIMEOUT="${REMOTE_LIMA_TIMEOUT:-600}"
@@ -39,6 +39,7 @@ _rt_env_run() {
     I686RT_ENGINE="$_rt_eng" RVRT_ENGINE="$_rt_eng" MIPS32RT_ENGINE="$_rt_eng" \
     PPC32RT_ENGINE="$_rt_eng" SPARC32RT_ENGINE="$_rt_eng" LOONGARCH64RT_ENGINE="$_rt_eng" \
     PPC64RT_ENGINE="$_rt_eng" MIPS64RT_ENGINE="$_rt_eng" SPARC64RT_ENGINE="$_rt_eng" \
+    S390XRT_ENGINE="$_rt_eng" \
     run_bounded "$@"
 }
 

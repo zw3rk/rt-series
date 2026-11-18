@@ -1,12 +1,12 @@
 # `rt-series` Software Qualification Catalogue & Unified Benchmark Harness
 
-This document defines the **Real-World Software Qualification Catalogue (`T1`–`T5`)** and the **Unified 4-Target Benchmark Harness** across all 10 `<arch>rt` repositories (11 guest architectures, 16 ABI variants).
+This document defines the **Real-World Software Qualification Catalogue (`T1`–`T5`)** and the **Unified 4-Target Benchmark Harness** across all 11 `<arch>rt` repositories (12 guest ISAs / 13 Linux ELF benchmark targets, 16 ABI variants).
 
 It strictly separates **setup & deterministic smoke testing** (`make bench-build`, `make bench-smoke`, `make catalogue-smoke` — runnable on any host or CI in seconds) from **timed performance measurement** (`make bench-run` — gated on a calm host).
 
 ---
 
-## 1. Architecture × Libc, Toolchain & Sysroot Matrix (10 Translators, 16 Guest ABIs)
+## 1. Architecture × Libc, Toolchain & Sysroot Matrix (11 Translators, 16 Guest ABIs)
 
 Every translator is qualified against both static ELF binaries and dynamically linked (`ET_DYN` / `PT_INTERP`) userlands across `musl` and `glibc`:
 
@@ -19,9 +19,10 @@ Every translator is qualified against both static ELF binaries and dynamically l
 | **[`sparc32rt`](https://github.com/zw3rk/sparc32rt)** | `EM_SPARC` SPARC V8 32-bit BE (`LEON3/4`) | *(upstream `musl` has no SPARC port)* | Debian Ports `sparc` / `sparc64 -m32` (`glibc 2.36` / `2.40`) | `/lib/ld-linux.so.2` | `binutils 2.40+`, `gcc 12.2` / `14.2` (`sparc-linux-gnu` / `sparc64-linux-gnu -m32`) |
 | **[`rvrt`](https://github.com/zw3rk/rvrt)** | `EM_RISCV` `RV64GC` (`lp64d`) & `RV32GC` (`ilp32d`) | Alpine v3.21 `riscv64` & Nix `riscv32` (`musl 1.2.5`) | Debian 13 `riscv64` & Nix `riscv32` (`glibc 2.40`) | `/lib/ld-musl-riscv64.so.1`, `/lib/ld-musl-riscv32.so.1`<br>`/lib/ld-linux-riscv64-lp64d.so.1`, `/lib/ld-linux-riscv32-ilp32d.so.1` | `binutils 2.43+`, `gcc 14.2.0` (`riscv64-linux-*`, `riscv32-linux-*`) |
 | **[`loongarch64rt`](https://github.com/zw3rk/loongarch64rt)** | `EM_LOONGARCH` `LA64` `LP64D` (`LSX` + `LASX`) | Alpine / `musl` `loongarch64` (`musl 1.2.5`) | Debian 13 `loong64` (`glibc 2.40`) | `/lib/ld-musl-loongarch64.so.1`<br>`/lib64/ld-linux-loongarch-lp64d.so.1` | `binutils 2.43+`, `gcc 14.2.0` (`loongarch64-linux-gnu`) |
-| **[`ppc64rt`](https://github.com/zw3rk/ppc64rt)** | `EM_PPC64` `ppc64le` **ELFv2** (`VMX` + `VSX`) | Alpine v3.21 `ppc64le` (`musl 1.2.5`) | Debian 12/13 `ppc64el` (`glibc 2.36` / `2.40`) | `/lib/ld-musl-powerpc64le.so.1`<br>`/lib64/ld64.so.2` | `binutils 2.42+`, `gcc 14.2.0` (`powerpc64le-linux-gnu`) |
+| **[`ppc64rt`](https://github.com/zw3rk/ppc64rt)** | `EM_PPC64` `ppc64le` **ELFv2** + `ppc64` **BE ELFv1** (`.opd`) (`VMX` + `VSX`) | Alpine v3.21 `ppc64le` (`musl 1.2.5`) | Debian 12/13 `ppc64el` + Ports `ppc64` (`glibc 2.36` / `2.40`) | `/lib/ld-musl-powerpc64le.so.1`<br>`/lib64/ld64.so.2` (ELFv2) / BE `ld.so.1` | `binutils 2.42+`, `gcc 14.2.0` (`powerpc64le-linux-gnu` / `powerpc64-linux-gnu`) |
 | **[`mips64rt`](https://github.com/zw3rk/mips64rt)** | `EM_MIPS` **N64** (`5000+n`) & **N32** (`6000+n`), `LE` & `BE` | `musl` `mips64el` / `mips64` (`N64` & `N32`, `musl 1.2.5`) | Debian 12/13 `mips64el` / Ports `mips64` (`glibc 2.36` / `2.40`) | `/lib/ld-musl-mips64el.so.1`, `/lib/ld-musl-mips64.so.1`<br>`/lib64/ld.so.1` (N64), `/lib32/ld.so.1` (N32) | `binutils 2.42+`, `gcc 14.2.0` (`mips64el-linux-gnuabi64` / `-gnuabin32`) |
 | **[`sparc64rt`](https://github.com/zw3rk/sparc64rt)** | `EM_SPARCV9` SPARC V9 64-bit BE (stack bias `2047`) | *(upstream `musl` has no SPARC64 port)* | Debian Ports `sparc64` (`glibc 2.40`) | `/lib64/ld-linux.so.2` | `binutils 2.43+`, `gcc 14.2.0` (`sparc64-linux-gnu`) |
+| `s390xrt` *(local repo)* | `EM_S390` z/Architecture 64-bit BE (z13, 2/4/6-byte ISA) | Alpine v3.21 `s390x` (`musl 1.2.5`) | Debian 13 `s390x` (`glibc 2.40`) | `/lib/ld-musl-s390x.so.1`<br>`/lib/ld-linux-s390x.so.2` | `binutils 2.42+`, `gcc 14.2.0` (`s390x-linux-gnu`) |
 
 ---
 
@@ -45,7 +46,7 @@ Exercises unaligned loads/stores, vector/SIMD loops (`NEON`, `SSE2`, `VSX`, `LSX
 ### Tier 3 (`T3`): Scripting VMs, Language Runtimes & Nested Guest JITs
 Exercises IEEE-754 NaN-boxing (`rvrt`, `mips`, `loongarch64`), custom allocators (`mmap` with `MAP_ANONYMOUS` / `mprotect`), `sigaltstack`, and **guest-side dynamic code generation (JIT-inside-DBT)**:
 - **`lua5.4` (`5.4.7`)**: Coroutines (`coroutine.create`/`resume`/`yield`), closures, and incremental garbage collection.
-- **`luajit` (`2.1`)** *(on architectures with a LuaJIT backend: `arm32`, `i686`, `mips32`, `ppc32`, `mips64`)*: Asserts `jit.status() == true` so LuaJIT emits native guest machine code into RW mappings and executes it — directly stressing `rt-series` W^X write-gate traps, `cacheflush`/`synci`/`icbi`, and Soft-TLB `PAGE_HAS_CODE` invalidation.
+- **`luajit` (`2.1`)**: Where the guest arch has a LuaJIT JIT backend (`arm32`, `i686`, `mips32`, `ppc32`, `mips64el`, `loongarch64`) asserts `jit.status() == true` with a `jit.attach` trace counter and golden `675631440`, so LuaJIT emits native guest machine code into RW mappings — directly stressing W^X write-gate traps, `cacheflush`/`synci`/`icbi`, and Soft-TLB `PAGE_HAS_CODE` invalidation. Where it has none (`sparc32`, `sparc64`, `riscv64`/`riscv32`, `ppc64le`/`ppc64`, `s390x`), the same golden `675631440` runs on the interpreter and is recorded as `EXPECTED-SKIP`, never a skip failure.
 - **`python3` (`3.12+`)**: Full CPython runtime importing dynamic `.so` C extensions (`hashlib`, `json`, `math`, `re`, `zlib`, `threading`), verifying SHA-256 + zlib + floating-point serialization.
 
 ### Tier 4 (`T4`): Binary Toolchains, Compilers & Self-Hosted Builds ("The Compiler Torture Gate")
@@ -61,22 +62,23 @@ The most demanding user-mode workload: running a multi-process compiler driver (
 - **LTP Syscall Conformance Subset (`H2`)**: `mmap`/`mprotect`/`mremap`, `fork`/`vfork`/`clone`/`wait4`/`waitid`, `futex`, `rt_sigaction`/`rt_sigprocmask`/`sigaltstack`, `epoll`, `socketpair` + `SCM_RIGHTS`, `statx`, `getdents64`, `EFAULT` negative bounds.
 - **Wave U Torture (`P6` / `RC-U`)**: Multi-thread 6-step `tgkill`/`SIGUSR2` Soft-TLB shootdown, `Provider A` / `Provider B` in-place non-relocating `MAP_PRIVATE` COW across `fork()` + `futex`, and `MAP_SHARED` `ftruncate` EOF tracking.
 
-### 2.6 Verified Qualification Summary across All 10 Translators (`tools/run_catalogue.sh`)
+### 2.6 Verified Qualification Summary across All 11 Translators (`tools/run_catalogue.sh`)
 
-All 10 `<arch>rt` repositories pass their `tools/run_catalogue.sh smoke` gate (`10/10 PASS`, `0 FAIL`, `0 GAP`) with cross-engine `--interp` / `--dbt` / `--difftest` (`0 divergences`) parity against upstream QEMU user-mode oracles, dynamic linker (`PT_INTERP`) verification, and multi-tier userland payloads:
+All 11 `<arch>rt` repositories pass their `tools/run_catalogue.sh smoke` gate (`11/11 PASS`, `0 FAIL`, `0 GAP`) with cross-engine `--interp` / `--dbt` / `--difftest` (`0 divergences`) parity against upstream QEMU user-mode oracles, dynamic linker (`PT_INTERP`) verification, and multi-tier userland payloads:
 
 | Translator | `run_catalogue.sh smoke` Gate | Verified Userland, Sysroot & Torture Coverage |
 |---|---|---|
-| **[`a32rt`](https://github.com/zw3rk/a32rt)** | **`PASS`** (`parity_suite.sh`, `11/11` checks) | Full `T1`–`T5`: `M1`–`M6` + `H1` SMC (`WXORX_TRAP_OK`) + `H3` CoreMark + `H4` C++17 `.ARM.exidx` unwind; **15/15 `T1`–`T4` `guest-payload` checks `PASS`** inside Alpine `armhf` rootfs under `hl` (`busybox`, `bash`, `gawk`, `grep`, `find`, `diff`, `gzip`, `xz`, `zstd`, `bzip2`, `openssl`, `jq`, `sqlite3`, `lua5.4`, **`luajit 2.1` nested guest JIT**, `python3`, `binutils`, **self-hosted `gcc` & `g++` C++17**, `make -j2`, `git`); dynamic `busybox` under `a32rt-darwin --sysroot`. |
-| **[`i686rt`](https://github.com/zw3rk/i686rt)** | **`PASS`** (`parity_suite.sh`, `11/11` checks) | `P1`–`P6` + `H1` SMC (`mprotect` + write-gate) + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 DWARF `.eh_frame` unwind + dynamic `PT_INTERP` (`ld-musl-i386.so.1` / `ld-linux.so.2`) + `BusyBox` pipeline parity (`--interp`, `--dbt`, `--difftest 0 divergences`). |
-| **[`mips32rt`](https://github.com/zw3rk/mips32rt)** | **`PASS`** (`make check`, `69/69` checks) | Dual-endian `mipsel` + `mips` (BE) O32: ISA/delay-slot/FPU (`FR=0`/`FR=1`), `clone`/NPTL TLS (`rdhwr $29`), signals, dynamic `ld-musl-mipsel.so.1` + `dlopen`, `H1` `synci` SMC, `H2` `libc-test`/LTP, `H3` CoreMark, `H4` C++17 unwind (`--interp`, `--dbt`, `--difftest 0 divergences`). |
-| **[`ppc32rt`](https://github.com/zw3rk/ppc32rt)** | **`PASS`** (`make check`) | Classic 32-bit BE (`750`/`7400` + FPU) and NXP `e500v2` SPE (`ev*`/`efd*`/`efs*` 64-bit accumulator/GPR split): `P1`–`P6` + dynamic `ld.so.1` + `H1` `dcbst`/`icbi` SMC + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 unwind (`--interp`, `--dbt`, `--difftest 0 divergences`). |
-| **[`sparc32rt`](https://github.com/zw3rk/sparc32rt)** | **`PASS`** (`make check`) | SPARC V8 BE (`LEON3/4` 8-window register file, `save`/`restore` window spill/fill, `ta 0x10` syscalls, delayed control transfers `DCTI` + annulled branches): `P1`–`P6` + dynamic `glibc` `/lib/ld-linux.so.2` (`sparc32-sysroot`) + `H1` `iflush` SMC + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 unwind. |
-| **[`rvrt`](https://github.com/zw3rk/rvrt)** | **`PASS`** (`parity_suite.sh`, `9/9` suites) | Unified `RV64GC` (`lp64d`) + `RV32GC` (`ilp32d`): 73-check host unit & DBT suite + `RV32` ISA/syscall/signal/VM parity (`test_rv32_smoke`, `test_rv32_parity`) + dynamic `rv64-musl` (`ld-musl-riscv64.so.1`), dynamic `rv64-glibc` (`ld-linux-riscv64-lp64d.so.1`), and `BusyBox` userland execution. |
-| **[`loongarch64rt`](https://github.com/zw3rk/loongarch64rt)** | **`PASS`** (`parity_suite.sh`, `41/41` checks, `0 FAIL`, `0 GAP`) | `LA64` `LP64D` (`LSX` 128-bit + `LASX` 256-bit SIMD): `P1` (`p1_mini`, `test_p1_isa`), `P2` (`hello`, `printf`, `qsort`, `malloc`, `fileio`), `P3` (`test_p3_fp_simd`), `P4` (`test_p4_threads_signals`), `P5` (`test_p5_dyn` dynamic `ld-musl-loongarch64.so.1` + `dlopen` + TLS, `29/29`), `P6` (`test_p6_sched` 6-step `tgkill` quiescence + COW), `P7`/`H3` CoreMark, `H1` (`test_h1_smc` `ibar`), `H4` (`test_h4_cxx17` C++17 unwind). |
-| **[`ppc64rt`](https://github.com/zw3rk/ppc64rt)** | **`PASS`** (`parity_suite.sh`, `9/9` suites, `0 FAIL`) | `ppc64le` ELFv2 (`r2` TOC, `r12` global entry, `sc` + `scv 0` syscalls, `VMX` + `VSX` + Power10 `maddld`/`setb`/`setbcr`): `p1_isa`, `p2_hello`, `p3_vsx`, `p4_threads`, `p5_dyn` (dynamic `/lib64/ld64.so.2` + `BusyBox`), `h1_smc` (`dcbst`/`icbi`), `h2_libc`, `h3_compute`, `h4_cxx` (`--interp`, `--dbt`, `--difftest 0 divergences`). |
-| **[`mips64rt`](https://github.com/zw3rk/mips64rt)** | **`PASS`** (`parity_suite.sh`, `8/8` suites, `0 FAIL`, `0 GAP`) | 4-ABI matrix (`N64` `5000+n` & `N32` `6000+n`, `LE` & `BE`): `P1`–`P4` + `P5` dynamic `/lib64/ld.so.1` & `/lib32/ld.so.1` + `BusyBox` (`1.37.0`) oracle parity + `P6` `tgkill`/COW + `H1` `synci` SMC + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 unwind (`--interp`, `--dbt`, `--difftest 0 divergences`). |
-| **[`sparc64rt`](https://github.com/zw3rk/sparc64rt)** | **`PASS`** (`parity_suite.sh`, `9/9` suites, `0 FAIL`) | SPARC V9 64-bit BE (stack bias `2047`, `save`/`restore`/`flushw`, `ta 0x6d`, V9 `%ccr`/`%asi`, `VIS`): `p1_isa`, `p2_hello`, `p3_fpu`, `p4_threads`, `p5_dyn` (dynamic `/lib64/ld-linux.so.2` in `sparc64-sysroot` + `BusyBox`), `h1_smc` (`flush`), `h2_libc`, `h3_coremark`, `h4_cxx` (`--interp`, `--dbt`, `--difftest 0 divergences`). |
+| **[`a32rt`](https://github.com/zw3rk/a32rt)** | **`PASS`** (`parity_suite.sh`, `45/0/0/0`) | Full `T1`–`T5`: `M1`–`M6` + `H1` SMC (`WXORX_TRAP_OK`) + `H3` CoreMark + `H4` C++17 `.ARM.exidx` unwind; **15/15 `T1`–`T4` `guest-payload` checks `PASS`** inside Alpine `armhf` rootfs under `hl` (`busybox`, `bash`, `gawk`, `grep`, `find`, `diff`, `gzip`, `xz`, `zstd`, `bzip2`, `openssl`, `jq`, `sqlite3`, `lua5.4`, **`luajit 2.1` nested guest JIT**, `python3`, `binutils`, **self-hosted `gcc` & `g++` C++17**, `make -j2`, `git`); dynamic `busybox` under `a32rt-darwin --sysroot`. |
+| **[`i686rt`](https://github.com/zw3rk/i686rt)** | **`PASS`** (`parity_suite.sh`, `41/0/0/0`) | `P1`–`P6` + `H1` SMC (`mprotect` + write-gate) + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 DWARF `.eh_frame` unwind + dynamic `PT_INTERP` (`ld-musl-i386.so.1` / `ld-linux.so.2`) + `BusyBox` pipeline parity (`--interp`, `--dbt`, `--difftest 0 divergences`). |
+| **[`mips32rt`](https://github.com/zw3rk/mips32rt)** | **`PASS`** (`parity_suite.sh`, `142/0/0/0`) | Dual-endian `mipsel` + `mips` (BE) O32: ISA/delay-slot/FPU (`FR=0`/`FR=1`), `clone`/NPTL TLS (`rdhwr $29`), signals, dynamic `ld-musl-mipsel.so.1` + `dlopen`, `H1` `synci` SMC, `H2` `libc-test`/LTP, `H3` CoreMark, `H4` C++17 unwind (`--interp`, `--dbt`, `--difftest 0 divergences`). |
+| **[`ppc32rt`](https://github.com/zw3rk/ppc32rt)** | **`PASS`** (`parity_suite.sh`, `106/0/0/0`) | Classic 32-bit BE (`750`/`7400` + FPU) and NXP `e500v2` SPE (`ev*`/`efd*`/`efs*` 64-bit accumulator/GPR split): `P1`–`P6` + dynamic `ld.so.1` + `H1` `dcbst`/`icbi` SMC + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 unwind (`--interp`, `--dbt`, `--difftest 0 divergences`). |
+| **[`sparc32rt`](https://github.com/zw3rk/sparc32rt)** | **`PASS`** (`parity_suite.sh`, `31/0/0/0`) | SPARC V8 BE (`LEON3/4` 8-window register file, `save`/`restore` window spill/fill, `ta 0x10` syscalls, delayed control transfers `DCTI` + annulled branches): `P1`–`P6` + dynamic `glibc` `/lib/ld-linux.so.2` (`sparc32-sysroot`) + `H1` `iflush` SMC + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 unwind. |
+| **[`rvrt`](https://github.com/zw3rk/rvrt)** | **`PASS`** (`parity_suite.sh`, `68/0/0/0`) | Unified `RV64GC` (`lp64d`) + `RV32GC` (`ilp32d`): 73-check host unit & DBT suite + `RV32` ISA/syscall/signal/VM parity (`test_rv32_smoke`, `test_rv32_parity`) + dynamic `rv64-musl` (`ld-musl-riscv64.so.1`), dynamic `rv64-glibc` (`ld-linux-riscv64-lp64d.so.1`), and `BusyBox` userland execution. |
+| **[`loongarch64rt`](https://github.com/zw3rk/loongarch64rt)** | **`PASS`** (`parity_suite.sh`, `53/0/0/0`) | `LA64` `LP64D` (`LSX` 128-bit + `LASX` 256-bit SIMD): `P1` (`p1_mini`, `test_p1_isa`), `P2` (`hello`, `printf`, `qsort`, `malloc`, `fileio`), `P3` (`test_p3_fp_simd`), `P4` (`test_p4_threads_signals`), `P5` (`test_p5_dyn` dynamic `ld-musl-loongarch64.so.1` + `dlopen` + TLS, `29/29`), `P6` (`test_p6_sched` 6-step `tgkill` quiescence + COW), `P7`/`H3` CoreMark, `H1` (`test_h1_smc` `ibar`), `H4` (`test_h4_cxx17` C++17 unwind). |
+| **[`ppc64rt`](https://github.com/zw3rk/ppc64rt)** | **`PASS`** (`parity_suite.sh`, `70/0/0/0`) | Dual `ppc64le` ELFv2 + `ppc64` BE ELFv1 (`.opd`, `r2` TOC, `sc` + `scv 0`, `VMX` + `VSX` + Power10 `maddld`/`setb`/`setbcr`): `p1_isa`, `p2_hello`, `p3_vsx`, `p4_threads`, `p5_dyn` (dynamic `/lib64/ld64.so.2` + BE `ld.so.1` + `BusyBox`), `h1_smc` (`dcbst`/`icbi`), `h2_libc`, `h3_compute`, `h4_cxx` (`--interp`, `--dbt`, `--difftest 0 divergences`). |
+| **[`mips64rt`](https://github.com/zw3rk/mips64rt)** | **`PASS`** (`parity_suite.sh`, `59/0/0/0`) | 4-ABI matrix (`N64` `5000+n` & `N32` `6000+n`, `LE` & `BE`): `P1`–`P4` + `P5` dynamic `/lib64/ld.so.1` & `/lib32/ld.so.1` + `BusyBox` (`1.37.0`) oracle parity + `P6` `tgkill`/COW + `H1` `synci` SMC + `H2` `libc-test`/LTP + `H3` CoreMark + `H4` C++17 unwind (`--interp`, `--dbt`, `--difftest 0 divergences`). |
+| **[`sparc64rt`](https://github.com/zw3rk/sparc64rt)** | **`PASS`** (`parity_suite.sh`, `32/0/0/0`) | SPARC V9 64-bit BE (stack bias `2047`, `save`/`restore`/`flushw`, `ta 0x6d`, V9 `%ccr`/`%asi`, `VIS`): `p1_isa`, `p2_hello`, `p3_fpu`, `p4_threads`, `p5_dyn` (dynamic `/lib64/ld-linux.so.2` in `sparc64-sysroot` + `BusyBox`), `h1_smc` (`flush`), `h2_libc`, `h3_coremark`, `h4_cxx` (`--interp`, `--dbt`, `--difftest 0 divergences`). |
+| `s390xrt` *(local repo)* | **`PASS`** (`parity_suite.sh`, `34/0/0/0`) | z13 (`svc 0`, BFP + 128-bit Vector Facility): `p1_isa`, `p2_hello`, `p3_fpu`, `p4_threads`, `p5_dyn` (dynamic `ld-linux-s390x.so.2` + `BusyBox`), `h1_smc`, `h2_libc`, `h3_compute`, `h4_cxx` (`--interp`, `--dbt` native W^X block JIT, `--difftest 0 divergences`); full `T1`–`T4` `28/28 ALL_OK` in Alpine `s390x` rootfs. |
 
 ### 2.7 Unified runner commands, budgets & fail-closed contract
 
@@ -90,7 +92,7 @@ The gates above are driven by [`tools/run_catalogue.sh`](../tools/run_catalogue.
 | `run_catalogue.sh grind-weekly` (`make catalogue-grind-weekly`) | `W` | Weekly | Tier N plus fixed-seed Csmith/Yarpgen soak and upstream Git/coreutils/gawk/BusyBox `make check`. |
 | `run_catalogue.sh guest-payload` | `T1`–`T4` | Per sysroot | Full `T1`–`T4` suite inside the guest (see below). |
 
-Fail-closed rules: host gates exit non-zero when `--arch` matches nothing (`matched=0`), when `pass=0`, when `fail>0`, or when any `PARITY_SUMMARY` in a per-repo log reports `skip>0` (series-level Wave C2 enforcement, applies even if the repo set `PARITY_ALLOW_SKIP=1` internally; `CATALOGUE_ALLOW_SKIP=1` opts out at the series level); per-repo timeouts replace the old single `360s` wrapper and leftover `docker ps` containers fail the gate. `guest-payload` exits non-zero when `skip>0` unless `CATALOGUE_ALLOW_SKIP=1`; LuaJIT absence on `sparc32`/`sparc64`/`loongarch64`/`riscv32` is expected (`EXPECTED-SKIP`, detected via `CATALOGUE_ARCH`/`uname -m`) and never counts as skip.
+Fail-closed rules: host gates exit non-zero when `--arch` matches nothing (`matched=0`), when `pass=0`, when `fail>0`, or when any `PARITY_SUMMARY` in a per-repo log reports `skip>0` (series-level Wave C2 enforcement, applies even if the repo set `PARITY_ALLOW_SKIP=1` internally; `CATALOGUE_ALLOW_SKIP=1` opts out at the series level); per-repo timeouts replace the old single `360s` wrapper and leftover `docker ps` containers fail the gate. `guest-payload` exits non-zero when `skip>0` unless `CATALOGUE_ALLOW_SKIP=1`; LuaJIT JIT absence on `sparc*`/`riscv*`/`ppc64*`/`s390x` (detected via `CATALOGUE_ARCH`/`uname -m` in `is_luajit_expected_missing`) is expected (`EXPECTED-SKIP`) and never counts as skip.
 
 `guest-payload` `T1`–`T4` coverage (all `P2` checks from `CATALOGUE-TODO.md`): `T1` shell arithmetic, `sort | uniq -c | sed | grep`, `gawk`/`awk` aggregation, `find`, `dash` + `bash` subshell/trap, `tar`+`gzip` round-trip, `sha256sum -c`, `diff -u` exit `0` vs `1`, `#!` shebang exec, `/proc/self` inspection; `T2` `openssl enc` round-trip, `openssl dgst -sha256`, `zstd`, `xz`, `gzip`+`bzip2` `>256 KiB` odd-offset round-trips, `jq`, `sqlite3` window + `ROLLBACK`/join; `T3` Lua 5.4 coroutines, LuaJIT `jit.status()==true` with `jit.attach` trace counter and golden `675631440`, Python 3 `hashlib`/`zlib` golden plus `threading`; `T4` `git init -q -b master`, `gcc -O2` `selfhost.elf` run (`6765:1.414`), `g++ -std=c++17 -pthread` `std::thread` `selfhost_cxx.elf` run, `as`+`ld` `.s` link with exit `42`, `objdump -d`, `make -j2` jobserver build.
 
@@ -98,7 +100,7 @@ Portable Curated C11 fixtures (build and run on host and in guests): [`tests/p3_
 
 ### 2.8 Wave C2 Uniform 10-Category Guest Matrix & Uniform Guest Builds
 
-Every translator's `tests/parity_suite.sh` runs the same 10 guest categories (`--interp`, `--dbt`, and `--difftest` where single-thread/supported) plus a real-guest `aot_reload` cold-emit $\to$ warm-reload check with **`0 FAIL, 0 GAP, 0 SKIP`** (`608 PASS` total across the 10 repositories):
+Every translator's `tests/parity_suite.sh` runs the same 10 guest categories (`--interp`, `--dbt`, and `--difftest` where single-thread/supported) plus a real-guest `aot_reload` cold-emit $\to$ warm-reload check with **`0 FAIL, 0 GAP, 0 SKIP`** (`681 PASS` total across the 11 repositories):
 
 | # | Category | Guest source |
 |---|---|---|
@@ -119,21 +121,48 @@ Every translator's `tests/parity_suite.sh` runs the same 10 guest categories (`-
 | **`i686rt`** | `i686` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`41 / 0 / 0 / 0`** |
 | **`mips32rt`** | `mipsel` (O32 LE) + `mips` (O32 BE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`142 / 0 / 0 / 0`** |
 | **`ppc32rt`** | `ppc32` (`750` classic + `e500v2` SPE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`106 / 0 / 0 / 0`** |
-| **`sparc32rt`** | `sparcv8` (`LEON3/4` BE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`30 / 0 / 0 / 0`** |
+| **`sparc32rt`** | `sparcv8` (`LEON3/4` BE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`31 / 0 / 0 / 0`** |
 | **`rvrt`** | `riscv64` (`lp64d`) + `riscv32` (`ilp32d`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`68 / 0 / 0 / 0`** |
 | **`loongarch64rt`** | `loongarch64` (`LP64D`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`53 / 0 / 0 / 0`** |
-| **`ppc64rt`** | `ppc64le` (`ELFv2` Power10) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`35 / 0 / 0 / 0`** |
-| **`mips64rt`** | `n64le`, `n64be`, `n32le`, `n32be` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`56 / 0 / 0 / 0`** |
+| **`ppc64rt`** | `ppc64le` (`ELFv2` Power10) + `ppc64` (BE `ELFv1` `.opd`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`70 / 0 / 0 / 0`** |
+| **`mips64rt`** | `n64le`, `n64be`, `n32le`, `n32be` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`59 / 0 / 0 / 0`** |
 | **`sparc64rt`** | `sparc64` (SPARC V9 BE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`32 / 0 / 0 / 0`** |
+| `s390xrt` *(local)* | `s390x` (z13 BE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **`34 / 0 / 0 / 0`** |
 
-The two shared torture sources are prebuilt for all 14 guest ABIs by [`tools/build_uniform_guests.sh`](../tools/build_uniform_guests.sh) into `_build/uniform/<abi>/{p3_torture,smoke_tcg}` (`armhf`, `armel`, `i686`, `mipsel`, `mips`, `ppc32`, `sparc32`, `riscv64`, `riscv32`, `loongarch64`, `ppc64le`, `mips64el`, `mips64eb`, `sparc64`; one bounded `timeout --kill-after=30s 180s docker run --rm --name c2-uniform-<abi>-23194` per ABI; Debian trixie cross toolchains for `arm`/`i686`/`mips`/`ppc32`/`riscv64`, cached `<arch>rt` images for `loongarch64`/`ppc64le`/`mips64`/`sparc`, musl.cc `riscv32` under emulated `amd64` since `riscv32` has no glibc port). `run_catalogue.sh qualify` fails when any of the 28 binaries is missing, and both `smoke` and `qualify` fail when any per-repo `PARITY_SUMMARY` reports `skip>0` unless `CATALOGUE_ALLOW_SKIP=1`.
+The two shared torture sources are prebuilt for all 16 guest ABIs by [`tools/build_uniform_guests.sh`](../tools/build_uniform_guests.sh) into `_build/uniform/<abi>/{p3_torture,smoke_tcg}` (`armhf`, `armel`, `i686`, `mipsel`, `mips`, `ppc32`, `sparc32`, `riscv64`, `riscv32`, `loongarch64`, `ppc64le`, `ppc64`, `mips64el`, `mips64eb`, `sparc64`, `s390x`; one bounded `timeout --kill-after=30s 180s docker run --rm --name c2-uniform-<abi>-23194` per ABI; Debian trixie cross toolchains for `arm`/`i686`/`mips`/`ppc32`/`ppc64`/`riscv64`/`s390x`, cached `<arch>rt` images for `loongarch64`/`ppc64le`/`mips64`/`sparc`, musl.cc `riscv32` under emulated `amd64` since `riscv32` has no glibc port). `run_catalogue.sh qualify` fails when any of the 32 binaries is missing, and both `smoke` and `qualify` fail when any per-repo `PARITY_SUMMARY` reports `skip>0` unless `CATALOGUE_ALLOW_SKIP=1`.
+
+### 2.9 Full `T1`–`T4` Per-Software Qualification Matrix Across All 11 Translators
+
+The `guest-payload` suite runs the same 29 checks inside every translator's sysroot — `T1` (10): shell arithmetic, `sort | uniq -c | sed | grep`, `awk` aggregation, `find` traversal, `dash` + `bash` subshell/trap, `tar`+`gzip` round-trip, `sha256sum -c`, `diff -u` exit codes, `#!` shebang exec, `/proc/self` inspection; `T2` (8): `openssl enc` + `dgst -sha256`, `zstd`, `xz`, `gzip`+`bzip2` `>256 KiB` odd-offset round-trips, `jq`, `sqlite3` window + `ROLLBACK`/join; `T3` (4): `lua5.4` coroutines, `luajit` JIT traces (or interp golden `675631440` as `EXPECTED-SKIP`), `python3` `hashlib`/`zlib` golden, `python3` threading; `T4` (7): `git` init/commit/log, `gcc` selfhost build + `strip` + run (`6765:1.414`), `g++ -std=c++17` `std::thread` selfhost, `as`+`ld` mini link (exit `42`), `objdump -d`, `make -j2` jobserver build:
+
+| Translator | `guest-payload` | `skip` | `expected_skip` | Sysroot used for `T1`–`T4` |
+|---|---|---:|---:|---|
+| `a32rt` | **`29 / 29 ALL_OK`** (incl. `luajit` JIT traces) | `0` | `0` | Alpine 3.21 `armhf` |
+| `i686rt` | **`29 / 29 ALL_OK`** (incl. `luajit` JIT traces) | `0` | `0` | Alpine 3.21 `x86` (`i686`) |
+| `mips32rt` | **`29 / 29 ALL_OK`** (incl. `luajit` JIT traces) | `0` | `0` | Debian 12 `mipsel` |
+| `ppc32rt` | **`29 / 29 ALL_OK`** (incl. `luajit` interp/JIT) | `0` | `0` | Debian Ports `powerpc` |
+| `sparc32rt` | *qualified via `31/0/0/0` 10-category `parity_suite.sh` (no post-2013 upstream modern 32-bit SPARC distro userland; embedded `sparc32-sysroot` `glibc`)* | — | — | Embedded `sparc32-sysroot` (`glibc`) |
+| `rvrt` | **`28 / 28 ALL_OK`** | `0` | `1` (`luajit`) | Alpine 3.21 `riscv64` |
+| `loongarch64rt` | **`29 / 29 ALL_OK`** (incl. `luajit` LA64 JIT traces) | `0` | `0` | Alpine 3.21 `loongarch64` |
+| `ppc64rt` | **`28 / 28 ALL_OK`** | `0` | `1` (`luajit` interp `675631440` ok) | Alpine 3.21 `ppc64le` |
+| `mips64rt` | **`29 / 29 ALL_OK`** (incl. `luajit` MIPS64 JIT traces) | `0` | `0` | Debian 12 `mips64el` |
+| `sparc64rt` | **`28 / 28 ALL_OK`** | `0` | `1` (`luajit`) | Debian Ports `sparc64` |
+| `s390xrt` | **`28 / 28 ALL_OK`** | `0` | `1` (`luajit`) | Alpine 3.21 `s390x` |
+
+Why `T1`–`T4` originally ran only on `a32rt`, and what Round 22 remediated across the other 10 translators:
+
+1. **Multi-gigabyte foreign-arch sysroot provisioning** — each non-ARM translator needed its own Alpine 3.21 / Debian 12/Ports rootfs staged in `_build/t14-rootfs`, plus upstream SPARC32 userland retired after Debian `wheezy` (2013), so `sparc32rt` stays qualified via its `31/0/0/0` 10-category parity suite.
+2. **Multi-process fidelity** — `fork`/`vfork`/`clone`/`execve`/`wait4`, virtual PIDs, fd tables, and `/proc/self/fd/<n>` had to be exact before `bash`, `tar`, `git`, the `gcc`/`g++` driver, and `make -j2` jobserver pipes could survive inside a guest.
+3. **Modern `time64`/`statx`/`fcntl64` and `SA_RESTART` semantics** — current musl/glibc 32-bit userlands need `utimensat_time64`, `pselect6_time64`, `F_DUPFD_CLOEXEC`, and signal-restart behavior the early translators stubbed out.
+4. **SMC/W^X write-gates, 64K IBTC/Soft-TLB scaling, and vector catch-up** — nested `luajit` JITs and self-hosting `cc1plus` C++17 `std::thread` builds only pass once guest JIT pages trap, invalidate, and retranslate correctly at scale.
+5. **`s390xrt` from single-process to full OS** — promoted from a single-process + C-helper DBT to full multi-process/multi-thread `fork`/`execve`/`wait4` with a native AArch64 W^X block JIT, unlocking its `28/28` Alpine `s390x` run.
 
 ---
 
 ## 3. Unified 4-Target Benchmark Harness (`bench_suite.c` + `tools/bench_harness.sh`)
 
 ### 3.1 Five Deterministic Workloads ([`tests/bench_suite.c`](../tests/bench_suite.c))
-Compiled from a single Curated C11 source file across all 11 guest architectures (plus `aarch64` and `x86_64` baselines):
+Compiled from a single Curated C11 source file across all 13 Linux ELF guest targets (plus `aarch64` and `x86_64` baselines):
 
 | Workload | Full Mode (`--full`, 1 warmup + 4 timed trials) | Smoke Mode (`--smoke`, 1 trial, fast gate) | Expected Full CRC | Expected Smoke CRC | What It Measures |
 |---|---|---|---|---|---|
@@ -180,9 +209,9 @@ tools/bench_harness.sh run --target all      # Run full 4-target matrix on calm 
 
 ---
 
-### 3.5 Measured 68-Cell Full Benchmark Results on `aarch64-darwin-5.lan` (`--full`)
+### 3.5 Measured 80-Cell Full Benchmark Results on `aarch64-darwin-5.lan` (`--full`)
 
-All 68 cells across all 4 targets (`darwin`, `hl`, `linux`, `qemu`), both engines (`dbt`, `interp`), and all 11 guest architectures (plus `native-darwin` and `native-linux` baselines) passed with `ALL_PASS` (`100%` CRC match across all 5 workloads) in both `--smoke` ([`bench/results-darwin5-smoke.tsv`](bench/results-darwin5-smoke.tsv)) and `--full` ([`bench/results-darwin5-full.tsv`](bench/results-darwin5-full.tsv)) modes on `aarch64-darwin-5.lan` (Apple M1, macOS `26.6.2` `25G83` + Lima `--vm-type=vz` `aarch64-linux` 6.8.0-106).
+All 80 cells across all 4 targets (`darwin`, `hl`, `linux`, `qemu`), both engines (`dbt`, `interp`), and all 13 Linux ELF guest targets (plus `native-darwin` and `native-linux` baselines) passed with `ALL_PASS` (`100%` CRC match across all 5 workloads) in both `--smoke` ([`bench/results-darwin5-smoke.tsv`](bench/results-darwin5-smoke.tsv)) and `--full` ([`bench/results-darwin5-full.tsv`](bench/results-darwin5-full.tsv)) modes on `aarch64-darwin-5.lan` (Apple M1, macOS `26.6.2` `25G83` + Lima `--vm-type=vz` `aarch64-linux` 6.8.0-106). The `ppc64` BE ELFv1 and `s390x` rows are Round 22 re-measurements (see [`PERF.md`](PERF.md) §5); the other 11 rows carry forward the converged baselines.
 
 #### A. Native & Rosetta 2 Host Baselines (`--full`, microseconds `us`, 1 warmup + 4 timed trials)
 
@@ -207,8 +236,10 @@ All 68 cells across all 4 targets (`darwin`, `hl`, `linux`, `qemu`), both engine
 | **`rvrt`** | `riscv32` | **24,601** | **38,458** | **25,050** | 5,073,356 | 3,521,173 | 67,677 | 26,932 | **2.75x vs macOS QEMU / 1.09x vs Linux QEMU** |
 | **`loongarch64rt`** | `loongarch64` | **29,627** | **43,097** | **29,926** | 2,927,333 | 2,386,382 | 47,646 | 42,824 | **1.61x vs macOS QEMU / 1.43x vs Linux QEMU** |
 | **`ppc64rt`** | `ppc64le` | **30,332** | **44,841** | **30,463** | 4,284,855 | 7,049,949 | 83,619 | 67,990 | **2.76x vs macOS QEMU / 2.23x vs Linux QEMU** |
+| **`ppc64rt`** | `ppc64` BE ELFv1 | **49,974** | **73,737** | **48,195** | 12,587,556 | 7,173,020 | 68,920 | 101,013 | **1.43x vs calm ref / 2.10x vs same-run QEMU** |
 | **`mips64rt`** | `mips64el` | **23,767** | **55,504** | **25,224** | 1,425,215 | 1,894,759 | 45,672 | 42,720 | **1.92x vs macOS QEMU / 1.80x vs Linux QEMU** |
 | **`sparc64rt`** | `sparc64` | **48,933** | **60,409** | **50,317** | 10,651,648 | 6,298,132 | 96,659 | 68,951 | **1.98x vs macOS QEMU / 1.37x vs Linux QEMU** |
+| `s390xrt` | `s390x` | **54,196** | **73,800** | **37,578** | 2,748,657 | 2,236,349 | — | 88,818 | **2.36x vs Linux QEMU** |
 
 #### C. Complete 68-Cell Breakdown by Workload (`--full`, microseconds `us`)
 
@@ -226,8 +257,10 @@ All 68 cells across all 4 targets (`darwin`, `hl`, `linux`, `qemu`), both engine
 | `darwin` | `riscv32` | `dbt` | 5,090 | 2,626 | 8,736 | 7,533 | 616 | 24,601 | `ALL_PASS` |
 | `darwin` | `loongarch64` | `dbt` | 5,984 | 1,986 | 12,999 | 8,080 | 578 | 29,627 | `ALL_PASS` |
 | `darwin` | `ppc64le` | `dbt` | 10,149 | 1,800 | 3,222 | 14,588 | 573 | 30,332 | `ALL_PASS` |
+| `darwin` | `ppc64` BE ELFv1 | `dbt` | 13,280 | 3,872 | 15,554 | 16,835 | 433 | 49,974 | `ALL_PASS` |
 | `darwin` | `mips64el` | `dbt` | 7,137 | 2,479 | 3,395 | 10,084 | 672 | 23,767 | `ALL_PASS` |
 | `darwin` | `sparc64` | `dbt` | 10,631 | 3,766 | 15,827 | 18,365 | 344 | 48,933 | `ALL_PASS` |
+| `darwin` | `s390x` | `dbt` | 9,112 | 29,449 | 6,307 | 8,811 | 517 | 54,196 | `ALL_PASS` |
 | `darwin` | `armhf` | `interp` | 134,168 | 192,217 | 39,663 | 205,168 | 641 | 571,857 | `ALL_PASS` |
 | `darwin` | `i686` | `interp` | 235,024 | 402,880 | 172,174 | 363,003 | 1,038 | 1,174,119 | `ALL_PASS` |
 | `darwin` | `mipsel` | `interp` | 126,514 | 140,392 | 119,947 | 315,460 | 709 | 703,022 | `ALL_PASS` |
@@ -259,8 +292,10 @@ All 68 cells across all 4 targets (`darwin`, `hl`, `linux`, `qemu`), both engine
 | `linux` | `riscv32` | `dbt` | 5,096 | 2,654 | 8,742 | 7,562 | 996 | 25,050 | `ALL_PASS` |
 | `linux` | `loongarch64` | `dbt` | 5,984 | 1,987 | 13,015 | 7,948 | 992 | 29,926 | `ALL_PASS` |
 | `linux` | `ppc64le` | `dbt` | 9,987 | 1,794 | 3,210 | 14,410 | 1,062 | 30,463 | `ALL_PASS` |
+| `linux` | `ppc64` BE ELFv1 | `dbt` | 12,835 | 3,691 | 13,556 | 16,474 | 1,066 | 48,195 | `ALL_PASS` |
 | `linux` | `mips64el` | `dbt` | 7,146 | 2,479 | 3,371 | 10,077 | 2,151 | 25,224 | `ALL_PASS` |
 | `linux` | `sparc64` | `dbt` | 10,639 | 3,768 | 15,864 | 19,247 | 799 | 50,317 | `ALL_PASS` |
+| `linux` | `s390x` | `dbt` | 5,568 | 18,895 | 4,515 | 7,650 | 950 | 37,578 | `ALL_PASS` |
 | `linux` | `armhf` | `interp` | 126,870 | 192,597 | 37,909 | 211,777 | 1,129 | 570,282 | `ALL_PASS` |
 | `linux` | `i686` | `interp` | 278,769 | 454,923 | 200,017 | 446,166 | 1,284 | 1,381,159 | `ALL_PASS` |
 | `linux` | `mipsel` | `interp` | 158,834 | 155,169 | 150,692 | 392,400 | 1,387 | 858,482 | `ALL_PASS` |

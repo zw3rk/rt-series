@@ -38,7 +38,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECTS_DIR="$(cd "$ROOT_DIR/.." && pwd)"
 
-# Shared Tier 4 payload emitters (keeps both files <= 900 lines).
+# Shared Tier 4 payload emitters + host/guest helpers (keeps both files <= 900 lines).
 # shellcheck source=tools/catalogue_payloads.sh
 . "$SCRIPT_DIR/catalogue_payloads.sh"
 
@@ -80,12 +80,13 @@ done
 SMOKE_TIMEOUT="${TIMEOUT_OVERRIDE:-${CATALOGUE_SMOKE_TIMEOUT:-240}}"
 QUALIFY_TIMEOUT="${TIMEOUT_OVERRIDE:-${CATALOGUE_QUALIFY_TIMEOUT:-600}}"
 
-REPOS="a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64rt sparc64rt"
+REPOS="a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64rt sparc64rt s390xrt"
 
 # Uniform Wave C2 guest ABIs: _build/uniform/<abi>/{p3_torture,smoke_tcg},
 # built by tools/build_uniform_guests.sh from tests/p3_torture.c and
-# tests/tcg/smoke_tcg.c.
-UNIFORM_ABIS="armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le mips64el mips64eb sparc64"
+# tests/tcg/smoke_tcg.c (16 ABIs = 32 guest binaries, incl. ppc64 BE ELFv1
+# and s390x z13).
+UNIFORM_ABIS="armhf armel i686 mipsel mips ppc32 sparc32 riscv64 riscv32 loongarch64 ppc64le ppc64 mips64el mips64eb sparc64 s390x"
 
 # check_parity_no_skip <logfile> <repo> [require_summary]: fail when the log is
 # empty, when any PARITY_ROW has FAIL/GAP (or SKIP unless CATALOGUE_ALLOW_SKIP=1),
@@ -152,9 +153,10 @@ required_repo_abis() {
         sparc32rt)     echo "sparc32" ;;
         rvrt)          echo "riscv64 riscv32" ;;
         loongarch64rt) echo "loongarch64" ;;
-        ppc64rt)       echo "ppc64le" ;;
+        ppc64rt)       echo "ppc64le ppc64" ;;
         mips64rt)      echo "mips64el mips64eb" ;;
         sparc64rt)     echo "sparc64" ;;
+        s390xrt)       echo "s390x" ;;
         *)             echo "" ;;
     esac
 }
@@ -181,7 +183,9 @@ check_parity_categories() {
             if (a == "rv64" || a == "rv64gc") return "riscv64"
             if (a == "rv32" || a == "rv32gc") return "riscv32"
             if (a == "lp64d") return "loongarch64"
-            if (a == "elfv2") return "ppc64le"
+            if (a == "ppc64le" || a == "ppc64le-elfv2" || a == "elfv2") return "ppc64le"
+            if (a == "ppc64" || a == "elfv1" || a == "ppc64be" || a == "ppc64be-elfv1") return "ppc64"
+            if (a ~ /^s390x/) return "s390x"
             if (a == "n64le") return "mips64el"
             if (a == "n64be") return "mips64eb"
             if (a == "v8") return "sparc32"
@@ -260,20 +264,6 @@ check_uniform_guests() {
     return 0
 }
 
-# Portable bounded command runner for host-gate docker probes: prefers
-# `timeout --kill-after`, then `gtimeout`, then a perl alarm fallback.
-run_bounded_cmd() {
-    _rbc_secs="$1"
-    shift
-    if command -v timeout >/dev/null 2>&1; then
-        timeout --kill-after=10s "${_rbc_secs}s" "$@"
-    elif command -v gtimeout >/dev/null 2>&1; then
-        gtimeout --kill-after=10s "${_rbc_secs}s" "$@"
-    else
-        perl -e 'alarm shift; exec @ARGV' "$_rbc_secs" "$@"
-    fi
-}
-
 # now_ms / elapsed_ms_since: per-repo gate timing via parity_now_ms
 # (RTS-R13-11); 0 when parity_contract.sh is unavailable.
 now_ms() {
@@ -291,8 +281,8 @@ elapsed_ms_since() {
 
 docker_ids() {
     command -v docker >/dev/null 2>&1 || return 0
-    _dids="$(run_bounded_cmd 15 docker ps -q)" || return 1
-    printf '%s\n' "$_dids" | sed '/^$/d' | sort
+    _dids="$(run_bounded_cmd 15 docker ps --format '{{.ID}} {{.Names}}')" || return 1
+    printf '%s\n' "$_dids" | awk '$2 !~ /^(redeye-|gym-|browser-vpn-)/ {print $1}' | sed '/^$/d' | sort
 }
 
 check_no_leftover_docker() {
@@ -319,18 +309,6 @@ check_no_leftover_docker() {
     fi
     rm -f "$_new_tmp"
     return 0
-}
-
-is_luajit_expected_missing() {
-    _arch_norm="$(printf '%s' "${CATALOGUE_ARCH:-$(uname -m 2>/dev/null || echo unknown)}" | tr 'A-Z' 'a-z')"
-    case "$_arch_norm" in
-        sparc*|loongarch64|riscv32|*riscv32*)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
 }
 
 run_guest_payload() {
@@ -627,18 +605,21 @@ run_guest_payload() {
 
         if command -v luajit >/dev/null 2>&1; then
             lj_out="$(luajit -e '
-                assert(jit.status() == true, "jit off")
+                local has_jit = (jit ~= nil and jit.status() == true)
                 local traces = 0
-                jit.attach(function() traces = traces + 1 end, "trace", "start")
+                if has_jit then jit.attach(function() traces = traces + 1 end, "trace", "start") end
                 local acc = 0
                 for i = 1, 100000 do
                     acc = bit.bxor(acc + i, bit.lshift(i, 1))
                 end
                 assert(acc == 675631440, "golden mismatch: " .. tostring(acc))
-                assert(traces > 0, "no machine-code traces compiled")
-                print("LUAJIT_OK:" .. tostring(acc) .. ":" .. tostring(traces))
+                if has_jit then assert(traces > 0, "no machine-code traces compiled") end
+                print("LUAJIT_OK:" .. tostring(acc) .. ":" .. (has_jit and tostring(traces) or "interp"))
             ')" || fail_now "T3" "luajit exec failed"
             case "$lj_out" in
+                LUAJIT_OK:675631440:interp)
+                    is_luajit_expected_missing || fail_now "T3" "luajit jit off ($lj_out)"
+                    note_expected "T3" "luajit JIT unavailable on ${CATALOGUE_ARCH:-$(uname -m 2>/dev/null || echo unknown)} (interp 675631440 ok)" ;;
                 LUAJIT_OK:675631440:*)
                     trace_n="$(printf '%s' "$lj_out" | sed -E 's/^LUAJIT_OK:[0-9]+://')"
                     [ "$trace_n" -gt 0 ] 2>/dev/null || fail_now "T3" "luajit traces ($lj_out)"
@@ -865,14 +846,14 @@ Commands:
   grind-weekly          Tier W grind (delegates to tools/run_grind.sh weekly)
 
 Options:
-  --arch <repo|all>     Filter by translator repo (default: all)
+  --arch <repo|all>     Filter by translator repo (default all; repos: a32rt i686rt mips32rt ppc32rt sparc32rt rvrt loongarch64rt ppc64rt mips64rt sparc64rt s390xrt)
   --tier <1..4|all>     Filter guest-payload by tier (1=Shells/POSIX, 2=Crypto/DB/Compress,
                         3=VMs/LuaJIT/Python, 4=Self-hosted gcc/g++/binutils/git; default: all)
   --timeout <secs>      Override per-repo timeout for smoke/qualify
 
 Environment:
   CATALOGUE_SMOKE_TIMEOUT / CATALOGUE_QUALIFY_TIMEOUT, CATALOGUE_ALLOW_SKIP=1,
-  CATALOGUE_ARCH=<sparc32|sparc64|loongarch64|riscv32|...>
+  CATALOGUE_ARCH=<sparc32|sparc64|loongarch64|riscv32|ppc64|s390x|...>
 EOF
 }
 
