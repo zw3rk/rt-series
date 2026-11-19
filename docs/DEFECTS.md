@@ -51,7 +51,7 @@ in the archive:
 | [ppc64rt](https://github.com/zw3rk/ppc64rt) | `b37b021` | `33 / 33` | R22 `70/0/0/0` (ELFv2 + BE ELFv1) + `T1`–`T4` `28/28 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [mips64rt](https://github.com/zw3rk/mips64rt) | `9371083` | `18 / 18` | R22 `59/0/0/0` + `T1`–`T4` `29/29 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | [sparc64rt](https://github.com/zw3rk/sparc64rt) | `0100cc5` | `26 / 26` | R22 `32/0/0/0` + `T1`–`T4` `28/28 ALL_OK`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
-| `s390xrt` *(local)* | `bf83c16` | `21 / 21` | R22 `34/0/0/0` + `T1`–`T4` `28/28 ALL_OK` (Alpine `s390x`), native W^X block JIT Linux DBT `37,578 µs`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
+| [s390xrt](https://github.com/zw3rk/s390xrt) | `bf83c16` | `21 / 21` | R22 `34/0/0/0` + `T1`–`T4` `28/28 ALL_OK` (Alpine `s390x`), native W^X block JIT Linux DBT `37,578 µs`, `--difftest` 0 divergences, `--full` bench `ALL_PASS` |
 | `hyper-linux` (`darwin32`) | `b8cc19a0` | `3 / 3` | `1,376/1,376` host unit checks, `test-darwin32-os-srv` (`92/92`), live HVF PPC32 (`rc=37`) & ARM32 slim (`rc=42`) PASS |
 | [rt-series](https://github.com/zw3rk/rt-series) | umbrella harness | `20 / 20` | `make check && make check-catalogue` PASS |
 | **Total, Rounds 13–22** | | **`311 / 311`** | **100% verified, `0` open** |

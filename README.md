@@ -99,7 +99,7 @@ flowchart LR
 | Power ISA 64-bit (`ppc64le` ELFv2 & `ppc64` BE ELFv1) | Class B | [ppc64rt](https://github.com/zw3rk/ppc64rt) | POWER9 (Talos II), IBM POWER7/Power11 | Little-endian `ppc64le` ELFv2 **and** big-endian `ppc64` ELFv1 (`.opd` function descriptors) with VMX/VSX. |
 | MIPS64 (`mips64el` / `mips64`, N64 & N32) | Class B | [mips64rt](https://github.com/zw3rk/mips64rt) | Loongson 3A3000, Cavium Octeon III | Older Loongson systems and Octeon network-processor userspace. |
 | SPARC V9 (`sparc64`) | Class B | [sparc64rt](https://github.com/zw3rk/sparc64rt) | Oracle SPARC M8, Fujitsu SPARC64 XII | 64-bit SPARC V9 Linux userspace (stack bias 2047, quad FP, VIS). |
-| IBM z/Architecture 64-bit (`s390x`, z13) | Class B | `s390xrt` *(local repo)* | IBM z13, LinuxONE | 64-bit big-endian `EM_S390` Linux userspace (2/4/6-byte variable-length ISA, BFP + 128-bit Vector Facility). |
+| IBM z/Architecture 64-bit (`s390x`, z13) | Class B | [s390xrt](https://github.com/zw3rk/s390xrt) | IBM z13, LinuxONE | 64-bit big-endian `EM_S390` Linux userspace (2/4/6-byte variable-length ISA, BFP + 128-bit Vector Facility). |
 
 All 11 translators are qualified with `0` open defects; see
 [`docs/FEATURE-MATRIX.md`](docs/FEATURE-MATRIX.md) and
